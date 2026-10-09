@@ -93,7 +93,7 @@ npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/Federatio
 
 最后一个命令需在 Windows上执行，检查真实 exe 的事务处理、存档与重启读档。可选 Linux桌面打包使用 `npm run build && node --use-env-proxy scripts/pack-desktop.mjs linux x64`，但不是默认发布目标。
 
-GitHub Actions 配置在 `.github/workflows/release.yml`。推送与 package.json 版本一致的 `v0.1.0` 标签后，Windows runner 会测试、打包、对真实 exe 做烟测，再发布 GitHub Release 并附带下载文件。手动运行工作流只产生 Actions 下载产物，不发布 Release。工作流使用 GitHub自带临时 token，不需要个人密钥。
+GitHub Actions 配置在 `.github/workflows/release.yml`。推送与 package.json 版本一致的 `v0.1.0` 标签后，Windows runner 会测试、打包、对真实 exe 做烟测，再发布 GitHub Release 并附带下载文件。如果标签推送未自动触发，可打开仓库 Actions → Build and publish downloadable game → Run workflow，保持分支 main，填写已有版本标签 v0.1.0；工作流会检出该标签、验证并发布同一版本。工作流使用 GitHub自带临时 token，不需要个人密钥。
 
 默认发行仓库：`wcj0432-dev/AntiConstructBoardGame`。发布命令（仅在所有检查通过且准备发布时执行）：
 
@@ -102,3 +102,7 @@ git push origin main
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+## 当前可直接下载的离线包
+
+[下载离线浏览器版 v0.1.0](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.1.0-Offline.zip)。完整解压后双击 `诸界联邦.html`。Windows.exe 便携版由上述发布工作流验证并上传到 Releases；仅存在标签页面不代表 exe 附件已发布。
