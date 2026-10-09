@@ -1,0 +1,50 @@
+name: Build and publish downloadable game
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify game rules
+        run: npm test
+      - name: Package Windows and offline editions
+        run: npm run release:pack
+      - name: Run the packaged Windows executable
+        run: npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
+      - name: Store build downloads
+        uses: actions/upload-artifact@v4
+        with:
+          name: Federation-of-Worlds-downloads
+          path: |
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Verify release tag matches application version
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node -e "if (process.env.RELEASE_TAG !== 'v' + require('./package.json').version) process.exit(1)"
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REPO: ${{ github.repository }}
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem artifacts/*.zip | ForEach-Object { $_.FullName }
+          gh release create $env:RELEASE_TAG --repo $env:RELEASE_REPO --verify-tag --title "诸界联邦 $env:RELEASE_TAG" --notes-file RELEASE_NOTES.md @assets artifacts/SHA256SUMS.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
