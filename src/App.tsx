@@ -1,16 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
-  Activity,
   ArrowRight,
   BookOpen,
   Check,
-  Coins,
   Flag,
   Globe2,
   Landmark,
   Layers,
   Save,
-  Shield,
   Sparkles,
   Users,
   X,
@@ -19,6 +16,14 @@ import {
   ScrollText,
   MapPin,
   Download,
+  Menu,
+  Factory,
+  Target,
+  Bell,
+  History as HistoryIcon,
+  Settings,
+  Play,
+  ChevronRight,
 } from "lucide-react";
 import { coreAbilities, goals, plansFor, regimes, capNames } from "./v2/data";
 import {
@@ -46,37 +51,127 @@ import {
 } from "./data";
 import type { Action, Goal, Mode, Regime, V2Game } from "./v2/model";
 import type { Issue, ProvinceId } from "./types";
-import "./v2/style.css";
+import { PanelFrame } from "./ui/PanelFrame";
+import { GameMap } from "./ui/GameMap";
+import "./ui/command.css";
+type Panel =
+  | "staff"
+  | "reform"
+  | "policy"
+  | "help"
+  | "central"
+  | "economy"
+  | "goals"
+  | "matters"
+  | "local"
+  | "history"
+  | "settings"
+  | "pause";
+const titles: Record<Panel, string> = {
+  staff: "人事管理",
+  reform: "政策改革",
+  policy: "全国政策",
+  help: "规则与操作帮助",
+  central: "中央政府",
+  economy: "经济建设",
+  goals: "国家目标",
+  matters: "国家事务",
+  local: "地方档案",
+  history: "因果历史",
+  settings: "设置",
+  pause: "暂停菜单",
+};
+const departmentNames: Record<V2Game["machine"]["department"], string> = {
+  none: "暂无全国部门改革",
+  anomaly: "全国异常垂直主责",
+  evacuation: "各省独立疏散权",
+  transport: "中央跨省运输体系",
+};
 const lessons = [
   {
     title: "01 · 人物不是数值工具",
-    body: "打开人事，任命星野澪为南岭省负责人。比较普通预防检修与「群众参与巡检」：后者只有人物、公开路线与组织资格都满足才可发动。",
+    body: "任命星野澪为南岭负责人，再执行群众参与预防巡检。",
+    panel: "staff" as Panel,
   },
   {
     title: "02 · 先确定谁能参与",
-    body: "本次事故要求明确临时指挥关系。点击授权，让南岭省政府主持并邀请中央协办。公开救援与秘密封印会因实际负责人和参与资格出现不同的受阻原因。",
+    body: "为事故授权：南岭主持、中央协办，再公开救援。",
+    panel: "reform" as Panel,
   },
   {
     title: "03 · 看清财政承诺",
-    body: "财政先支出4，再获得收入5。工程、制度维护与部门预算增加持续支出；点击「核对财政预测」，然后查看由实际事故处置生成的后续局势。",
+    body: "核对收入、固定支出和施工承诺，再确认财政预测。",
+    panel: "economy" as Panel,
   },
   {
     title: "04 · 你的决定改变下一场危机",
-    body: "处理能源配给或地方说明诉求。详情中的因果来源会链接到你刚刚的处置；授权、政策、人物变更可以继续改变行动资格。",
+    body: "处理真实救援路径产生的能源配给争议，查看来源。",
+    panel: "matters" as Panel,
   },
   {
     title: "教学完成",
-    body: "你已实际体验人物资格、指挥关系、财政和后续局势。可以继续完成4回合，也可以新开8回合国家目标模式。",
+    body: "可以继续四回合战役，也可以返回主菜单选择国家目标。",
+    panel: "goals" as Panel,
   },
 ];
+function savedGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_V2);
+    return raw ? deserializeV2(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function hasGuideChoice() {
+  try {
+    return !!localStorage.getItem("federation-guide-choice");
+  } catch {
+    return false;
+  }
+}
+function readSettings() {
+  try {
+    const p = JSON.parse(localStorage.getItem("federation-ui") || "{}");
+    return {
+      scale: [100, 110, 125, 150].includes(p.scale) ? p.scale : 100,
+      hints: p.hints !== false,
+    };
+  } catch {
+    return { scale: 100, hints: true };
+  }
+}
+function ResourceTip({
+  label,
+  value,
+  children,
+  onClick,
+}: {
+  label: string;
+  value: ReactNode;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <div className="resource-tip">
+      <button onClick={onClick}>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </button>
+      <div role="tooltip">{children}</div>
+    </div>
+  );
+}
 export default function App() {
-  const [g, setG] = useState<V2Game>(() => newV2("tutorial"));
+  const [g, setG] = useState<V2Game>(() => newV2("campaign"));
+  const [screen, setScreen] = useState<"menu" | "setup" | "game">("menu");
+  const [saved, setSaved] = useState<V2Game | null>(savedGame);
+  const [ui, setUi] = useState(readSettings);
   const [selected, setSelected] = useState<ProvinceId>("south");
+  const [district, setDistrict] = useState(0);
   const [action, setAction] = useState<Action | null>(null);
   const [confirmedPreview, setConfirmedPreview] = useState(false);
-  const [modal, setModal] = useState<
-    "new" | "staff" | "reform" | "policy" | "help" | null
-  >(null);
+  const [modal, setModal] = useState<Panel | null>(null);
+  const [backPanel, setBackPanel] = useState<Panel | null>(null);
   const [notice, setNotice] = useState("");
   const [reportOpen, setReportOpen] = useState(true);
   const [mode, setMode] = useState<Mode>("campaign");
@@ -85,29 +180,51 @@ export default function App() {
   const [office, setOffice] = useState("gov-south");
   const [person, setPerson] = useState("xing");
   const [issue, setIssue] = useState<Issue>("disclosure");
-  const [tab, setTab] = useState<"matters" | "history">("matters");
   const [authorizationMatter, setAuthorizationMatter] = useState("");
   const [lead, setLead] = useState("gov-south");
   const [joint, setJoint] = useState(true);
   const [emergency, setEmergency] = useState(false);
+  const [focusedMatter, setFocusedMatter] = useState<string | null>(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [guideChoice, setGuideChoice] = useState(false);
   const s = g.core,
     m = g.machine,
     f = finance(g),
-    playing = s.status === "playing";
-  const v = action ? previewAction(g, action) : null;
-  const local = s.provinces.find((p) => p.id === selected)!;
-  const target = milestones(g);
+    playing = s.status === "playing",
+    v = action ? previewAction(g, action) : null,
+    local = s.provinces.find((p) => p.id === selected)!,
+    target = milestones(g);
+  function open(p: Panel) {
+    setAction(null);
+    setModal(p);
+    if (p === "matters") setFocusedMatter(null);
+    if (
+      p === "reform" &&
+      !m.matters.some((x) => x.id === authorizationMatter)
+    ) {
+      const first = m.matters[0];
+      setAuthorizationMatter(first?.id || "");
+      setLead(first ? `gov-${first.province}` : "gov-south");
+      setEmergency(false);
+    }
+  }
   function choose(a: Action) {
+    if (!action) setBackPanel(modal);
     setAction(a);
     setConfirmedPreview(false);
     setModal(null);
+  }
+  function closeAction() {
+    setAction(null);
+    setModal(backPanel);
   }
   function perform() {
     if (!action) return;
     try {
       setG(executeAction(g, action));
       setAction(null);
-      setNotice("决策已执行，实际条件与后果已写入因果历史。");
+      setModal(action.type === "end" ? null : backPanel);
+      setNotice("决策已执行，后果已记入真实因果历史。");
     } catch (e) {
       setNotice((e as Error).message);
     }
@@ -115,7 +232,8 @@ export default function App() {
   function store() {
     try {
       localStorage.setItem(SAVE_V2, serializeV2(g));
-      setNotice("v0.2完整存档已保存，包括制度过渡、工程与因果关系。");
+      setSaved(g);
+      setNotice("完整存档已保存。");
     } catch {
       setNotice("浏览器拒绝写入存档，请检查存储权限。");
     }
@@ -126,913 +244,406 @@ export default function App() {
         localStorage.getItem(SAVE_V2) ||
         localStorage.getItem("federation-worlds-v1");
       if (!raw) throw new Error("没有本地存档");
-      setG(deserializeV2(raw));
+      const n = deserializeV2(raw);
+      setG(n);
+      resetView(n);
+      setSaved(n);
       setReportOpen(true);
       setAction(null);
+      setModal(null);
+      setScreen("game");
+      setGuideChoice(false);
       setNotice("完整组织状态已恢复。");
     } catch (e) {
       setNotice((e as Error).message);
     }
   }
+  function resetView(n: V2Game) {
+    const pid = n.machine.matters[0]?.province || "south";
+    setSelected(pid);
+    setDistrict(0);
+    setFocusedMatter(null);
+    setOffice(`gov-${pid}`);
+    setPerson(n.core.appointments[`gov-${pid}`] || "xing");
+    setAuthorizationMatter("");
+    setLead(`gov-${pid}`);
+    setJoint(true);
+    setEmergency(false);
+    setBackPanel(null);
+    setConfirmedPreview(false);
+  }
+  function begin(t: Mode = mode) {
+    const n = newV2(t, goal, seed || "南岭—北境-020");
+    setG(n);
+    resetView(n);
+    setScreen("game");
+    setModal(null);
+    setAction(null);
+    setReportOpen(true);
+    setSelected("south");
+    setDistrict(0);
+    setFocusedMatter(null);
+    setOffice("gov-south");
+    setPerson("xing");
+    setGuideChoice(t !== "tutorial" && !hasGuideChoice());
+  }
+  function chooseGuide(hints: boolean) {
+    updateUi({ ...ui, hints });
+    try {
+      localStorage.setItem("federation-guide-choice", "1");
+    } catch {
+      setNotice("辅助选项在当前会话生效。");
+    }
+    setGuideChoice(false);
+  }
   function historySource(id: string | undefined) {
     if (id) {
-      setTab("history");
-      setNotice(`查看因果节点：${id}`);
       setAction(null);
+      setModal("history");
+      setNotice(`查看因果节点：${id}`);
       setTimeout(
-        () =>
-          document
-            .getElementById(id)
-            ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        () => document.getElementById(id)?.scrollIntoView({ block: "center" }),
         50,
       );
     }
   }
-  return (
-    <div className="v2-app">
-      <header className="v2-header">
-        <div className="v2-brand">
-          <Globe2 size={35} />
-          <div>
-            <h1>
-              诸界联邦 <span>国家机器重构 · v0.2</span>
-            </h1>
-            <p>FEDERATION OF WORLDS / 一套可以被改变的国家</p>
-          </div>
-        </div>
-        <nav>
-          {!playing && (
-            <button onClick={() => setReportOpen(true)}>执政报告</button>
-          )}
-          <button onClick={() => setModal("help")}>
-            <BookOpen size={18} />
-            帮助
-          </button>
-          <button onClick={store}>
-            <Save size={18} />
-            存档
-          </button>
-          <button onClick={load}>
-            <Download size={18} />
-            读档
-          </button>
-          <button onClick={() => setModal("new")}>
-            <Flag size={18} />
-            新任期
-          </button>
-        </nav>
-      </header>
-      <div className="v2-resources">
-        <div>
-          <span>当前回合</span>
-          <strong>
-            {s.turn}
-            <small> / {duration(g)}</small>
-          </strong>
-        </div>
-        <div>
-          <span>
-            <Coins size={17} />
-            财政
-          </span>
-          <strong>{s.treasury}</strong>
-        </div>
-        <div>
-          <span>
-            <ScrollText size={17} />
-            行政命令
-          </span>
-          <strong>
-            {s.commands}
-            <small>本回合可用</small>
-          </strong>
-        </div>
-        <div>
-          <span>
-            <Landmark size={17} />
-            政治资本
-          </span>
-          <strong>{s.capital}</strong>
-        </div>
-        <div className={s.crisis >= 8 ? "danger" : ""}>
-          <span>
-            <Activity size={17} />
-            全国危机
-          </span>
-          <strong>
-            {s.crisis}
-            <small> / 12</small>
-          </strong>
-        </div>
-      </div>
-      <div className="v2-content">
-        <section className="v2-main">
-          <div className="v2-title-row">
-            <div>
-              <span className="v2-eyebrow">
-                任期档案 /{" "}
-                {m.mode === "national" ? "国家目标模式" : "南岭—北境紧急状态"}
-              </span>
-              <h2>
-                {m.mode === "national"
-                  ? goals[m.goal].name
-                  : "四回合组织验证战役"}
-              </h2>
-            </div>
-            <span className="v2-regime-label">{regimes[m.regime].name}</span>
-          </div>
-          {m.mode === "tutorial" && (
-            <section className="v2-tutorial">
-              <div className="v2-title-row">
-                <h3>{lessons[m.tutorial].title}</h3>
-                <button onClick={() => choose({ type: "skip" })}>
-                  跳过教学
-                </button>
-              </div>
-              <p>{lessons[m.tutorial].body}</p>
-              <div className="v2-steps">
-                {lessons.slice(0, 4).map((_, i) => (
-                  <span
-                    className={
-                      i === m.tutorial
-                        ? "current"
-                        : i < m.tutorial
-                          ? "done"
-                          : ""
-                    }
-                    key={i}
-                  >
-                    {i < m.tutorial ? <Check size={15} /> : i + 1}
-                  </span>
-                ))}
-              </div>
-              {m.tutorial === 0 && (
-                <button
-                  className="v2-primary"
-                  onClick={() => setModal("staff")}
-                >
-                  前往人事任命 <ArrowRight size={16} />
-                </button>
-              )}
-              {m.tutorial === 2 && (
-                <button
-                  className="v2-primary"
-                  onClick={() => choose({ type: "forecast" })}
-                >
-                  核对财政预测
-                </button>
-              )}
-            </section>
-          )}
-          {m.mode === "national" && (
-            <section className="v2-goal">
-              <p>{goals[m.goal].description}</p>
-              <div className="v2-milestones">
-                {target.map((c) => (
-                  <div key={c.label} className={c.met ? "met" : ""}>
-                    <span>
-                      {c.met ? <Check size={17} /> : <Flag size={17} />}
-                    </span>
-                    <div>
-                      <b>{c.label}</b>
-                      <p>{c.reason}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="v2-goal-deadline">
-                第8回合解锁「{goals[m.goal].finale}」。还剩{" "}
-                {Math.max(0, 8 - s.turn)}{" "}
-                个建设回合；终局会重新检查负责人和合作资格。
-              </p>
-            </section>
-          )}
-          <section className="v2-finance">
-            <div className="v2-title-row">
-              <h3>
-                <Coins size={19} />
-                财政预测 · 先支出，后收入
-              </h3>
-              <strong className={f.default ? "danger" : ""}>
-                {f.current} → {f.next}
-              </strong>
-            </div>
-            <div className="v2-finance-grid">
-              <span>
-                收入<b>+{f.income}</b>
-              </span>
-              <span>
-                固定支出<b>−{f.fixed}</b>
-              </span>
-              <span>
-                制度与预算<b>−{f.maintenance}</b>
-              </span>
-              <span>
-                可暂停施工<b>−{f.projectCosts}</b>
-              </span>
-            </div>
-            <p>
-              税收5 +已完工能源设施{f.income - 5}；维护：委员会
-              {m.regime === "joint" ? 1 : 0} /兼容标准{m.standards ? 1 : 0}{" "}
-              /预算{m.budgets.length}。
-            </p>
-            <p>
-              {f.default
-                ? `现有财政不足以支付${f.total}承诺，本次将违约。连续两回合违约即失败。`
-                : `本次可支付${f.total}财政承诺，结算后预计${f.next}财政。`}
-            </p>
-            {m.works
-              .filter((w) => !w.completed)
-              .map((w) => (
-                <div className="v2-work" key={w.id}>
-                  <span>
-                    {s.provinces.find((p) => p.id === w.province)!.name} ·{" "}
-                    {w.type === "energy" ? "灵脉能源工程" : "预警站"} ·{" "}
-                    {w.progress}/{w.duration}
-                    {w.paused ? "（暂停）" : ""}
-                  </span>
-                  <button onClick={() => choose({ type: "pause", work: w.id })}>
-                    {w.paused ? "恢复施工" : "暂停承诺"}
-                  </button>
-                </div>
-              ))}
-            {m.budgets.map((pid) => (
-              <div className="v2-work" key={pid}>
-                <span>
-                  {s.provinces.find((p) => p.id === pid)!.name}
-                  预算承诺：每回合1财政
-                </span>
-                <button
-                  onClick={() =>
-                    choose({ type: "pause", work: `budget:${pid}` })
-                  }
-                >
-                  撤销预算（信任下降）
-                </button>
-              </div>
-            ))}
-          </section>
-          {s.paralysis > 0 && (
-            <div className="v2-alert">
-              <AlertTriangle size={20} />
-              <div>
-                <b>中央审批阻塞 {s.paralysis}/4</b>
-                <p>
-                  ≥2会封闭垂直体制地方审批，并减少下一回合命令；连续两回合≥4失败。
-                </p>
-              </div>
-              <button onClick={() => choose({ type: "unblock" })}>
-                预览疏通
-              </button>
-            </div>
-          )}
-          <div className="v2-tab-row">
-            <button
-              className={tab === "matters" ? "active" : ""}
-              onClick={() => setTab("matters")}
-            >
-              当前局势 <b>{m.matters.length}</b>
-            </button>
-            <button
-              className={tab === "history" ? "active" : ""}
-              onClick={() => setTab("history")}
-            >
-              因果历史 <b>{m.history.length}</b>
-            </button>
-            <span>新增接纳 {m.admitted}/3</span>
-          </div>
-          {tab === "matters" ? (
-            <>
-              <div className="v2-matters">
-                {m.matters.map((item) => {
-                  const part = participants(g, item);
-                  return (
-                    <article
-                      className={`v2-matter ${item.kind}`}
-                      key={item.id}
-                      data-matter-id={item.id}
-                    >
-                      <div className="v2-matter-meta">
-                        <span>
-                          <MapPin size={16} />
-                          {
-                            s.provinces.find((p) => p.id === item.province)!
-                              .name
-                          }
-                        </span>
-                        <span>
-                          {["accident", "oldgod"].includes(item.kind)
-                            ? `持续危机 · 阶段${item.stage}/4 · ${["", "异常出现", "生产交通受阻", "人口行政危机", "全国紧急状态"][item.stage]}`
-                            : "决策事务"}
-                        </span>
-                      </div>
-                      <h3>{item.title}</h3>
-                      <p>{item.description}</p>
-                      {item.containment > 0 && (
-                        <div className="v2-managed">
-                          <Shield size={16} />
-                          已遏制 {item.containment} 回合
-                          {item.evacuated ? " · 人口已撤离" : ""}
-                          {item.isolated ? " · 区域隔离、产出停止" : ""}
-                        </div>
-                      )}
-                      <div className="v2-actor-line">
-                        <span>主管：{getOffice(part.lead).name}</span>
-                        <span>
-                          负责人：
-                          {part.actors
-                            .map((id) => getPerson(id)!.name)
-                            .join("、") || "空缺"}
-                        </span>
-                      </div>
-                      {item.source && (
-                        <button
-                          className="v2-source"
-                          onClick={() => historySource(item.source)}
-                        >
-                          这一局势来自哪次决定？ <ArrowRight size={14} />
-                        </button>
-                      )}
-                      <div className="v2-plan-list">
-                        {plansFor(item, m.goal).map((plan) => {
-                          const a: Action = {
-                            type: "resolve",
-                            matter: item.id,
-                            option: plan.id,
-                          };
-                          const view = previewAction(g, a);
-                          return (
-                            <button
-                              key={plan.id}
-                              className={
-                                view.errors.length ? "blocked" : "available"
-                              }
-                              disabled={!playing}
-                              onClick={() => choose(a)}
-                            >
-                              <span className="v2-plan-icon">
-                                {view.errors.length ? (
-                                  <AlertTriangle size={18} />
-                                ) : (
-                                  <Sparkles size={18} />
-                                )}
-                              </span>
-                              <div>
-                                <b>{plan.title}</b>
-                                <p>
-                                  {view.errors.length
-                                    ? view.errors[0]
-                                    : plan.description}
-                                </p>
-                              </div>
-                              <span className="v2-availability">
-                                {view.errors.length ? "查看原因" : "可执行"}
-                                <ArrowRight size={15} />
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <button
-                        className="v2-authorize-link"
-                        disabled={!playing}
-                        onClick={() => {
-                          setAuthorizationMatter(item.id);
-                          setLead(`gov-${item.province}`);
-                          setModal("reform");
-                        }}
-                      >
-                        调整本事务指挥关系 / 临时授权
-                      </button>
-                    </article>
-                  );
-                })}
-              </div>
-              {m.backlog.length > 0 && (
-                <details className="v2-panel">
-                  <summary>
-                    公开待办 · {m.backlog.length}项（下回合按名额接纳）
-                  </summary>
-                  {m.backlog.map((x) => (
-                    <p key={x.id}>
-                      {x.title} · 来源 {x.source || "主动局势"}
-                    </p>
-                  ))}
-                </details>
-              )}
-              {m.matters.length === 0 && (
-                <div className="v2-empty">
-                  <Check size={28} />
-                  <h3>当前事务已处理</h3>
-                  <p>可以继续建设国家能力，或结束回合。</p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="v2-history">
-              {m.history.map((h) => (
-                <article key={h.id} id={h.id}>
-                  <span className="v2-eyebrow">
-                    第{h.turn}回合 / {h.id}
-                  </span>
-                  <h3>{h.title}</h3>
-                  <p>
-                    参与：
-                    {h.actors
-                      .map((id) => getPerson(id)?.name || id)
-                      .join("、") || "制度/自动结算"}{" "}
-                    ·{" "}
-                    {h.institutions
-                      .map((id) => getOffice(id)?.name || id)
-                      .join("、")}
-                  </p>
-                  <details>
-                    <summary>当时的判定条件</summary>
-                    {h.conditions.map((c, i) => (
-                      <p key={i}>{c}</p>
-                    ))}
-                  </details>
-                  <ul>
-                    {h.effects.map((e, i) => (
-                      <li key={i}>{e}</li>
-                    ))}
-                  </ul>
-                  {h.parents.map((id) => (
-                    <button
-                      className="v2-source"
-                      key={id}
-                      onClick={() => historySource(id)}
-                    >
-                      ← 因果前序：{m.history.find((x) => x.id === id)?.title}
-                    </button>
-                  ))}
-                </article>
-              ))}
-            </div>
-          )}
-          <section className="v2-actions">
-            <h3>主动建设国家能力</h3>
-            <p>每个行动都先展示条件和后果。资源不能购买缺失的正式资格。</p>
-            <div>
-              <button onClick={() => setModal("staff")} disabled={!playing}>
-                <Users size={18} />
-                人事与特殊能力
-              </button>
-              <button onClick={() => setModal("reform")} disabled={!playing}>
-                <Landmark size={18} />
-                三层权力改革
-              </button>
-              <button onClick={() => setModal("policy")} disabled={!playing}>
-                <Flag size={18} />
-                政策与批准路线
-              </button>
-              <button
-                onClick={() => choose({ type: "investigate", deck: "ley" })}
-                disabled={!playing}
-              >
-                <Zap size={18} />
-                灵脉勘探
-              </button>
-              <button
-                onClick={() => choose({ type: "investigate", deck: "archive" })}
-                disabled={!playing}
-              >
-                <BookOpen size={18} />
-                密封档案调查
-              </button>
-              <button
-                onClick={() =>
-                  choose({ type: "investigate", deck: "standards" })
-                }
-                disabled={!playing}
-              >
-                <Layers size={18} />
-                标准化试点
-              </button>
-              <button
-                onClick={() => choose({ type: "investigate", deck: "civic" })}
-                disabled={!playing}
-              >
-                <Globe2 size={18} />
-                跨文明公报
-              </button>
-            </div>
-          </section>
-        </section>
-        <aside className="v2-sidebar">
-          <section className="v2-panel v2-structure">
-            <h3>
-              <Landmark size={21} />
-              当前国家结构
-            </h3>
-            <h4>{regimes[m.regime].name}</h4>
-            <p className="v2-gain">解锁：{regimes[m.regime].gain}</p>
-            <p className="v2-loss">限制：{regimes[m.regime].loss}</p>
-            {m.pending && (
-              <div className="v2-transition">
-                改革过渡中 → {regimes[m.pending.regime].name}
-                <br />第{m.pending.due}回合生效，当前审批仍按旧体制。
-              </div>
-            )}
-            <p>
-              全国部门改革：
-              {m.department === "none"
-                ? "尚无"
-                : m.department === "anomaly"
-                  ? "异常垂直主责"
-                  : m.department === "transport"
-                    ? "中央运输体系"
-                    : "疏散权下放"}
-            </p>
-            {m.departmentPending && (
-              <p>部门改革将在第{m.departmentPending.due}回合生效。</p>
-            )}
-            <button onClick={() => setModal("reform")} disabled={!playing}>
-              查看制度与失去的能力 <ArrowRight size={16} />
-            </button>
-          </section>
-          <section className="v2-panel">
-            <h3>
-              <MapPin size={21} />
-              三省六区
-            </h3>
-            <div className="v2-province-buttons">
-              {s.provinces.map((p) => (
-                <button
-                  className={p.id === selected ? "active" : ""}
-                  key={p.id}
-                  onClick={() => setSelected(p.id)}
-                >
-                  {p.name.slice(0, 2)}
-                  <b>{p.stock}</b>
-                </button>
-              ))}
-            </div>
-            <h4>{local.name}</h4>
-            <p>
-              {local.districts
-                .map((d) => `${d.name}（产出${d.output}）`)
-                .join(" / ")}
-            </p>
-            <div className="v2-local-stats">
-              <span>
-                地方信任<b>{m.trust[selected]}/3</b>
-              </span>
-              <span>
-                自治特权<b>{local.autonomy}</b>
-              </span>
-              <span>
-                群众疲劳<b>{m.fatigue[selected]}</b>
-              </span>
-            </div>
-            <p>
-              {m.suppressed[selected]
-                ? "群众组织已压制：不能公开动员"
-                : "群众组织尚可公开动员"}{" "}
-              · 收益权{m.rights[selected] ? "已保留" : "未签订"}
-            </p>
-            <p>
-              {(["production", "social", "anomaly"] as const)
-                .map((d) => `${domainNames[d]}压力 ${local.pressure[d]}`)
-                .join(" / ")}
-            </p>
-            <div className="v2-local-actions">
-              <button
-                onClick={() =>
-                  choose({
-                    type: "project",
-                    project: "warning",
-                    province: selected,
-                  })
-                }
-                disabled={!playing}
-              >
-                预警站建设
-              </button>
-              <button
-                onClick={() =>
-                  choose({
-                    type: "project",
-                    project: "energy",
-                    province: selected,
-                  })
-                }
-                disabled={!playing}
-              >
-                宗门能源工程
-              </button>
-              <button
-                onClick={() =>
-                  choose({ type: "reconcile", province: selected })
-                }
-                disabled={!playing}
-              >
-                恢复地方协约
-              </button>
-            </div>
-          </section>
-          <details className="v2-panel">
-            <summary>
-              <Users size={19} />
-              机构、人物与派系
-            </summary>
-            {offices.map((o) => {
-              const id = s.appointments[o.id];
-              return (
-                <div className="v2-office" key={o.id}>
-                  <b>{o.name}</b>
-                  <p>
-                    {getPerson(id)?.name || "职位空缺"} · 积怨{" "}
-                    {id ? s.grievances[id] : "—"}
-                  </p>
-                  {id && coreAbilities[id] && <p>{coreAbilities[id].name}</p>}
-                  <button
-                    onClick={() => {
-                      setOffice(o.id);
-                      setPerson(id || "xing");
-                      setModal("staff");
-                    }}
-                  >
-                    调整 / 查看
-                  </button>
-                </div>
-              );
-            })}
-            {Object.keys(s.factions).map((id) => (
-              <p key={id}>
-                {factionNames[id as keyof typeof factionNames]}：影响{" "}
-                {s.factions[id as keyof typeof s.factions].influence} / 不满{" "}
-                {s.factions[id as keyof typeof s.factions].discontent}
-              </p>
-            ))}
-          </details>
-          <details className="v2-panel">
-            <summary>
-              <Sparkles size={19} />
-              当前行动能力资格
-            </summary>
-            {Object.keys(capNames).map((id) => {
-              const matter = m.matters.find((x) => x.province === selected) || {
-                id: "inspect",
-                province: selected,
-                kind: "oldgod" as const,
-                title: "",
-                description: "",
-                stage: 1,
-                containment: 0,
-                evacuated: false,
-                isolated: false,
-                age: 0,
-              };
-              const conditions = capability(
-                g,
-                id as keyof typeof capNames,
-                matter,
-                id === "seal" ? 0 : 1,
-              );
-              return (
-                <div className="v2-capability" key={id}>
-                  <b>
-                    {capNames[id as keyof typeof capNames]} ·{" "}
-                    {conditions.every((c) => c.met) ? "当前可用" : "当前受阻"}
-                  </b>
-                  {conditions
-                    .filter((c) => !c.met)
-                    .map((c) => (
-                      <p key={c.label}>{c.reason}</p>
-                    ))}
-                </div>
-              );
-            })}
-          </details>
-        </aside>
-      </div>
-      <footer className="v2-bottom">
-        <span>
-          {regimes[m.regime].name} ·{" "}
-          {m.mode === "national" ? goals[m.goal].name : "南岭—北境"} · 种子{" "}
-          {s.seed}
-        </span>
-        <button
-          className="v2-primary"
-          disabled={!playing}
-          onClick={() => choose({ type: "end" })}
+  function locate(id: string) {
+    const it = m.matters.find((x) => x.id === id);
+    if (it) {
+      setSelected(it.province);
+      setDistrict(0);
+      setFocusedMatter(id);
+      setModal("matters");
+      setAction(null);
+      setAlertsOpen(false);
+    }
+  }
+  function authorize(id: string) {
+    const it = m.matters.find((x) => x.id === id);
+    if (it) {
+      setAuthorizationMatter(id);
+      setLead(`gov-${it.province}`);
+      setJoint(true);
+      setEmergency(false);
+      setAction(null);
+      setModal("reform");
+    }
+  }
+  function updateUi(next: typeof ui) {
+    setUi(next);
+    try {
+      localStorage.setItem("federation-ui", JSON.stringify(next));
+    } catch {
+      setNotice("设置仅在当前会话生效。");
+    }
+  }
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      if (action) {
+        closeAction();
+        return;
+      }
+      if (guideChoice) {
+        setGuideChoice(false);
+        return;
+      }
+      if (modal) {
+        setModal(null);
+        return;
+      }
+      if (screen === "setup") {
+        setScreen("menu");
+        return;
+      }
+      if (screen === "game") {
+        if (!playing && reportOpen) {
+          setReportOpen(false);
+          return;
+        }
+        setModal("pause");
+      }
+    };
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  });
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 6000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+  const settings = (
+    <>
+      <p>
+        调整界面文字和控件比例。浏览器缩放也可使用；较小窗口会自动折叠提醒栏。
+      </p>
+      <label className="v2-field">
+        UI缩放
+        <select
+          value={ui.scale}
+          onChange={(e) => updateUi({ ...ui, scale: Number(e.target.value) })}
         >
-          预览回合结算 <ArrowRight size={20} />
-        </button>
-      </footer>
-      {notice && (
-        <div className="v2-notice" role="status">
-          <p>{notice}</p>
-          <button onClick={() => setNotice("")} aria-label="关闭提示">
-            <X size={20} />
+          {[100, 110, 125, 150].map((n) => (
+            <option key={n} value={n}>
+              {n}%
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="v2-checkbox">
+        <input
+          type="checkbox"
+          checked={ui.hints}
+          onChange={(e) => updateUi({ ...ui, hints: e.target.checked })}
+        />
+        正式游戏开启辅助提示
+      </label>
+      <p>
+        Esc关闭当前面板，地图界面再按Esc打开暂停菜单。点击地图查看地区；拖动地图平移、滚轮缩放。提示可关闭，规则帮助随时可查。
+      </p>
+    </>
+  );
+  const matterCards = (
+    focusedMatter ? m.matters.filter((x) => x.id === focusedMatter) : m.matters
+  ).map((item) => {
+    const part = participants(g, item);
+    return (
+      <article
+        className={`v2-matter ${item.kind}`}
+        key={item.id}
+        data-matter-id={item.id}
+      >
+        <div className="matter-meta">
+          <MapPin size={18} />
+          {s.provinces.find((p) => p.id === item.province)!.name} · 阶段{" "}
+          {item.stage}/4
+          {item.containment > 0 ? ` · 遏制${item.containment}回合` : ""}
+        </div>
+        <h3>{item.title}</h3>
+        <p>{item.description}</p>
+        <p>
+          主管：{getOffice(part.lead).name}
+          <br />
+          正式参与：
+          {part.actors.map((id) => getPerson(id)!.name).join("、") ||
+            "岗位空缺"}
+        </p>
+        {item.source && (
+          <button
+            className="text-button"
+            onClick={() => historySource(item.source)}
+          >
+            查看真实因果来源 <ChevronRight size={18} />
           </button>
-        </div>
-      )}
-      {s.status !== "playing" && reportOpen && !modal && !action && (
-        <div className="v2-overlay">
-          <section
-            className="v2-dialog v2-report"
-            role="dialog"
-            aria-modal="true"
-            aria-label="执政报告"
-          >
-            <span className="v2-eyebrow">FEDERATION / ACTUAL DECISIONS</span>
-            <h2>
-              {s.status === "won"
-                ? "国家机器发挥了作用。"
-                : "任期结束，仍有未竟之事。"}
-            </h2>
-            <pre>{report(g)}</pre>
-            <p>
-              财政 {s.treasury} · 危机 {s.crisis}/12 · 完成事务 {s.resolved}
-            </p>
-            {s.provinces.map((p) => (
-              <p key={p.id}>
-                {p.name}物资 {p.stock} / 信任 {m.trust[p.id]} / 自治{" "}
-                {p.autonomy}
-              </p>
-            ))}
-            <button className="v2-primary" onClick={() => setModal("new")}>
-              开始新任期
-            </button>
-            <button
-              onClick={() => {
-                setTab("history");
-                setReportOpen(false);
-              }}
-            >
-              查阅完整决策历史
-            </button>
-          </section>
-        </div>
-      )}
-      {action && v && (
-        <div className="v2-overlay">
-          <section
-            className="v2-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label="行动预览"
-          >
-            <button
-              className="v2-close"
-              onClick={() => setAction(null)}
-              aria-label="关闭"
-            >
-              <X />
-            </button>
-            <span className="v2-eyebrow">选择 → 判定 → 解释 → 预览 → 确认</span>
-            <h2>{v.title}</h2>
-            <p className="v2-participants">
-              参与人物：
-              {v.actors.map((id) => getPerson(id)?.name || id).join("、") ||
-                "国家制度行动"}
-              <br />
-              参与机构：
-              {v.institutions
-                .map((id) => getOffice(id)?.name || id)
-                .join("、") || "全国组织"}
-            </p>
-            <div className="v2-conditions">
-              {v.conditions.map((c, i) => (
-                <div className={c.met ? "met" : "unmet"} key={i}>
-                  {c.met ? <Check size={19} /> : <AlertTriangle size={19} />}
-                  <div>
-                    <b>{c.label}</b>
-                    <p>{c.reason}</p>
-                    {c.source && (
-                      <button onClick={() => historySource(c.source)}>
-                        查看限制来源
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {action.type === "resolve" && (
-              <>
-                <label className="v2-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={!!action.force}
-                    onChange={(e) =>
-                      choose({ ...action, force: e.target.checked })
-                    }
-                  />
-                  申请紧急强制（必须已有正式紧急授权；不能绕过能力条件）
-                </label>
-                <label className="v2-field">
-                  地方资源的实际交换条件
-                  <select
-                    value={action.exchange || "ownership"}
-                    onChange={(e) =>
-                      choose({
-                        ...action,
-                        exchange: e.target.value as
-                          | "ownership"
-                          | "budget"
-                          | "central",
-                      })
-                    }
-                  >
-                    <option value="ownership">保留地方收益权与1物资</option>
-                    <option value="budget">承诺以后每回合1财政部门预算</option>
-                    <option value="central">
-                      改用中央工业省物资（须有供应能力）
-                    </option>
-                  </select>
-                </label>
-              </>
-            )}
-            <div className="v2-costs">
-              <span>
-                命令<b>−{v.costs.commands}</b>
-              </span>
-              <span>
-                财政<b>−{v.costs.treasury}</b>
-              </span>
-              <span>
-                资本<b>−{v.costs.capital}</b>
-              </span>
-              <span>
-                物资<b>−{v.costs.stock}</b>
-              </span>
-            </div>
-            <h3>改变的不只是余额</h3>
-            <ul>
-              {v.effects.map((e, i) => (
-                <li key={i}>{e}</li>
-              ))}
-            </ul>
-            {confirmedPreview && (
-              <div className="v2-result">
-                <h3>执行后资源</h3>
-                <p>
-                  命令 {s.commands} → {v.after.commands} / 财政 {s.treasury} →{" "}
-                  {v.after.treasury} / 资本 {s.capital} → {v.after.capital}
-                </p>
-                {v.errors.length > 0 && (
-                  <p className="danger">当前不可执行：{v.errors.join("；")}</p>
-                )}
-              </div>
-            )}
-            <div className="v2-dialog-actions">
-              <button onClick={() => setConfirmedPreview(true)}>
-                预览后果
-              </button>
+        )}
+        <div className="v2-plan-list">
+          {plansFor(item, m.goal).map((plan) => {
+            const a: Action = {
+                type: "resolve",
+                matter: item.id,
+                option: plan.id,
+              },
+              view = previewAction(g, a);
+            return (
               <button
-                className="v2-primary"
-                disabled={!confirmedPreview || v.errors.length > 0}
-                onClick={perform}
+                key={plan.id}
+                className={view.errors.length ? "blocked" : "available"}
+                disabled={!playing}
+                onClick={() => choose(a)}
               >
-                确认执行 <ArrowRight size={18} />
+                <div>
+                  <b>{plan.title}</b>
+                  <p>{view.errors[0] || plan.description}</p>
+                  <span>
+                    命令{view.costs.commands} / 财政{view.costs.treasury} / 物资
+                    {view.costs.stock}
+                  </span>
+                </div>
+                <span>
+                  {view.errors.length ? "查看限制" : "审议方案"}
+                  <ChevronRight size={18} />
+                </span>
               </button>
-            </div>
-          </section>
+            );
+          })}
         </div>
+        <button
+          className="v2-authorize-link"
+          disabled={!playing}
+          onClick={() => authorize(item.id)}
+        >
+          调整本事务指挥关系 / 临时授权
+        </button>
+      </article>
+    );
+  });
+  const alerts = m.matters
+    .filter((x) => x.kind !== "opportunity")
+    .map((x) => (
+      <button
+        key={x.id}
+        className={`alert-item ${x.stage >= 2 && ["accident", "oldgod", "distrust", "supply"].includes(x.kind) ? "urgent" : "normal"}`}
+        onClick={() => locate(x.id)}
+      >
+        <span>
+          {x.stage >= 2 ? <AlertTriangle size={18} /> : <Bell size={18} />}
+        </span>
+        <div>
+          <b>{x.title}</b>
+          <small>
+            {s.provinces.find((p) => p.id === x.province)!.name} ·{" "}
+            {["oldgod", "accident", "distrust", "supply"].includes(x.kind)
+              ? x.containment
+                ? "当前受控"
+                : `阶段${x.stage} · 结算时将恶化`
+              : "机构诉求 / 可审议"}
+          </small>
+        </div>
+        <ChevronRight size={17} />
+      </button>
+    ));
+  const minorAlerts = (
+    <>
+      {s.paralysis > 0 && (
+        <button className="alert-item urgent" onClick={() => open("central")}>
+          <AlertTriangle size={18} />
+          <div>
+            <b>中央审批阻塞 {s.paralysis}/4</b>
+            <small>调阅政府与审批状态</small>
+          </div>
+        </button>
       )}
-      {modal && (
-        <div className="v2-overlay">
-          <section
-            className="v2-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label="国家设置"
+      {people
+        .filter((p) => s.grievances[p.id] >= 2)
+        .map((p) => (
+          <button
+            className="alert-item normal"
+            key={p.id}
+            onClick={() => {
+              setPerson(p.id);
+              setOffice(
+                Object.entries(s.appointments).find(
+                  ([, id]) => id === p.id,
+                )?.[0] || "gov-south",
+              );
+              open("staff");
+            }}
           >
-            <button
-              className="v2-close"
-              onClick={() => setModal(null)}
-              aria-label="关闭"
-            >
-              <X />
-            </button>
-            {modal === "new" && (
+            <Users size={18} />
+            <div>
+              <b>
+                {p.name} · 积怨{s.grievances[p.id]}
+              </b>
+              <small>政治阻力，达到3拒绝协办</small>
+            </div>
+          </button>
+        ))}
+      {m.history
+        .filter((h) => /工程竣工|国家目标里程碑/.test(h.title))
+        .slice(0, 5)
+        .map((h) => (
+          <button
+            className="alert-item info"
+            key={h.id}
+            onClick={() => {
+              const work = m.works.find((w) => h.parents.includes(w.source));
+              if (work) {
+                setSelected(work.province);
+                setDistrict(0);
+                open("local");
+              } else open("goals");
+            }}
+          >
+            <Check size={18} />
+            <div>
+              <b>{h.title}</b>
+              <small>第{h.turn}回合 · 查看实际记录</small>
+            </div>
+          </button>
+        ))}
+    </>
+  );
+  return (
+    <div
+      className="command-app"
+      style={{ "--ui-scale": ui.scale / 100 } as React.CSSProperties}
+    >
+      {screen !== "game" ? (
+        <main className="main-menu">
+          <div className="menu-art" aria-hidden="true">
+            <div className="propaganda-sun" />
+            <div className="industrial-silhouette">
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
+            <div className="menu-seal">
+              <Globe2 size={150} />
+              <span>UNION OF WORLDS</span>
+            </div>
+            <div className="propaganda-copy">
+              以制度连接诸界
+              <br />
+              <strong>让国家机器发挥作用。</strong>
+            </div>
+          </div>
+          <section className="menu-content">
+            <span className="eyebrow">最高领导层 / 联邦指挥席</span>
+            <h1>诸界联邦</h1>
+            <p className="menu-subtitle">FEDERATION OF WORLDS</p>
+            <div className="menu-rule" />
+            <p>
+              钢铁与灵脉。秘密与群众。
+              <br />
+              一个国家，许多世界。
+            </p>
+            {screen === "menu" ? (
+              <nav aria-label="主菜单">
+                <button disabled={!saved} onClick={load}>
+                  <Play />
+                  继续游戏
+                </button>
+                <button onClick={() => setScreen("setup")}>
+                  <Flag />
+                  开始新游戏
+                </button>
+                <button onClick={() => begin("tutorial")}>
+                  <BookOpen />
+                  教学战役
+                </button>
+                <button onClick={load}>
+                  <Download />
+                  读取存档
+                </button>
+                <button onClick={() => setModal("settings")}>
+                  <Settings />
+                  设置
+                </button>
+              </nav>
+            ) : (
               <>
-                <h2>你要建立怎样的国家？</h2>
-                <p>
-                  新任期替换当前进度，不覆盖已保存的存档。v0.1存档会保留，不作静默转换。
-                </p>
+                <h2>战役与国家目标</h2>
                 <label className="v2-field">
                   游玩模式
                   <select
                     value={mode}
                     onChange={(e) => setMode(e.target.value as Mode)}
                   >
-                    <option value="tutorial">四阶段操作教学（4回合）</option>
-                    <option value="campaign">南岭—北境紧急状态（4回合）</option>
-                    <option value="national">国家目标正式模式（8回合）</option>
+                    <option value="campaign">南岭—北境紧急状态 · 4回合</option>
+                    <option value="national">国家目标正式模式 · 8回合</option>
                   </select>
                 </label>
                 <div className="v2-goal-choices">
-                  {Object.keys(goals).map((id) => (
+                  {Object.entries(goals).map(([id, x]) => (
                     <button
-                      className={goal === id ? "selected" : ""}
                       key={id}
+                      className={goal === id ? "selected" : ""}
                       onClick={() => setGoal(id as Goal)}
                     >
-                      <b>{goals[id as Goal].name}</b>
-                      <p>{goals[id as Goal].description}</p>
+                      <b>{x.name}</b>
+                      <p>{x.description}</p>
                     </button>
                   ))}
                 </div>
@@ -1044,325 +655,1453 @@ export default function App() {
                     onChange={(e) => setSeed(e.target.value)}
                   />
                 </label>
+                <div className="setup-actions">
+                  <button onClick={() => setScreen("menu")}>返回主菜单</button>
+                  <button className="v2-primary" onClick={() => begin()}>
+                    开始任期 <ArrowRight />
+                  </button>
+                </div>
+              </>
+            )}
+            <small className="menu-version">
+              v0.2.2 · 离线单人治理原型 / 原创联邦地图
+            </small>
+          </section>
+          {modal === "settings" && (
+            <PanelFrame title="设置" onClose={() => setModal(null)} modal>
+              {settings}
+            </PanelFrame>
+          )}
+        </main>
+      ) : (
+        <main className="command-shell">
+          <header className="status-bar">
+            <button className="federal-brand" onClick={() => open("central")}>
+              <Globe2 />
+              <div>
+                <b>诸界联邦</b>
+                <span>{regimes[m.regime].name}</span>
+              </div>
+            </button>
+            <div className="status-resources">
+              <ResourceTip
+                label={`${1950 + s.turn}年 · 回合`}
+                value={`${s.turn} / ${duration(g)}`}
+                onClick={() => open("history")}
+              >
+                <p>联邦历 {1950 + s.turn} 年 · 一个回合代表一个治理年度。</p>
+                <p>
+                  {m.mode === "tutorial"
+                    ? "教学战役"
+                    : m.mode === "national"
+                      ? goals[m.goal].name
+                      : "南岭—北境紧急状态"}
+                </p>
+              </ResourceTip>
+              <ResourceTip
+                label="财政 / 下回合"
+                value={
+                  <>
+                    {s.treasury}
+                    <em> → {f.next}</em>
+                  </>
+                }
+                onClick={() => open("economy")}
+              >
+                <h3>先支出，后收入</h3>
+                <p>
+                  税收5 +能源设施{f.income - 5} =收入{f.income}
+                </p>
+                <p>
+                  固定{f.fixed} +委员会{m.regime === "joint" ? 1 : 0} +标准
+                  {m.standards ? 1 : 0} +预算{m.budgets.length} +可施工项目
+                  {f.projectCosts} =支出{f.total}
+                </p>
+                {m.works
+                  .filter((w) => !w.completed && !w.paused)
+                  .map((w) => (
+                    <p key={w.id}>
+                      {w.type === "energy" ? "能源工程" : "预警站"} ·{" "}
+                      {s.provinces.find((p) => p.id === w.province)!.name}
+                    </p>
+                  ))}
+                {m.budgets.map((id) => (
+                  <p key={id}>
+                    {s.provinces.find((p) => p.id === id)!.name}长期预算1
+                  </p>
+                ))}
+                <p>
+                  {f.default ? "余额不足，本次将违约" : "本次能履行承诺"}
+                  ；预计余额{f.next}。
+                </p>
+              </ResourceTip>
+              <ResourceTip
+                label="行政命令"
+                value={s.commands}
+                onClick={() => open("central")}
+              >
+                <p>
+                  任免、授权与多数处置消耗命令。通常每回合5；中央阻塞≥2时下一回合4。
+                </p>
+              </ResourceTip>
+              <ResourceTip
+                label="政治资本"
+                value={s.capital}
+                onClick={() => open("reform")}
+              >
+                <p>
+                  用于真实授权、制度改革与政治和解，不能直接兑换缺失的特殊能力。
+                </p>
+              </ResourceTip>
+              <ResourceTip
+                label="国家危机"
+                value={
+                  <span className={s.crisis >= 8 ? "danger" : ""}>
+                    {s.crisis} / 12
+                  </span>
+                }
+                onClick={() => open("matters")}
+              >
+                <p>
+                  危机达到12失败。当前审批阻塞{s.paralysis}，连续财政违约
+                  {s.insolvency}/2。
+                </p>
+              </ResourceTip>
+              <ResourceTip
+                label={m.mode === "national" ? goals[m.goal].name : "战役目标"}
+                value={
+                  m.mode === "national"
+                    ? `${target.filter((c) => c.met).length} / ${target.length}`
+                    : `${Number(m.milestones.includes("accident-managed")) + Number(m.milestones.includes("north-managed"))} / 2`
+                }
+                onClick={() => open("goals")}
+              >
+                <p>
+                  {m.mode === "national"
+                    ? "第8回合还须执行终局，存活本身不足以胜利。"
+                    : "实际管理南岭事故和北境危机，并生存至第4回合。"}
+                </p>
+              </ResourceTip>
+            </div>
+            <button
+              className="pause-trigger"
+              aria-label="暂停菜单"
+              onClick={() => open("pause")}
+            >
+              <Menu />
+            </button>
+          </header>
+          <nav className="function-rail" aria-label="主要管理功能">
+            {(
+              [
+                { id: "central", name: "中央政府", icon: Landmark },
+                { id: "staff", name: "人事管理", icon: Users },
+                { id: "reform", name: "政策改革", icon: Flag },
+                { id: "economy", name: "经济建设", icon: Factory },
+                { id: "goals", name: "国家目标", icon: Target },
+                { id: "matters", name: "国家事务", icon: ScrollText },
+              ] as const
+            ).map(({ id, name, icon: Icon }) => (
+              <button
+                className={`${modal === id ? "active" : ""} ${m.mode === "tutorial" && m.tutorial < 4 && lessons[m.tutorial].panel === id ? "tutorial-highlight" : ""}`}
+                key={id}
+                title={name}
+                aria-label={name}
+                onClick={() => (modal === id ? setModal(null) : open(id))}
+              >
+                <Icon size={26} />
+                <span>{name}</span>
+              </button>
+            ))}
+            <div className="rail-spacer" />
+            <button
+              title="因果历史"
+              aria-label="因果历史"
+              onClick={() => open("history")}
+            >
+              <HistoryIcon />
+              <span>执政历史</span>
+            </button>
+            <button
+              title="规则帮助"
+              aria-label="规则帮助"
+              onClick={() => open("help")}
+            >
+              <BookOpen />
+              <span>规则帮助</span>
+            </button>
+          </nav>
+          <section className="map-workspace">
+            <GameMap
+              g={g}
+              selected={selected}
+              district={district}
+              onSelect={(p, d) => {
+                setSelected(p);
+                setDistrict(d);
+                open("local");
+              }}
+            />
+            {m.mode === "tutorial" && (
+              <aside className="tutorial-strip">
+                <div>
+                  <span className="eyebrow">
+                    独立教学战役 · {Math.min(4, m.tutorial + 1)}/4
+                  </span>
+                  <h3>{lessons[m.tutorial].title}</h3>
+                  <p>{lessons[m.tutorial].body}</p>
+                </div>
                 <button
                   className="v2-primary"
                   onClick={() => {
-                    setG(newV2(mode, goal, seed || "南岭—北境-020"));
-                    setReportOpen(true);
-                    setModal(null);
-                    setAction(null);
-                    setTab("matters");
+                    if (m.tutorial === 0) {
+                      setOffice("gov-south");
+                      setPerson("xing");
+                      open("staff");
+                    } else if (m.tutorial === 1) {
+                      const it = m.matters.find((x) => x.kind === "accident");
+                      if (it) authorize(it.id);
+                    } else if (m.tutorial === 2) open("economy");
+                    else open("matters");
                   }}
                 >
-                  开始任期
+                  {" "}
+                  {m.tutorial === 0 ? "前往人事任命" : "查看本阶段操作"}{" "}
+                  <ArrowRight size={18} />
                 </button>
-              </>
+                <button
+                  className="hint-close"
+                  aria-label="跳过教学提示"
+                  onClick={() => choose({ type: "skip" })}
+                >
+                  <X size={18} />
+                </button>
+              </aside>
             )}
-            {modal === "staff" && (
-              <>
-                <h2>人物的才能需要合适的位置。</h2>
+            {m.mode !== "tutorial" && ui.hints && !modal && !action && (
+              <aside className="beginner-hint">
+                <BookOpen size={20} />
                 <p>
-                  任命/免职1命令，一人一职。合法参与资格与当前制度共同决定特殊能力。
+                  地图查看地区，左栏调阅国家管理。右侧提醒可直接定位事务；结束回合前先看财政预测。
                 </p>
-                <label className="v2-field">
-                  职位
-                  <select
-                    value={office}
-                    onChange={(e) => setOffice(e.target.value)}
-                  >
-                    {offices.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name} ·{" "}
-                        {getPerson(s.appointments[o.id])?.name || "空缺"}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="v2-roster">
-                  {people.map((p) => (
+                <button
+                  aria-label="关闭辅助提示"
+                  onClick={() => updateUi({ ...ui, hints: false })}
+                >
+                  <X size={18} />
+                </button>
+              </aside>
+            )}
+
+            {guideChoice && (
+              <PanelFrame
+                title="开启辅助引导？"
+                modal
+                onClose={() => setGuideChoice(false)}
+                footer={
+                  <>
                     <button
-                      className={person === p.id ? "selected" : ""}
-                      key={p.id}
-                      onClick={() => setPerson(p.id)}
+                      onClick={() => {
+                        chooseGuide(false);
+                      }}
                     >
-                      <b>{p.name}</b>
-                      <span>{personOfficeLabel(s.appointments, p.id)}</span>
+                      独立治理
                     </button>
+                    <button
+                      className="v2-primary"
+                      onClick={() => {
+                        chooseGuide(true);
+                      }}
+                    >
+                      开启辅助提示
+                    </button>
+                  </>
+                }
+              >
+                <p>
+                  正式任期使用同一指挥台，不强制进行教程。辅助提示可随时在设置关闭；主菜单的教学战役会用真实操作带你认识系统。
+                </p>
+              </PanelFrame>
+            )}
+            {!playing && reportOpen && !modal && !action && (
+              <PanelFrame
+                title={
+                  s.status === "won"
+                    ? "国家机器发挥了作用。"
+                    : "任期结束，仍有未竟之事。"
+                }
+                onClose={() => setReportOpen(false)}
+                footer={
+                  <>
+                    <button
+                      onClick={() => {
+                        setReportOpen(false);
+                        open("history");
+                      }}
+                    >
+                      查阅完整决策历史
+                    </button>
+                    <button
+                      className="v2-primary"
+                      onClick={() => {
+                        setScreen("menu");
+                        setModal(null);
+                      }}
+                    >
+                      返回主菜单
+                    </button>
+                  </>
+                }
+              >
+                <pre className="actual-report">{report(g)}</pre>
+                <p>
+                  财政{s.treasury} /危机{s.crisis}/12 /完成事务{s.resolved}
+                </p>
+              </PanelFrame>
+            )}
+            {action && v && (
+              <PanelFrame
+                title={v.title}
+                onClose={closeAction}
+                footer={
+                  <>
+                    <button onClick={() => setConfirmedPreview(true)}>
+                      预览后果
+                    </button>
+                    <button
+                      className="v2-primary"
+                      disabled={!confirmedPreview || v.errors.length > 0}
+                      onClick={perform}
+                    >
+                      确认执行 <ArrowRight size={18} />
+                    </button>
+                  </>
+                }
+              >
+                {action.type === "end" &&
+                  m.matters.some(
+                    (x) =>
+                      ["oldgod", "accident", "distrust", "supply"].includes(
+                        x.kind,
+                      ) && x.containment === 0,
+                  ) && (
+                    <div className="action-warning">
+                      <AlertTriangle />
+                      <p>
+                        仍有未遏制的持续局势，结算会恶化。可以继续推进，也可先返回审议。
+                      </p>
+                    </div>
+                  )}
+                <p className="v2-participants">
+                  参与人物：
+                  {v.actors.map((id) => getPerson(id)?.name || id).join("、") ||
+                    "国家制度行动"}
+                  <br />
+                  参与机构：
+                  {v.institutions
+                    .map((id) => getOffice(id)?.name || id)
+                    .join("、") || "全国组织"}
+                </p>
+                <div className="v2-conditions">
+                  {v.conditions.map((c, i) => (
+                    <div className={c.met ? "met" : "unmet"} key={i}>
+                      {c.met ? (
+                        <Check size={19} />
+                      ) : (
+                        <AlertTriangle size={19} />
+                      )}
+                      <div>
+                        <b>{c.label}</b>
+                        <p>{c.reason}</p>
+                        {c.source && (
+                          <button onClick={() => historySource(c.source)}>
+                            查看限制来源
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
-                <section className="v2-person-details">
-                  <h3>{getPerson(person)?.name || "保持职位空缺"}</h3>
-                  {getPerson(person) && (
-                    <>
-                      <p>
-                        {getPerson(person)!.title} ·{" "}
-                        {factionNames[getPerson(person)!.faction]}
-                      </p>
-                      <p>
-                        {Object.keys(issueNames)
-                          .map(
-                            (i) =>
-                              issueNames[i as Issue][
-                                getPerson(person)!.stance[i as Issue]
-                              ],
-                          )
-                          .join(" / ")}
-                      </p>
-                      {coreAbilities[person] ? (
-                        <>
-                          <h4>
-                            <Sparkles size={18} />
-                            {coreAbilities[person].name}
-                          </h4>
-                          <p>启用：{coreAbilities[person].condition}</p>
-                          <p>限制：{coreAbilities[person].limit}</p>
-                        </>
-                      ) : (
-                        <p>
-                          保留基础专业与立场；本版尚未为该人物扩展独特特殊行动。
-                        </p>
-                      )}
-                      <p>
-                        积怨 {s.grievances[person]} · 根基 {s.roots[person]}
-                      </p>
-                    </>
-                  )}
-                </section>
-                <div className="v2-dialog-actions">
-                  <button
-                    onClick={() =>
-                      choose({ type: "appoint", office, person: null })
-                    }
-                  >
-                    预览免职
-                  </button>
-                  {s.grievances[person] > 0 && (
-                    <button onClick={() => choose({ type: "mediate", person })}>
-                      预览政治和解
-                    </button>
-                  )}
-                  <button
-                    className="v2-primary"
-                    onClick={() => choose({ type: "appoint", office, person })}
-                  >
-                    预览任命
-                  </button>
-                </div>
-              </>
-            )}
-            {modal === "reform" && (
-              <>
-                <h2>改变行动权限，而不是购买通行费。</h2>
-                <h3>第一层 · 当前事务临时授权</h3>
-                <label className="v2-field">
-                  具体事务
-                  <select
-                    value={authorizationMatter || m.matters[0]?.id || ""}
-                    onChange={(e) => {
-                      setAuthorizationMatter(e.target.value);
-                      const it = m.matters.find((x) => x.id === e.target.value);
-                      if (it) setLead(`gov-${it.province}`);
-                    }}
-                  >
-                    {m.matters.map((x) => (
-                      <option value={x.id} key={x.id}>
-                        {x.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="v2-field">
-                  临时主管
-                  <select
-                    value={lead}
-                    onChange={(e) => setLead(e.target.value)}
-                  >
-                    {offices.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="v2-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={joint}
-                    onChange={(e) => setJoint(e.target.checked)}
-                  />
-                  正式邀请中央—地方联合参与
-                </label>
-                <label className="v2-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={emergency}
-                    onChange={(e) => setEmergency(e.target.checked)}
-                  />
-                  阶段≥2时取得紧急强制权
-                </label>
-                <button
-                  onClick={() =>
-                    choose({
-                      type: "authorize",
-                      matter: authorizationMatter || m.matters[0]?.id || "",
-                      lead,
-                      joint,
-                      emergency,
-                    })
-                  }
-                  className="v2-primary"
-                >
-                  预览临时授权
-                </button>
-                <h3>第二层 · 全国部门改革</h3>
-                <div className="v2-reform-buttons">
-                  <button
-                    onClick={() =>
-                      choose({ type: "department", department: "anomaly" })
-                    }
-                  >
-                    全国异常垂直主责
-                  </button>
-                  <button
-                    onClick={() =>
-                      choose({ type: "department", department: "evacuation" })
-                    }
-                  >
-                    各省独立灾害疏散权
-                  </button>
-                  <button
-                    onClick={() =>
-                      choose({ type: "department", department: "transport" })
-                    }
-                  >
-                    中央跨省运输体系
-                  </button>
-                </div>
-                <h3>第三层 · 国家基础制度</h3>
-                {Object.keys(regimes).map((id) => (
-                  <button
-                    key={id}
-                    className="v2-regime-choice"
-                    onClick={() =>
-                      choose({ type: "regime", regime: id as Regime })
-                    }
-                  >
-                    <b>{regimes[id as Regime].name}</b>
-                    <p>获得：{regimes[id as Regime].gain}</p>
-                    <p>限制：{regimes[id as Regime].loss}</p>
-                    <span>1命令 +1财政 +2资本 / 下一回合生效</span>
-                  </button>
-                ))}
-                <details>
-                  <summary>小范围异常主责修补</summary>
-                  <p>
-                    针对当前选中的{local.name}；不自动给予跨省或联合行动权限。
-                  </p>
-                  {offices
-                    .filter(
-                      (o) =>
-                        o.domains.includes("anomaly") &&
-                        (!o.province || o.province === selected),
-                    )
-                    .map((o) => (
-                      <button
-                        key={o.id}
-                        onClick={() =>
+                {action.type === "resolve" && (
+                  <>
+                    <label className="v2-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={!!action.force}
+                        onChange={(e) =>
+                          choose({ ...action, force: e.target.checked })
+                        }
+                      />
+                      申请紧急强制（必须已有正式紧急授权；不能绕过能力条件）
+                    </label>
+                    <label className="v2-field">
+                      地方资源的实际交换条件
+                      <select
+                        value={action.exchange || "ownership"}
+                        onChange={(e) =>
                           choose({
-                            type: "local",
-                            province: selected,
-                            lead: o.id,
+                            ...action,
+                            exchange: e.target.value as
+                              | "ownership"
+                              | "budget"
+                              | "central",
                           })
                         }
                       >
-                        {o.name}
+                        <option value="ownership">保留地方收益权与1物资</option>
+                        <option value="budget">
+                          承诺以后每回合1财政部门预算
+                        </option>
+                        <option value="central">
+                          改用中央工业省物资（须有供应能力）
+                        </option>
+                      </select>
+                    </label>
+                  </>
+                )}
+                <div className="v2-costs">
+                  <span>
+                    命令<b>−{v.costs.commands}</b>
+                  </span>
+                  <span>
+                    财政<b>−{v.costs.treasury}</b>
+                  </span>
+                  <span>
+                    资本<b>−{v.costs.capital}</b>
+                  </span>
+                  <span>
+                    物资<b>−{v.costs.stock}</b>
+                  </span>
+                </div>
+                <h3>改变的不只是余额</h3>
+                <ul>
+                  {v.effects.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+                {confirmedPreview && (
+                  <div className="v2-result">
+                    <h3>执行后资源</h3>
+                    <p>
+                      命令 {s.commands} → {v.after.commands} / 财政 {s.treasury}{" "}
+                      → {v.after.treasury} / 资本 {s.capital} →{" "}
+                      {v.after.capital}
+                    </p>
+                    {v.errors.length > 0 && (
+                      <p className="danger">
+                        当前不可执行：{v.errors.join("；")}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {v.errors.length > 0 && (
+                  <div className="remedy-links">
+                    <h3>可以从哪里修复？</h3>
+                    <p>
+                      以下入口用于检查对应条件，并不保证一次操作就能解锁。特殊能力仍需要正式岗位与真实权限。
+                    </p>
+                    <button
+                      onClick={() => {
+                        setAction(null);
+                        open("staff");
+                      }}
+                    >
+                      检查人事与才能
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAction(null);
+                        if (action.type === "resolve") authorize(action.matter);
+                        else open("reform");
+                      }}
+                    >
+                      检查指挥权限
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAction(null);
+                        open("policy");
+                      }}
+                    >
+                      检查政策路线
+                    </button>
+                  </div>
+                )}
+              </PanelFrame>
+            )}
+            {modal && (
+              <PanelFrame
+                key={modal}
+                title={titles[modal]}
+                modal={modal === "pause" || modal === "settings"}
+                onClose={() => setModal(null)}
+                footer={
+                  modal === "staff" ? (
+                    <>
+                      <button
+                        onClick={() =>
+                          choose({ type: "appoint", office, person: null })
+                        }
+                      >
+                        预览免职
+                      </button>
+                      {s.grievances[person] > 0 && (
+                        <button
+                          onClick={() => choose({ type: "mediate", person })}
+                        >
+                          预览政治和解
+                        </button>
+                      )}
+                      <button
+                        className="v2-primary"
+                        onClick={() =>
+                          choose({ type: "appoint", office, person })
+                        }
+                      >
+                        预览任命
+                      </button>
+                    </>
+                  ) : modal === "reform" ? (
+                    <button
+                      className="v2-primary"
+                      onClick={() =>
+                        choose({
+                          type: "authorize",
+                          matter: authorizationMatter || m.matters[0]?.id || "",
+                          lead,
+                          joint,
+                          emergency,
+                        })
+                      }
+                    >
+                      预览临时授权
+                    </button>
+                  ) : undefined
+                }
+              >
+                {(modal === "reform" || modal === "policy") && (
+                  <div className="panel-tabs">
+                    <button
+                      aria-pressed={modal === "policy"}
+                      onClick={() => open("policy")}
+                    >
+                      全国政策
+                    </button>
+                    <button
+                      aria-pressed={modal === "reform"}
+                      onClick={() => open("reform")}
+                    >
+                      三层权力改革
+                    </button>
+                  </div>
+                )}
+                {modal === "staff" && (
+                  <>
+                    <h2>人物的才能需要合适的位置。</h2>
+                    <p>
+                      任命/免职1命令，一人一职。合法参与资格与当前制度共同决定特殊能力。
+                    </p>
+                    <label className="v2-field">
+                      职位
+                      <select
+                        value={office}
+                        onChange={(e) => setOffice(e.target.value)}
+                      >
+                        {offices.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name} ·{" "}
+                            {getPerson(s.appointments[o.id])?.name || "空缺"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="v2-roster">
+                      {people.map((p) => (
+                        <button
+                          className={person === p.id ? "selected" : ""}
+                          key={p.id}
+                          onClick={() => setPerson(p.id)}
+                        >
+                          <b>{p.name}</b>
+                          <span>{personOfficeLabel(s.appointments, p.id)}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <section className="v2-person-details">
+                      <h3>{getPerson(person)?.name || "保持职位空缺"}</h3>
+                      {getPerson(person) && (
+                        <>
+                          <p>
+                            {getPerson(person)!.title} ·{" "}
+                            {factionNames[getPerson(person)!.faction]}
+                          </p>
+                          <p>
+                            {Object.keys(issueNames)
+                              .map(
+                                (i) =>
+                                  issueNames[i as Issue][
+                                    getPerson(person)!.stance[i as Issue]
+                                  ],
+                              )
+                              .join(" / ")}
+                          </p>
+                          {coreAbilities[person] ? (
+                            <>
+                              <h4>
+                                <Sparkles size={18} />
+                                {coreAbilities[person].name}
+                              </h4>
+                              <p>启用：{coreAbilities[person].condition}</p>
+                              <p>限制：{coreAbilities[person].limit}</p>
+                            </>
+                          ) : (
+                            <p>
+                              保留基础专业与立场；本版尚未为该人物扩展独特特殊行动。
+                            </p>
+                          )}
+                          <p>
+                            积怨 {s.grievances[person]} · 根基 {s.roots[person]}
+                          </p>
+                        </>
+                      )}
+                    </section>
+                  </>
+                )}
+                {modal === "reform" && (
+                  <>
+                    <h2>改变行动权限，而不是购买通行费。</h2>
+                    <h3>第一层 · 当前事务临时授权</h3>
+                    <label className="v2-field">
+                      具体事务
+                      <select
+                        value={authorizationMatter || m.matters[0]?.id || ""}
+                        onChange={(e) => {
+                          setAuthorizationMatter(e.target.value);
+                          const it = m.matters.find(
+                            (x) => x.id === e.target.value,
+                          );
+                          if (it) setLead(`gov-${it.province}`);
+                        }}
+                      >
+                        {m.matters.map((x) => (
+                          <option value={x.id} key={x.id}>
+                            {x.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="v2-field">
+                      临时主管
+                      <select
+                        value={lead}
+                        onChange={(e) => setLead(e.target.value)}
+                      >
+                        {offices.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="v2-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={joint}
+                        onChange={(e) => setJoint(e.target.checked)}
+                      />
+                      正式邀请中央—地方联合参与
+                    </label>
+                    <label className="v2-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={emergency}
+                        onChange={(e) => setEmergency(e.target.checked)}
+                      />
+                      阶段≥2时取得紧急强制权
+                    </label>
+
+                    <h3>第二层 · 全国部门改革</h3>
+                    <div className="v2-reform-buttons">
+                      <button
+                        onClick={() =>
+                          choose({ type: "department", department: "anomaly" })
+                        }
+                      >
+                        全国异常垂直主责
+                      </button>
+                      <button
+                        onClick={() =>
+                          choose({
+                            type: "department",
+                            department: "evacuation",
+                          })
+                        }
+                      >
+                        各省独立灾害疏散权
+                      </button>
+                      <button
+                        onClick={() =>
+                          choose({
+                            type: "department",
+                            department: "transport",
+                          })
+                        }
+                      >
+                        中央跨省运输体系
+                      </button>
+                    </div>
+                    <h3>第三层 · 国家基础制度</h3>
+                    {Object.keys(regimes).map((id) => (
+                      <button
+                        key={id}
+                        className="v2-regime-choice"
+                        onClick={() =>
+                          choose({ type: "regime", regime: id as Regime })
+                        }
+                      >
+                        <b>{regimes[id as Regime].name}</b>
+                        <p>获得：{regimes[id as Regime].gain}</p>
+                        <p>限制：{regimes[id as Regime].loss}</p>
+                        <span>1命令 +1财政 +2资本 / 下一回合生效</span>
                       </button>
                     ))}
-                </details>
-              </>
-            )}
-            {modal === "policy" && (
-              <>
-                <h2>路线是一种真实的许可。</h2>
-                <label className="v2-field">
-                  政策议题
-                  <select
-                    value={issue}
-                    onChange={(e) => setIssue(e.target.value as Issue)}
-                  >
-                    {Object.keys(issueNames).map((i) => (
-                      <option key={i} value={i}>
-                        {issueNames[i as Issue].join(" / ")}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <p>
-                  当前：
-                  {s.policies[issue] === null
-                    ? "未定路线"
-                    : issueNames[issue][s.policies[issue]!]}
-                </p>
-                <div className="v2-policy-buttons">
-                  {issueNames[issue].map((name, side) => (
-                    <button
-                      key={name}
-                      onClick={() => choose({ type: "policy", issue, side })}
-                    >
-                      {name}
-                      <ArrowRight size={16} />
-                    </button>
-                  ))}
-                </div>
-                <p>
-                  群众公开救援无法在保密政策下发动。秘密高级封印无法在公开政策下发动。委员会合作需要协商路线和有限技术公开协议。
-                </p>
-              </>
-            )}
-            {modal === "help" && (
-              <>
-                <h2>治理手册 · 国家机器 v0.2</h2>
-                <p>
-                  先看目标与危机，点击方案查看人物、事权、路线和利益条件。受阻不等于资源不够：你可能需要换职位、改制度、提供正式授权，或采用不同能力。
-                </p>
-                <h3>财政与失败</h3>
-                <p>
-                  每回合基本收入5（完工能源设施另增税收1），先支付固定4、制度维护与可暂停项目。连续两次无法履行承诺会失败；全国危机≥12或中央阻塞连续两回合≥4也会失败。全国模式还要完成目标终局，存活本身不是正式胜利。
-                </p>
-                <h3>三种体制如何不同</h3>
-                {Object.values(regimes).map((r) => (
-                  <section key={r.name}>
-                    <h4>{r.name}</h4>
+                    <details>
+                      <summary>小范围异常主责修补</summary>
+                      <p>
+                        针对当前选中的{local.name}
+                        ；不自动给予跨省或联合行动权限。
+                      </p>
+                      {offices
+                        .filter(
+                          (o) =>
+                            o.domains.includes("anomaly") &&
+                            (!o.province || o.province === selected),
+                        )
+                        .map((o) => (
+                          <button
+                            key={o.id}
+                            onClick={() =>
+                              choose({
+                                type: "local",
+                                province: selected,
+                                lead: o.id,
+                              })
+                            }
+                          >
+                            {o.name}
+                          </button>
+                        ))}
+                    </details>
+                  </>
+                )}
+                {modal === "policy" && (
+                  <>
+                    <h2>路线是一种真实的许可。</h2>
+                    <label className="v2-field">
+                      政策议题
+                      <select
+                        value={issue}
+                        onChange={(e) => setIssue(e.target.value as Issue)}
+                      >
+                        {Object.keys(issueNames).map((i) => (
+                          <option key={i} value={i}>
+                            {issueNames[i as Issue].join(" / ")}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <p>
-                      {r.gain} {r.loss}
+                      当前：
+                      {s.policies[issue] === null
+                        ? "未定路线"
+                        : issueNames[issue][s.policies[issue]!]}
                     </p>
-                  </section>
-                ))}
-                <h3>建议的短战役路线</h3>
-                <p>
-                  地方路线可以公开救援、撤离并遏制北境危机。垂直路线可提前改革，再以谢尔盖与档案启动全国秘密封印。委员会路线需要公开有限技术资料与协商政策，还要将群众救援人物放到当前省份的合法职位。三条路径不能互相用资源替代。
-                </p>
-                <h3>国家目标建设提示</h3>
-                <p>
-                  星火：勘探→墨玄在南岭任职→标准委员会→中央运输改革→工程竣工→保留收益权。协约：联合体制或疏散权下放→真实合作协议→处理事故→保留负责人信任。长夜：三个预警站→合法高级封印/联合行动→跨省应急→管理北境。每个目标还须在第8回合执行终局方案。
-                </p>
-                <h3>能力与危机的真实限制</h3>
-                <p>
-                  积怨达到3会拒绝协办；工程师离岗或被抽调会中断工程。临时授权本回合到期，改革下回合生效。公开救援不会自动消灭异常源；持续危机仍需要遏制、撤离、隔离或封印。每回合最多接纳3项新增事务，压力只检测一次。
-                </p>
-                <h3>实际历史</h3>
-                {m.history.slice(0, 12).map((h) => (
-                  <p key={h.id}>
-                    第{h.turn}回合 · {h.title}：{h.effects[0]}
-                  </p>
-                ))}
-                <p>
-                  详细规则与已知简化见仓库
-                  RULES.md、CHANGELOG.md。旧存档保留；v0.2使用独立存档键。
-                </p>
-              </>
+                    <div className="v2-policy-buttons">
+                      {issueNames[issue].map((name, side) => (
+                        <button
+                          key={name}
+                          onClick={() =>
+                            choose({ type: "policy", issue, side })
+                          }
+                        >
+                          {name}
+                          <ArrowRight size={16} />
+                        </button>
+                      ))}
+                    </div>
+                    <p>
+                      群众公开救援无法在保密政策下发动。秘密高级封印无法在公开政策下发动。委员会合作需要协商路线和有限技术公开协议。
+                    </p>
+                  </>
+                )}
+                {modal === "help" && (
+                  <>
+                    <h2>治理手册 · 国家机器 v0.2</h2>
+                    <h3>指挥席操作</h3>
+                    <p>
+                      点击地图调阅地方，左栏切换管理功能，右侧提醒定位事务。地图支持拖动与滚轮缩放，四种地图模式展示政治、行政、资源和危机。Esc关闭最上层面板，再按Esc进入暂停菜单；保存与读取都在暂停菜单。正文只在面板内部滚动，底部回合按钮持续可见。
+                    </p>
+                    <p>
+                      先看目标与危机，点击方案查看人物、事权、路线和利益条件。受阻不等于资源不够：你可能需要换职位、改制度、提供正式授权，或采用不同能力。
+                    </p>
+                    <h3>财政与失败</h3>
+                    <p>
+                      每回合基本收入5（完工能源设施另增税收1），先支付固定4、制度维护与可暂停项目。连续两次无法履行承诺会失败；全国危机≥12或中央阻塞连续两回合≥4也会失败。全国模式还要完成目标终局，存活本身不是正式胜利。
+                    </p>
+                    <h3>三种体制如何不同</h3>
+                    {Object.values(regimes).map((r) => (
+                      <section key={r.name}>
+                        <h4>{r.name}</h4>
+                        <p>
+                          {r.gain} {r.loss}
+                        </p>
+                      </section>
+                    ))}
+                    <h3>建议的短战役路线</h3>
+                    <p>
+                      地方路线可以公开救援、撤离并遏制北境危机。垂直路线可提前改革，再以谢尔盖与档案启动全国秘密封印。委员会路线需要公开有限技术资料与协商政策，还要将群众救援人物放到当前省份的合法职位。三条路径不能互相用资源替代。
+                    </p>
+                    <h3>国家目标建设提示</h3>
+                    <p>
+                      星火：勘探→墨玄在南岭任职→标准委员会→中央运输改革→工程竣工→保留收益权。协约：联合体制或疏散权下放→真实合作协议→处理事故→保留负责人信任。长夜：三个预警站→合法高级封印/联合行动→跨省应急→管理北境。每个目标还须在第8回合执行终局方案。
+                    </p>
+                    <h3>能力与危机的真实限制</h3>
+                    <p>
+                      积怨达到3会拒绝协办；工程师离岗或被抽调会中断工程。临时授权本回合到期，改革下回合生效。公开救援不会自动消灭异常源；持续危机仍需要遏制、撤离、隔离或封印。每回合最多接纳3项新增事务，压力只检测一次。
+                    </p>
+                    <h3>实际历史</h3>
+                    {m.history.slice(0, 12).map((h) => (
+                      <p key={h.id}>
+                        第{h.turn}回合 · {h.title}：{h.effects[0]}
+                      </p>
+                    ))}
+                    <p>
+                      详细规则与已知简化见仓库
+                      RULES.md、CHANGELOG.md。旧存档保留；v0.2使用独立存档键。
+                    </p>
+                  </>
+                )}
+                {modal === "settings" && settings}
+                {modal === "pause" && (
+                  <div className="pause-options">
+                    <button onClick={() => setModal(null)}>
+                      <Play />
+                      继续游戏
+                    </button>
+                    <button onClick={store}>
+                      <Save />
+                      保存游戏
+                    </button>
+                    <button onClick={load}>
+                      <Download />
+                      读取存档
+                    </button>
+                    <button onClick={() => open("settings")}>
+                      <Settings />
+                      设置
+                    </button>
+                    <button onClick={() => open("help")}>
+                      <BookOpen />
+                      帮助
+                    </button>
+                    <p>
+                      返回主菜单不会自动存档。继续游戏会读取最近手动保存的进度，请先保存。
+                    </p>
+                    <button
+                      onClick={() => {
+                        setScreen("menu");
+                        setModal(null);
+                        setSaved(savedGame());
+                      }}
+                    >
+                      返回主菜单
+                    </button>
+                  </div>
+                )}
+                {modal === "central" && (
+                  <>
+                    <p>
+                      现行制度：<strong>{regimes[m.regime].name}</strong>
+                    </p>
+                    <p>
+                      获得：{regimes[m.regime].gain}
+                      <br />
+                      限制：{regimes[m.regime].loss}
+                    </p>
+                    {m.pending && (
+                      <p className="action-warning">
+                        改革过渡：第{m.pending.due}回合生效为
+                        {regimes[m.pending.regime].name}，当前仍按旧体制。
+                      </p>
+                    )}
+                    <p>
+                      部门改革：{departmentNames[m.department]}{" "}
+                      {m.departmentPending
+                        ? ` / 第${m.departmentPending.due}回合生效`
+                        : ""}
+                    </p>
+                    <p>
+                      审批阻塞{s.paralysis}
+                      /4。达到2限制中央审批，连续两次结算≥4失败。
+                    </p>
+                    {s.paralysis > 0 && (
+                      <button
+                        disabled={!playing}
+                        onClick={() => choose({ type: "unblock" })}
+                      >
+                        预览疏通审批
+                      </button>
+                    )}
+                    <button onClick={() => open("reform")}>调阅三层改革</button>
+                    {offices.map((o) => {
+                      const id = s.appointments[o.id];
+                      return (
+                        <article className="document-card" key={o.id}>
+                          <h3>{o.name}</h3>
+                          <p>
+                            {getPerson(id)?.name || "岗位空缺"} · 积怨
+                            {id ? s.grievances[id] : "—"} · 权限：
+                            {o.domains.map((d) => domainNames[d]).join(" / ")}
+                          </p>
+                          <button
+                            disabled={!playing}
+                            onClick={() => {
+                              setOffice(o.id);
+                              setPerson(id || "xing");
+                              open("staff");
+                            }}
+                          >
+                            调整 / 查看负责人
+                          </button>
+                        </article>
+                      );
+                    })}
+                    {Object.keys(s.factions).map((id) => (
+                      <p key={id}>
+                        {factionNames[id as keyof typeof factionNames]}：影响
+                        {
+                          s.factions[id as keyof typeof s.factions].influence
+                        }{" "}
+                        /不满
+                        {s.factions[id as keyof typeof s.factions].discontent}
+                      </p>
+                    ))}
+                  </>
+                )}
+                {modal === "economy" && (
+                  <>
+                    <h3>财政预测 · 先支出，后收入</h3>
+                    <div className="finance-summary">
+                      <strong>
+                        {f.current} → {f.next}
+                      </strong>
+                      <span>
+                        收入 +{f.income} /支出 −{f.total}
+                      </span>
+                    </div>
+                    <p>
+                      收入：基本税收5 +完工能源设施{f.income - 5}。<br />
+                      支出：固定{f.fixed} +委员会{m.regime === "joint" ? 1 : 0}{" "}
+                      +兼容标准{m.standards ? 1 : 0} +部门预算{m.budgets.length}{" "}
+                      +可施工项目{f.projectCosts}。
+                    </p>
+                    <p className={f.default ? "danger" : ""}>
+                      {f.default
+                        ? "当前余额不足以履行承诺，本次违约；连续两次违约失败。"
+                        : "本次能履行全部承诺。"}
+                    </p>
+                    {m.mode === "tutorial" && m.tutorial === 2 && (
+                      <button
+                        className="v2-primary tutorial-highlight"
+                        onClick={() => choose({ type: "forecast" })}
+                      >
+                        核对财政预测
+                      </button>
+                    )}
+                    <h3>真实工程与持续承诺</h3>
+                    {m.works.map((w) => (
+                      <article className="document-card" key={w.id}>
+                        <h4>
+                          {s.provinces.find((p) => p.id === w.province)!.name} ·{" "}
+                          {w.type === "energy" ? "灵脉能源工程" : "预警站"}
+                        </h4>
+                        <p>
+                          {w.completed
+                            ? "竣工"
+                            : `${w.progress}/${w.duration} · ${w.paused ? "暂停" : "施工中"}`}{" "}
+                          {w.worker
+                            ? ` / 工程师${getPerson(w.worker)?.name}`
+                            : ""}
+                        </p>
+                        {!w.completed && (
+                          <button
+                            disabled={!playing}
+                            onClick={() =>
+                              choose({ type: "pause", work: w.id })
+                            }
+                          >
+                            {w.paused ? "恢复施工" : "暂停承诺"}
+                          </button>
+                        )}
+                      </article>
+                    ))}
+                    {m.budgets.map((pid) => (
+                      <article className="document-card" key={pid}>
+                        <p>
+                          {s.provinces.find((p) => p.id === pid)!.name}
+                          预算承诺：每回合1财政
+                        </p>
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({ type: "pause", work: `budget:${pid}` })
+                          }
+                        >
+                          撤销预算（信任下降）
+                        </button>
+                      </article>
+                    ))}
+                    <h3>当前地区：{local.name}</h3>
+                    <div className="quick-grid">
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({
+                            type: "project",
+                            project: "warning",
+                            province: selected,
+                          })
+                        }
+                      >
+                        预警站建设
+                      </button>
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({
+                            type: "project",
+                            project: "energy",
+                            province: selected,
+                          })
+                        }
+                      >
+                        宗门能源工程
+                      </button>
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({ type: "investigate", deck: "ley" })
+                        }
+                      >
+                        <Zap size={18} />
+                        灵脉勘探
+                      </button>
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({ type: "investigate", deck: "standards" })
+                        }
+                      >
+                        <Layers size={18} />
+                        标准化试点
+                      </button>
+                    </div>
+                  </>
+                )}
+                {modal === "goals" && (
+                  <>
+                    {m.mode === "national" ? (
+                      <>
+                        <h3>{goals[m.goal].name}</h3>
+                        <p>{goals[m.goal].description}</p>
+                        <p>
+                          第8回合需执行「{goals[m.goal].finale}
+                          」，建设条件终局重新判定。
+                        </p>
+                        {target.map((c) => (
+                          <article
+                            className={`goal-condition ${c.met ? "met" : "unmet"}`}
+                            key={c.label}
+                          >
+                            {c.met ? <Check /> : <Target />}
+                            <div>
+                              <b>{c.label}</b>
+                              <p>{c.reason}</p>
+                            </div>
+                          </article>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        <h3>南岭—北境紧急状态</h3>
+                        <p>实际管理南岭事故及北境危机，并存活至第4回合。</p>
+                        <p>
+                          南岭：
+                          {m.milestones.includes("accident-managed")
+                            ? "已管理"
+                            : "未完成"}{" "}
+                          /北境：
+                          {m.milestones.includes("north-managed")
+                            ? "已管理"
+                            : "未完成"}
+                        </p>
+                        <p>
+                          流程：第1回合预警 → 第2回合事故 → 实际处置产生不同后续
+                          → 第4回合北境旧神。
+                        </p>
+                      </>
+                    )}
+                    <button onClick={() => open("matters")}>
+                      调阅国家事务
+                    </button>
+                  </>
+                )}
+                {modal === "matters" && (
+                  <>
+                    {focusedMatter && (
+                      <button onClick={() => setFocusedMatter(null)}>
+                        查看全部事务
+                      </button>
+                    )}
+                    {matterCards.length ? (
+                      matterCards
+                    ) : (
+                      <p>当前事务已处理。可以继续建设，或结束回合。</p>
+                    )}
+                    <div className="quick-grid">
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({ type: "investigate", deck: "archive" })
+                        }
+                      >
+                        密封档案调查
+                      </button>
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({ type: "investigate", deck: "civic" })
+                        }
+                      >
+                        跨文明公报
+                      </button>
+                    </div>
+                    {m.backlog.length > 0 && (
+                      <details>
+                        <summary>公开待办 · {m.backlog.length}项</summary>
+                        {m.backlog.map((x) => (
+                          <p key={x.id}>{x.title} · 下回合接纳</p>
+                        ))}
+                      </details>
+                    )}
+                  </>
+                )}
+                {modal === "local" && (
+                  <>
+                    <h3>
+                      {local.name} · {local.districts[district].name}
+                    </h3>
+                    <p>{local.subtitle}</p>
+                    <p>
+                      本区产出{local.districts[district].output} /全省库存
+                      {local.stock} /信任{m.trust[selected]}/3 /自治
+                      {local.autonomy} /群众疲劳{m.fatigue[selected]}
+                    </p>
+                    <p>
+                      负责人：
+                      {getPerson(s.appointments[`gov-${selected}`])?.name ||
+                        "空缺"}
+                      。收益权{m.rights[selected] ? "已保留" : "未签订"}
+                      ；群众组织
+                      {m.suppressed[selected] ? "已压制" : "仍可公开动员"}。
+                    </p>
+                    <p>
+                      {(["production", "social", "anomaly"] as const)
+                        .map((d) => `${domainNames[d]}压力${local.pressure[d]}`)
+                        .join(" / ")}
+                    </p>
+                    <div className="quick-grid">
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({
+                            type: "project",
+                            project: "warning",
+                            province: selected,
+                          })
+                        }
+                      >
+                        预警站建设
+                      </button>
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({
+                            type: "project",
+                            project: "energy",
+                            province: selected,
+                          })
+                        }
+                      >
+                        宗门能源工程
+                      </button>
+                      <button
+                        disabled={!playing}
+                        onClick={() =>
+                          choose({ type: "reconcile", province: selected })
+                        }
+                      >
+                        恢复地方协约
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOffice(`gov-${selected}`);
+                          setPerson(
+                            s.appointments[`gov-${selected}`] || "xing",
+                          );
+                          open("staff");
+                        }}
+                      >
+                        查看地方人事
+                      </button>
+                    </div>
+                    <h3>地区设施与建设</h3>
+                    {m.works
+                      .filter((w) => w.province === selected)
+                      .map((w) => (
+                        <article className="document-card" key={w.id}>
+                          <b>
+                            {w.type === "energy" ? "灵脉能源工程" : "预警站"}
+                          </b>
+                          <p>
+                            {w.completed
+                              ? "已竣工"
+                              : `${w.progress}/${w.duration} · ${w.paused ? "暂停" : "施工中"}`}
+                          </p>
+                          <button onClick={() => open("economy")}>
+                            调阅经济与承诺
+                          </button>
+                        </article>
+                      ))}
+                    {selected === "industry" && district === 0 && (
+                      <button onClick={() => open("central")}>
+                        调阅首都中央机构
+                      </button>
+                    )}
+                    <h3>地区事务</h3>
+                    {m.matters
+                      .filter((x) => x.province === selected)
+                      .map((x) => (
+                        <button
+                          className="local-matter"
+                          key={x.id}
+                          onClick={() => locate(x.id)}
+                        >
+                          {x.title}
+                          <ChevronRight size={18} />
+                        </button>
+                      ))}
+                    <details>
+                      <summary>当前特殊能力资格</summary>
+                      {Object.entries(capNames).map(([id, name]) => {
+                        const it = m.matters.find(
+                          (x) => x.province === selected,
+                        ) || {
+                          id: "inspect",
+                          province: selected,
+                          kind: "oldgod" as const,
+                          title: "",
+                          description: "",
+                          stage: 1,
+                          containment: 0,
+                          evacuated: false,
+                          isolated: false,
+                          age: 0,
+                        };
+                        const cs = capability(
+                          g,
+                          id as keyof typeof capNames,
+                          it,
+                          id === "seal" ? 0 : 1,
+                        );
+                        return (
+                          <article className="document-card" key={id}>
+                            <b>
+                              {name} ·{" "}
+                              {cs.every((c) => c.met) ? "可用" : "受阻"}
+                            </b>
+                            {cs
+                              .filter((c) => !c.met)
+                              .map((c) => (
+                                <p key={c.label}>{c.reason}</p>
+                              ))}
+                          </article>
+                        );
+                      })}
+                    </details>
+                  </>
+                )}
+                {modal === "history" && (
+                  <div className="v2-history">
+                    {m.history.map((h) => (
+                      <article id={h.id} key={h.id} className="document-card">
+                        <span className="eyebrow">
+                          第{h.turn}回合 /{h.id}
+                        </span>
+                        <h3>{h.title}</h3>
+                        <p>
+                          参与：
+                          {h.actors
+                            .map((id) => getPerson(id)?.name || id)
+                            .join("、") || "自动结算/制度"}{" "}
+                          ·{" "}
+                          {h.institutions
+                            .map((id) => getOffice(id)?.name || id)
+                            .join("、")}
+                        </p>
+                        <details>
+                          <summary>当时条件</summary>
+                          {h.conditions.map((c, i) => (
+                            <p key={i}>{c}</p>
+                          ))}
+                        </details>
+                        <ul>
+                          {h.effects.map((x, i) => (
+                            <li key={i}>{x}</li>
+                          ))}
+                        </ul>
+                        {h.parents.map((id) => (
+                          <button
+                            className="text-button"
+                            key={id}
+                            onClick={() => historySource(id)}
+                          >
+                            因果前序：
+                            {m.history.find((x) => x.id === id)?.title}
+                          </button>
+                        ))}
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </PanelFrame>
             )}
           </section>
+          <aside
+            className={`alerts-rail ${alertsOpen ? "expanded" : ""}`}
+            aria-label="重要提醒"
+          >
+            <header>
+              <h2>
+                <Bell size={20} />
+                重要提醒
+              </h2>
+              <button
+                className="alerts-toggle"
+                aria-label={alertsOpen ? "折叠提醒" : "展开提醒"}
+                onClick={() => setAlertsOpen(!alertsOpen)}
+              >
+                <Bell size={22} />
+                <b>{m.matters.length}</b>
+              </button>
+            </header>
+            <div className="alerts-scroll">
+              {alerts.length ? alerts : <p>当前没有需审议事务。</p>}
+              <details className="secondary-alerts">
+                <summary>政治阻力 / 建设与里程碑</summary>
+                {minorAlerts}
+              </details>
+              {m.backlog.length > 0 && (
+                <button
+                  className="alert-item normal"
+                  onClick={() => open("matters")}
+                >
+                  <ScrollText size={18} />
+                  <div>
+                    <b>公开待办 {m.backlog.length}项</b>
+                    <small>下回合按名额接纳</small>
+                  </div>
+                </button>
+              )}
+            </div>
+            <footer>
+              <span className="eyebrow">指挥席 / 情报分级</span>
+              <span>
+                <i className="urgent-dot" />
+                紧急 <i className="normal-dot" />
+                普通 <i className="info-dot" />
+                信息
+              </span>
+            </footer>
+          </aside>
+          <footer className="turn-bar">
+            <button className="selected-object" onClick={() => open("local")}>
+              <MapPin size={22} />
+              <div>
+                <b>
+                  {local.name} · {local.districts[district].name}
+                </b>
+                <span>
+                  库存 {local.stock} / 信任 {m.trust[selected]}/3
+                </span>
+              </div>
+            </button>
+            <div className="region-shortcuts">
+              <button
+                disabled={!playing}
+                onClick={() =>
+                  choose({
+                    type: "project",
+                    project: "warning",
+                    province: selected,
+                  })
+                }
+              >
+                预警建设
+              </button>
+              <button
+                disabled={!playing}
+                onClick={() => {
+                  setOffice(`gov-${selected}`);
+                  setPerson(s.appointments[`gov-${selected}`] || "xing");
+                  open("staff");
+                }}
+              >
+                地方人事
+              </button>
+            </div>
+            <span className="turn-label">
+              联邦历 {1950 + s.turn} · 第{s.turn}回合
+            </span>
+            {!playing ? (
+              <button
+                className="v2-primary end-turn"
+                onClick={() => {
+                  setReportOpen(true);
+                  setModal(null);
+                }}
+              >
+                执政报告
+              </button>
+            ) : (
+              <button
+                className="v2-primary end-turn"
+                onClick={() => choose({ type: "end" })}
+              >
+                结束回合 <ArrowRight size={20} />
+              </button>
+            )}
+          </footer>
+        </main>
+      )}
+      {notice && (
+        <div className="command-notice" role="status">
+          <Check size={18} />
+          <p>{notice}</p>
+          <button aria-label="关闭通知" onClick={() => setNotice("")}>
+            <X size={18} />
+          </button>
         </div>
       )}
     </div>

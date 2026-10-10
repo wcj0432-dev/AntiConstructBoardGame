@@ -1,8 +1,8 @@
-# 诸界联邦 · 国家机器重构 v0.2
+# 诸界联邦 · 地图指挥台 v0.2.2
 
 本地单人 PvE 数字桌游。React + TypeScript + Vite，无后端或在线裁判。通过人事、实际事权、路线和具体资源交换，构建一套能够治理奇幻世界的国家机器。
 
-默认进入四阶段操作教学；也可选择固定四回合「南岭—北境紧急状态」，或八回合国家目标模式。「星火计划」「诸界协约」「长夜防线」都需要具体组织与设施，并在第8回合通过终局检验；仅存活不会获得正式胜利。
+启动先进入独立主菜单；从「教学战役」进入四阶段实际操作，也可选择固定四回合「南岭—北境紧急状态」，或八回合国家目标模式。「星火计划」「诸界协约」「长夜防线」都需要具体组织与设施，并在第8回合通过终局检验；仅存活不会获得正式胜利。
 
 ## 运行
 
@@ -23,7 +23,7 @@ npx playwright install chromium
 npm run test:browser -- http://localhost:5173
 ```
 
-覆盖完整教程、存档读回、390px布局、国家目标入口、四回合UI胜利和终局历史浏览。使用系统Chromium时可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
+覆盖完整教程、存档读回、4种桌面尺寸、125%等效视口、地图/面板/提醒、国家目标入口、四回合UI胜利和终局历史。原生浏览器125%缩放另用 `npm run test:zoom` 验证。使用系统Chromium时可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
 
 首次安装需要网络；游玩不需要账号、密钥或服务器。所有字体使用本机字体，图标随游戏打包。
 
@@ -40,9 +40,15 @@ npm run test:browser -- http://localhost:5173
 
 详细规则、验证路线和简化见 [RULES.md](RULES.md)；更新与未完成部分见 [CHANGELOG.md](CHANGELOG.md)。
 
+## 地图指挥台
+
+固定视口：顶部资源与财政预测、左侧六个管理入口、中央交互地图、右侧提醒和底部回合按钮。点击地图调阅地方，管理面板一次展开一个。Esc关闭面板或打开暂停菜单；保存/读取从暂停菜单进入。详细内容局部滚动，游戏整页不滚动。
+
+四种地图模式、真实平移缩放、独立教学入口、100/110/125/150%UI缩放和可关闭辅助提示已接入。组件、全部屏幕与原生125%验证、已知限制见[UI重构说明](UI_REFACTOR.md)。
+
 ## 第一局
 
-1. 点击「前往人事任命」，任命星野澪为南岭省负责人。
+1. 从主菜单进入「教学战役」，点击「前往人事任命」，任命星野澪为南岭省负责人。
 2. 选择「群众参与预防巡检」→「预览后果」→「确认执行」。
 3. 给教学事故授予南岭主持、中央协办的临时权限，再执行公开群众救援。
 4. 点击「核对财政预测」，处理真实公开路径生成的能源配给争议。
@@ -51,7 +57,7 @@ npm run test:browser -- http://localhost:5173
 
 ## 存档
 
-手动点击顶部「存档」与「读档」。v0.2使用独立键 `federation-worlds-v2`，保留制度过渡、工程、授权、随机状态及因果记录。v0.1存档不会覆盖或静默迁移，会明确提示新开任期。网页与桌面版存档独立，移动离线HTML或清除浏览器数据可能使原存档不可见。
+按Esc进入暂停菜单，点击「保存游戏」或「读取存档」。v0.2使用独立键 `federation-worlds-v2`，保留制度过渡、工程、授权、随机状态及因果记录。v0.1存档不会覆盖或静默迁移，会明确提示新开任期。网页与桌面版存档独立，移动离线HTML或清除浏览器数据可能使原存档不可见。
 
 ## 下载及打包
 
@@ -68,9 +74,9 @@ npm run release:pack        # Windows-x64、离线HTML、源码zip及SHA256
 npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
 ```
 
-GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.2.1`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
+GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.2.2`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
 
-[下载v0.2离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.2.1-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。原v0.1下载仍保留，新包以v0.2.1命名。
+[下载v0.2离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.2.2-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。原v0.1下载仍保留，新包以v0.2.2命名。
 
 ## 工程结构
 
@@ -81,7 +87,7 @@ src/v2/model.ts, data.ts    v0.2组织关系、三体制、目标、公报及方
 src/v2/engine.ts            纯函数统一资格、预览、执行、持续结算及因果
 src/finance.ts              共享财政预测函数
 src/v2/engine.test.ts       真正行动集合、财政、教程及4/8回合验收
-src/App.tsx, v2/style.css   v0.2可解释界面
+src/App.tsx, ui/            主菜单、固定视口地图、文书窗口与可解释界面
 src/LegacyApp.tsx           保留旧界面供回归参考，不作为现行模式入口
 scripts/, desktop/         离线、桌面、源码打包和真实应用烟测
 ```
