@@ -33,7 +33,7 @@ function hash(seed: string) {
   for (const c of seed) n = Math.imul(n ^ c.charCodeAt(0), 16777619);
   return n >>> 0 || 1;
 }
-function random(s: GameState) {
+export function random(s: GameState) {
   let x = s.rng;
   x ^= x << 13;
   x ^= x >>> 17;

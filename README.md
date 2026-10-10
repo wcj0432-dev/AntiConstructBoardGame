@@ -1,108 +1,80 @@
-# 诸界联邦 · Federation of Worlds
+# 诸界联邦 · 国家机器重构 v0.2
 
-可在本地浏览器游玩的单人 PvE 数字桌游原型 v0.1。React + TypeScript + Vite，无后端、无在线 API，游戏运行后不依赖网络。
+本地单人 PvE 数字桌游。React + TypeScript + Vite，无后端或在线裁判。通过人事、实际事权、路线和具体资源交换，构建一套能够治理奇幻世界的国家机器。
 
-你管理的不是一支完美的队伍，而是一套充满矛盾的国家机器。通过人事、权限、政策与资源安排，度过8个季度。
+默认进入四阶段操作教学；也可选择固定四回合「南岭—北境紧急状态」，或八回合国家目标模式。「星火计划」「诸界协约」「长夜防线」都需要具体组织与设施，并在第8回合通过终局检验；仅存活不会获得正式胜利。
 
-## 安装与运行
+## 运行
 
-推荐 Node.js 22 或 24，npm 10+（已验证 Node 24.19.0、npm 11.9.0）。
-
-```bash
-npm ci
-npm run dev
-```
-
-在本地浏览器打开 Vite 输出的地址。默认端口5173。部署到自己的设备时可指定端口：
-
-```bash
-npm run dev -- --port 5173
-```
-
-```bash
-npm test          # 规则引擎自动化测试
-npm run build    # TypeScript 检查与生产构建
-npm run preview  # 查看生产构建，默认端口4173
-```
-
-首次安装需要 npm registry；运行不需要服务、账号、密钥或外部素材。页面字体使用本机字体，图标随应用打包。
-
-## 先玩演示场景
-
-默认种子 `南岭-071`，第一张牌固定为「灵脉电站事故」。点击「审议事务」，选择方案及三项冲突的处理方式，点击「预览执行」，检查最终资源和政治后果，最后确认执行。
-
-- **正常协调**：公开处置，三项冲突均协调，消耗4命令、1财政、2南岭物资；没有新增积怨。
-- **全部强制**：公开处置，三项冲突均强制，消耗1命令、1财政、2物资；谢尔盖积怨 +1、白芷 +2，白芷主持未来事务时产生阻力。
-- **制度改革**：先在权限改革中把南岭异常事务主责授予异常局，消耗1命令、2资本；再公开协调，事务消耗3命令。该领域今后不再产生事权冲突。
-
-选择保密、更换负责人、支付补偿、达成政治协议或向地方让渡权限，也会形成不同路线。正常游玩无需开发者工具。
-
-使用顶部「新游戏」设置种子，可取消固定首张演示牌。相同种子与相同决策可完整复现。存档使用当前浏览器、当前站点的 `localStorage`；不会自动同步到别的设备，清理网站数据会删除存档。
-
-## 已实现
-
-- 三省六区、三中央机构及三省政府；12名人物，独立职位、专业、立场、特殊能力、积怨和根基。
-- 动态事权 / 路线 / 利益冲突；参与者、原因、能力门槛、原始成本、处理成本和最终余额预览；确认后统一结算。
-- 每类12张、共36张数据定义事件；公开待办、压力连锁、重大危机额外抽牌和行政阻塞预警。
-- 三种主动牌堆、投资、地方经营、项目产出和两季度运行风险。
-- 人事、永久管辖改革、全国政策、跨省资源调拨、政治和解、派系影响与不满。
-- 8季度流程、胜负条件、终局报告、具体决策日志、新游戏、重开、存档和读档。
-- 响应式桌游界面；桌面三栏、手机纵向布局；所有内容均为本地资源。
-
-本原型采用可解释的模板化卡牌效果，重点验证政治系统，未加入复杂剧情或对手 AI。组织与行动可在同一行动窗口内交替操作，是原型阶段的明确简化。
-
-## 结构
-
-```text
-src/types.ts        统一状态、事务、效果及预览类型
-src/data.ts         人物、机构、省份与36张事件数据
-src/engine.ts       纯函数规则引擎、固定随机与存档验证
-src/engine.test.ts  行为测试与8季度演示验证
-src/App.tsx         React 操作与可解释决策界面
-src/style.css       本地样式、地图、卡牌与移动布局
-RULES.md            完整结算规则与补充设计决定
-```
-
-规则引擎不依赖 React 或 DOM，操作返回新状态，UI 不直接修改游戏资源。新增卡牌应使用类型化效果，避免在组件中编写单卡规则。
-
-## 验证
-
-自动化测试覆盖三条演示路线、不参与者的立场、职位空缺与调任、受损者征调、积怨阈值、派系改革阻力、压力时序、额外抽牌上限、项目、资源安全、延期、瘫痪、存档与完整8季度结局。另已在 Chromium 实测预览执行、三条路线、存读档、完整8季度及390px手机布局。
-
-## 下载到本地直接游玩
-
-发行版包含三种文件：Windows-x64 便携 zip（解压后双击 `FederationOfWorlds.exe`）、离线 HTML zip（解压后双击 `诸界联邦.html`）、完整源码 zip。无需联网游玩，也无需给普通玩家安装 Node.js。详见 [游玩说明](PLAYER_GUIDE.md)。
-
-Windows包包含完整 Electron 运行时，需保留全部文件。Windows应用与浏览器版的存档彼此独立。没有制作单文件安装器，也没有发行者签名。
-
-## 自行打包与发布
+Node.js 22/24，桌面打包使用24.5以上。已验证Node24.19、npm11.9。
 
 ```bash
 npm ci
-npm test
-npm run release:pack
+npm run dev                 # 浏览器打开 http://localhost:5173
+npm test                    # v0.1回归与v0.2行为/完整战役测试
+npm run build               # TypeScript检查及生产构建
+npm run preview
 ```
 
-`artifacts/` 中生成 Windows-x64、离线版与源码 zip，以及 `SHA256SUMS.txt`。初次桌面打包需要从 Electron 官方 GitHub 下载校验过的运行时，桌面打包需要 Node.js 24.5以上，使用标准 HTTP(S)代理设置（如有）；默认固定版本44.7.0；后续复用 `.cache/electron`。当前打包工具可在 Linux 或 Windows 上生成 Windows程序；跨平台构建不会证明 Windows运行已验证。
+首次安装需要网络；游玩不需要账号、密钥或服务器。所有字体使用本机字体，图标随游戏打包。
+
+## v0.2的实际变化
+
+- 地方分权、中央垂直、中央—地方委员会，改变可参加机构、批准规则和可执行方案。临时授权当回合到期，部门与国家改革下回合生效。
+- 六名关键人物的才能进入统一资格判定：群众动员、秘密封印、连续灵脉施工、工业标准、军事隔离、江湖协商运输。人才放错岗位不能发动能力。
+- 路线否决需要更换负责人、改变方案、取得真实妥协或合法紧急强制；资源不再自动消除冲突。
+- 利益交换分为保留收益权、持续部门预算、中央替代供应，产生不同长期后果。
+- 公开事故留下能源配给争议；秘密封印产生地方说明诉求。北境旧神是可撤离、遏制、隔离或封印的持续危机。
+- 三种国家目标、工程进度、五种有机制效果的奇幻公报，以及可追溯到真实决策的历史和执政报告。
+- 财政预测与结算使用同一函数。收入、固定支出、制度维护及可暂停承诺明确分开；先付支出再收税。
+- 主体字号16px，操作按钮16–18px；关键危机和目标集中展示，机构详情可以折叠，保留原来的绿色纸质桌游风格。
+
+详细规则、验证路线和简化见 [RULES.md](RULES.md)；更新与未完成部分见 [CHANGELOG.md](CHANGELOG.md)。
+
+## 第一局
+
+1. 点击「前往人事任命」，任命星野澪为南岭省负责人。
+2. 选择「群众参与预防巡检」→「预览后果」→「确认执行」。
+3. 给教学事故授予南岭主持、中央协办的临时权限，再执行公开群众救援。
+4. 点击「核对财政预测」，处理真实公开路径生成的能源配给争议。
+
+每项受阻方案仍可打开，显示具体人物、机构、政策、权限和供给条件。授权并不自动解锁一切。完整教程使用本回合5条命令；可以跳过提示，实际状态仍保留。
+
+## 存档
+
+手动点击顶部「存档」与「读档」。v0.2使用独立键 `federation-worlds-v2`，保留制度过渡、工程、授权、随机状态及因果记录。v0.1存档不会覆盖或静默迁移，会明确提示新开任期。网页与桌面版存档独立，移动离线HTML或清除浏览器数据可能使原存档不可见。
+
+## 下载及打包
 
 ```bash
-npm run build:offline       # 单个可直接双击打开的 offline/index.html
-npm run build:desktop       # Windows-x64便携文件夹
+npm run build:offline       # offline/index.html，全部脚本样式内嵌
+npm run release:pack        # Windows-x64、离线HTML、源码zip及SHA256
+```
+
+生成文件位于 `artifacts/`。Windows便携版解压整个目录后双击 `FederationOfWorlds.exe`；离线版解压后双击 `诸界联邦.html`。详见 [PLAYER_GUIDE.md](PLAYER_GUIDE.md)。Windows包未签名，无需安装Node.js；exe依赖同目录运行库，不能单独复制。
+
+首次桌面打包从Electron官方GitHub下载校验过的44.7.0运行时，后续复用 `.cache/electron`。Linux可生成Windows包，但Windows实机验证由发布工作流执行。
+
+```bash
 npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
 ```
 
-最后一个命令需在 Windows上执行，检查真实 exe 的事务处理、存档与重启读档。可选 Linux桌面打包使用 `npm run build && node --use-env-proxy scripts/pack-desktop.mjs linux x64`，但不是默认发布目标。
+GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.2.0`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
 
-GitHub Actions 配置在 `.github/workflows/release.yml`。推送与 package.json 版本一致的 `v0.1.0` 标签后，Windows runner 会测试、打包、对真实 exe 做烟测，再发布 GitHub Release 并附带下载文件。如果标签推送未自动触发，可打开仓库 Actions → Build and publish downloadable game → Run workflow，保持分支 main，填写已有版本标签 v0.1.0；工作流会检出该标签、验证并发布同一版本。工作流使用 GitHub自带临时 token，不需要个人密钥。
+[下载v0.2离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.2.0-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。原v0.1下载仍保留，新包以v0.2.0命名。
 
-默认发行仓库：`wcj0432-dev/AntiConstructBoardGame`。发布命令（仅在所有检查通过且准备发布时执行）：
+## 工程结构
 
-```bash
-git push origin main
-git tag v0.1.0
-git push origin v0.1.0
+```text
+src/data.ts, types.ts       复用12人物、三省六区、职位、政策和基础状态
+src/engine.ts              保留v0.1人事、政策、和解、随机与存档校验
+src/v2/model.ts, data.ts    v0.2组织关系、三体制、目标、公报及方案定义
+src/v2/engine.ts            纯函数统一资格、预览、执行、持续结算及因果
+src/finance.ts              共享财政预测函数
+src/v2/engine.test.ts       真正行动集合、财政、教程及4/8回合验收
+src/App.tsx, v2/style.css   v0.2可解释界面
+src/LegacyApp.tsx           保留旧界面供回归参考，不作为现行模式入口
+scripts/, desktop/         离线、桌面、源码打包和真实应用烟测
 ```
 
-## 当前可直接下载的离线包
-
-[下载离线浏览器版 v0.1.0](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.1.0-Offline.zip)。完整解压后双击 `诸界联邦.html`。Windows.exe 便携版由上述发布工作流验证并上传到 Releases；仅存在标签页面不代表 exe 附件已发布。
+规则不依赖DOM。UI只提交类型化行动，不直接改资源。v0.2沿用工程、人物和基础动作；旧36张牌不直接混入新战役，避免两套冲突规则互相污染。

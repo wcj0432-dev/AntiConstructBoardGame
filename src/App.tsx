@@ -1,30 +1,15 @@
 import { useState } from "react";
 import {
   Activity,
-  ArrowDownUp,
   ArrowRight,
   BookOpen,
-  Boxes,
-  Building2,
   Check,
-  ChevronDown,
-  ChevronRight,
-  CircleHelp,
   Coins,
-  Compass,
-  Download,
   Flag,
   Globe2,
   Landmark,
   Layers,
-  LockKeyhole,
-  MapPin,
-  Plus,
-  Radio,
-  RotateCcw,
   Save,
-  Search,
-  Settings2,
   Shield,
   Sparkles,
   Users,
@@ -32,1785 +17,1355 @@ import {
   Zap,
   AlertTriangle,
   ScrollText,
+  MapPin,
+  Download,
 } from "lucide-react";
+import { coreAbilities, goals, plansFor, regimes, capNames } from "./v2/data";
 import {
-  abandon,
-  appoint,
-  deserialize,
-  endTurn,
-  execute,
-  investigate,
-  mediate,
-  newGame,
-  policy,
-  preview,
-  reform,
-  SAVE_KEY,
-  serialize,
-  transfer,
-  unblock,
-} from "./engine";
+  capability,
+  deserializeV2,
+  duration,
+  executeAction,
+  finance,
+  milestones,
+  newV2,
+  participants,
+  previewAction,
+  report,
+  SAVE_V2,
+  serializeV2,
+} from "./v2/engine";
 import {
   domainNames,
   factionNames,
-  getCard,
   getOffice,
   getPerson,
   issueNames,
   offices,
   people,
 } from "./data";
-import type {
-  Choice,
-  ConflictType,
-  Domain,
-  FactionId,
-  GameState,
-  Issue,
-  ProvinceId,
-  Strategy,
-} from "./types";
-const domains: Domain[] = ["production", "social", "anomaly"];
-const strategies: Record<ConflictType, { id: Strategy; label: string }[]> = {
-  jurisdiction: [
-    { id: "coordinate", label: "临时协调 · 1命令" },
-    { id: "force", label: "强制指定 · 积怨" },
-  ],
-  route: [
-    { id: "coordinate", label: "路线协调 · 1命令" },
-    { id: "negotiate", label: "政治协议 · 1资本" },
-    { id: "force", label: "强制执行 · 积怨" },
-  ],
-  interest: [
-    { id: "coordinate", label: "征调协商 · 1命令" },
-    { id: "compensate", label: "财政补偿 · 2财政" },
-    { id: "delegate", label: "权限补偿 · 1资本" },
-    { id: "force", label: "强制征调 · 积怨" },
-  ],
-};
-const catNames = { base: "基础危机", chain: "连锁事件", active: "主动局势" };
-const avatarColors = [
-  "#61736b",
-  "#7c7563",
-  "#66717c",
-  "#7f706c",
-  "#737957",
-  "#637d77",
+import type { Action, Goal, Mode, Regime, V2Game } from "./v2/model";
+import type { Issue, ProvinceId } from "./types";
+import "./v2/style.css";
+const lessons = [
+  {
+    title: "01 · 人物不是数值工具",
+    body: "打开人事，任命星野澪为南岭省负责人。比较普通预防检修与「群众参与巡检」：后者只有人物、公开路线与组织资格都满足才可发动。",
+  },
+  {
+    title: "02 · 先确定谁能参与",
+    body: "本次事故要求明确临时指挥关系。点击授权，让南岭省政府主持并邀请中央协办。公开救援与秘密封印会因实际负责人和参与资格出现不同的受阻原因。",
+  },
+  {
+    title: "03 · 看清财政承诺",
+    body: "财政先支出4，再获得收入5。工程、制度维护与部门预算增加持续支出；点击「核对财政预测」，然后查看由实际事故处置生成的后续局势。",
+  },
+  {
+    title: "04 · 你的决定改变下一场危机",
+    body: "处理能源配给或地方说明诉求。详情中的因果来源会链接到你刚刚的处置；授权、政策、人物变更可以继续改变行动资格。",
+  },
+  {
+    title: "教学完成",
+    body: "你已实际体验人物资格、指挥关系、财政和后续局势。可以继续完成4回合，也可以新开8回合国家目标模式。",
+  },
 ];
-function Avatar({
-  id,
-  size = 36,
-}: {
-  id: string | null | undefined;
-  size?: number;
-}) {
-  const p = getPerson(id);
-  return (
-    <span
-      className="avatar"
-      style={{
-        width: size,
-        height: size,
-        background:
-          avatarColors[
-            Math.max(
-              0,
-              people.findIndex((p) => p.id === id),
-            ) % 6
-          ],
-      }}
-    >
-      {p ? p.name.slice(0, 1) : "—"}
-    </span>
-  );
-}
-function WorldMap({
-  selected,
-  onSelect,
-  dangers,
-}: {
-  selected: ProvinceId;
-  onSelect: (id: ProvinceId) => void;
-  dangers: Set<number>;
-}) {
-  return (
-    <div className="map-wrap">
-      <svg viewBox="0 0 380 330" role="img" aria-label="联邦三省示意地图">
-        <defs>
-          <pattern
-            id="grid"
-            width="20"
-            height="20"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 20 0 L 0 0 0 20"
-              fill="none"
-              stroke="#cccdbb"
-              strokeWidth=".5"
-            />
-          </pattern>
-          <pattern
-            id="water"
-            width="12"
-            height="12"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M0 6 Q3 3 6 6 T12 6"
-              fill="none"
-              stroke="#b9c4bd"
-              strokeWidth=".5"
-            />
-          </pattern>
-        </defs>
-        <rect width="380" height="330" fill="#e6e8dc" />
-        <rect width="380" height="330" fill="url(#grid)" />
-        <path
-          d="M0 278 Q80 245 110 282 T210 305 T380 245 L380 330H0Z"
-          fill="url(#water)"
-        />
-        <g
-          className="territory"
-          onClick={() => onSelect("north")}
-          role="button"
-          aria-label="选择北境异常省"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && onSelect("north")}
-        >
-          <path
-            d="M123 35L161 23 194 44 228 30 258 61 296 74 287 119 256 147 208 133 183 155 132 139 106 109Z"
-            className={selected === "north" ? "selected north" : "north"}
-          />
-          <text x="205" y="91">
-            北境异常省
-          </text>
-          <text x="205" y="109" className="map-en">
-            NORTHERN FRONTIER
-          </text>
-        </g>
-        <g
-          className="territory"
-          onClick={() => onSelect("industry")}
-          role="button"
-          aria-label="选择中央工业省"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && onSelect("industry")}
-        >
-          <path
-            d="M106 109L132 139 183 155 208 133 256 147 278 178 256 217 213 228 180 211 155 229 119 207 93 223 62 198 72 157Z"
-            className={
-              selected === "industry" ? "selected industry" : "industry"
-            }
-          />
-          <text x="168" y="178">
-            中央工业省
-          </text>
-          <text x="168" y="197" className="map-en">
-            CENTRAL INDUSTRIAL
-          </text>
-        </g>
-        <g
-          className="territory"
-          onClick={() => onSelect("south")}
-          role="button"
-          aria-label="选择南岭修仙省"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && onSelect("south")}
-        >
-          <path
-            d="M93 223L119 207 155 229 180 211 213 228 256 217 275 240 261 269 228 275 201 297 161 285 137 300 105 275 70 263Z"
-            className={selected === "south" ? "selected south" : "south"}
-          />
-          <text x="175" y="255">
-            南岭修仙省
-          </text>
-          <text x="175" y="273" className="map-en">
-            SOUTHERN HIGHLANDS
-          </text>
-        </g>
-        <path
-          d="M224 62L201 124 155 179 182 242"
-          stroke="#f8f5e7"
-          strokeWidth="3"
-          strokeDasharray="4 5"
-          fill="none"
-          pointerEvents="none"
-        />
-        {[
-          [224, 62],
-          [201, 124],
-          [155, 179],
-          [231, 184],
-          [182, 242],
-          [121, 259],
-        ].map(([x, y], i) => (
-          <g key={i} pointerEvents="none">
-            <circle
-              cx={x}
-              cy={y}
-              r={dangers.has(i) ? 7 : 4}
-              fill={dangers.has(i) ? "#ba694b" : "#f9f7ed"}
-              stroke="#65786d"
-              strokeWidth="2"
-            />
-            {dangers.has(i) && (
-              <circle
-                cx={x}
-                cy={y}
-                r="13"
-                stroke="#ba694b"
-                fill="none"
-                strokeDasharray="2 3"
-              />
-            )}
-          </g>
-        ))}
-        <text x="28" y="38" className="map-compass">
-          N
-        </text>
-        <path d="M32 45L27 62 32 57 37 62Z" fill="#64776d" />
-        <text x="280" y="307" className="map-scale">
-          0 ─── 200 km
-        </text>
-      </svg>
-      <div className="map-caption">
-        <span>
-          <i className="dot green" />
-          联邦辖区
-        </span>
-        <span>
-          <i className="dot orange" />
-          危机地点
-        </span>
-        <span>示意地图 / 01</span>
-      </div>
-    </div>
-  );
-}
-function App() {
-  const [state, setState] = useState<GameState>(() => newGame());
+export default function App() {
+  const [g, setG] = useState<V2Game>(() => newV2("tutorial"));
   const [selected, setSelected] = useState<ProvinceId>("south");
-  const [uid, setUid] = useState<string | null>(null);
-  const [choice, setChoice] = useState<Choice>({
-    optionId: "public",
-    strategies: {},
-  });
-  const [tab, setTab] = useState<"current" | "backlog">("current");
+  const [action, setAction] = useState<Action | null>(null);
+  const [confirmedPreview, setConfirmedPreview] = useState(false);
   const [modal, setModal] = useState<
-    | "task"
-    | "people"
-    | "reform"
-    | "policy"
-    | "transfer"
-    | "help"
-    | "new"
-    | "end"
-    | null
+    "new" | "staff" | "reform" | "policy" | "help" | null
   >(null);
   const [notice, setNotice] = useState("");
-  const [seed, setSeed] = useState("南岭-071");
-  const [demo, setDemo] = useState(true);
-  const [officeId, setOfficeId] = useState("anomaly");
-  const [personId, setPersonId] = useState("");
-  const [domain, setDomain] = useState<Domain>("anomaly");
-  const [reformOffice, setReformOffice] = useState("gov-south");
+  const [mode, setMode] = useState<Mode>("campaign");
+  const [goal, setGoal] = useState<Goal>("night");
+  const [seed, setSeed] = useState("南岭—北境-020");
+  const [office, setOffice] = useState("gov-south");
+  const [person, setPerson] = useState("xing");
   const [issue, setIssue] = useState<Issue>("disclosure");
-  const [side, setSide] = useState(1);
-  const [from, setFrom] = useState<ProvinceId>("industry");
-  const [to, setTo] = useState<ProvinceId>("south");
-  const [forceTransfer, setForceTransfer] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [focusedPerson, setFocusedPerson] = useState("sergei");
-  const province = state.provinces.find((p) => p.id === selected)!;
-  const task = state.tasks.find((t) => t.uid === uid);
-  const p = task ? preview(state, task.uid, choice) : null;
-  const playing = state.status === "playing";
-  function run(action: () => GameState, success?: string) {
+  const [tab, setTab] = useState<"matters" | "history">("matters");
+  const [authorizationMatter, setAuthorizationMatter] = useState("");
+  const [lead, setLead] = useState("gov-south");
+  const [joint, setJoint] = useState(true);
+  const [emergency, setEmergency] = useState(false);
+  const s = g.core,
+    m = g.machine,
+    f = finance(g),
+    playing = s.status === "playing";
+  const v = action ? previewAction(g, action) : null;
+  const local = s.provinces.find((p) => p.id === selected)!;
+  const target = milestones(g);
+  function choose(a: Action) {
+    setAction(a);
+    setConfirmedPreview(false);
+    setModal(null);
+  }
+  function perform() {
+    if (!action) return;
     try {
-      const n = action();
-      setState(n);
-      if (success) setNotice(success);
-      return true;
+      setG(executeAction(g, action));
+      setAction(null);
+      setNotice("决策已执行，实际条件与后果已写入因果历史。");
     } catch (e) {
       setNotice((e as Error).message);
-      return false;
     }
   }
-  function openTask(id: string) {
-    const t = state.tasks.find((t) => t.uid === id)!;
-    setUid(id);
-    setChoice({ optionId: getCard(t.cardId).options[0].id, strategies: {} });
-    setShowPreview(false);
-    setModal("task");
-  }
-  function save() {
+  function store() {
     try {
-      localStorage.setItem(SAVE_KEY, serialize(state));
-      setNotice(`已保存第${state.turn}季度，包含全部资源、人物与随机状态。`);
+      localStorage.setItem(SAVE_V2, serializeV2(g));
+      setNotice("v0.2完整存档已保存，包括制度过渡、工程与因果关系。");
     } catch {
-      setNotice("浏览器无法写入存档，请检查存储权限。");
+      setNotice("浏览器拒绝写入存档，请检查存储权限。");
     }
   }
   function load() {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) throw new Error("还没有本地存档");
-      setState(deserialize(raw));
-      setModal(null);
-      setUid(null);
-      setNotice("已恢复完整存档。");
+      const raw =
+        localStorage.getItem(SAVE_V2) ||
+        localStorage.getItem("federation-worlds-v1");
+      if (!raw) throw new Error("没有本地存档");
+      setG(deserializeV2(raw));
+      setAction(null);
+      setNotice("完整组织状态已恢复。");
     } catch (e) {
       setNotice((e as Error).message);
     }
   }
-  function restart() {
-    setState(newGame(state.seed, true));
-    setUid(null);
-    setModal(null);
-    setNotice("已用相同种子重启演示场景。");
+  function historySource(id: string | undefined) {
+    if (id) {
+      setTab("history");
+      setNotice(`查看因果节点：${id}`);
+      setAction(null);
+      setTimeout(
+        () =>
+          document
+            .getElementById(id)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        50,
+      );
+    }
   }
-  const selectedPerson = getPerson(focusedPerson)!;
   return (
-    <div className="app">
-      <header className="masthead">
-        <div className="brand">
-          <span className="brand-mark">
-            <Globe2 size={25} />
-          </span>
+    <div className="v2-app">
+      <header className="v2-header">
+        <div className="v2-brand">
+          <Globe2 size={35} />
           <div>
             <h1>
-              诸界联邦<span>FEDERATION OF WORLDS</span>
+              诸界联邦 <span>国家机器重构 · v0.2</span>
             </h1>
-            <p>中央治理委员会 · 决策终端</p>
+            <p>FEDERATION OF WORLDS / 一套可以被改变的国家</p>
           </div>
-          <span className="prototype">原型 v0.1</span>
         </div>
         <nav>
           <button onClick={() => setModal("help")}>
-            <BookOpen size={15} />
-            规则手册
+            <BookOpen size={18} />
+            帮助
           </button>
-          <span className="nav-sep" />
-          <button onClick={save}>
-            <Save size={15} />
+          <button onClick={store}>
+            <Save size={18} />
             存档
           </button>
           <button onClick={load}>
-            <Download size={15} />
+            <Download size={18} />
             读档
           </button>
-          <button onClick={() => setModal("new")} className="new-btn">
-            <Plus size={15} />
-            新游戏
+          <button onClick={() => setModal("new")}>
+            <Flag size={18} />
+            新任期
           </button>
         </nav>
       </header>
-      <div className="resource-bar">
-        <div className="turn-block">
-          <span className="eyebrow">
-            联邦历 · 第{Math.ceil(state.turn / 4)}年
+      <div className="v2-resources">
+        <div>
+          <span>当前回合</span>
+          <strong>
+            {s.turn}
+            <small> / {duration(g)}</small>
+          </strong>
+        </div>
+        <div>
+          <span>
+            <Coins size={17} />
+            财政
           </span>
-          <div>
-            第 <strong>{String(state.turn).padStart(2, "0")}</strong> 季度{" "}
-            <span>/ 08</span>
-          </div>
+          <strong>{s.treasury}</strong>
         </div>
-        <div className="resource">
-          <Coins />
-          <div>
-            <span>中央财政</span>
-            <strong>
-              {state.treasury}
-              <small>财政</small>
-            </strong>
-          </div>
+        <div>
+          <span>
+            <ScrollText size={17} />
+            行政命令
+          </span>
+          <strong>
+            {s.commands}
+            <small>本回合可用</small>
+          </strong>
         </div>
-        <div className="resource commands">
-          <ScrollText />
-          <div>
-            <span>行政命令</span>
-            <strong>
-              {state.commands}
-              <small>/ {state.paralysis >= 2 ? 4 : 5}</small>
-            </strong>
-          </div>
-          <div className="command-ticks">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <i key={i} className={i < state.commands ? "filled" : ""} />
-            ))}
-          </div>
+        <div>
+          <span>
+            <Landmark size={17} />
+            政治资本
+          </span>
+          <strong>{s.capital}</strong>
         </div>
-        <div className="resource">
-          <Landmark />
-          <div>
-            <span>政治资本</span>
-            <strong>
-              {state.capital}
-              <small>资本</small>
-            </strong>
-          </div>
-        </div>
-        <div className="resource crisis">
-          <Activity />
-          <div>
-            <span>全国危机</span>
-            <strong>
-              {state.crisis}
-              <small>/ 12</small>
-            </strong>
-          </div>
-          <div className="crisis-meter">
-            <i style={{ width: `${(state.crisis / 12) * 100}%` }} />
-          </div>
-        </div>
-        <div className="status-label">
-          <i className={`dot ${state.crisis < 6 ? "green" : "orange"}`} />
-          {state.status === "won"
-            ? "任期完成"
-            : state.status === "lost"
-              ? "联邦失序"
-              : state.crisis < 4
-                ? "秩序尚可维持"
-                : "局势需要关注"}
-          <span>固定种子 · {state.seed}</span>
+        <div className={s.crisis >= 8 ? "danger" : ""}>
+          <span>
+            <Activity size={17} />
+            全国危机
+          </span>
+          <strong>
+            {s.crisis}
+            <small> / 12</small>
+          </strong>
         </div>
       </div>
-      <div className="workspace">
-        <aside className="map-column">
-          <div className="section-heading">
+      <div className="v2-content">
+        <section className="v2-main">
+          <div className="v2-title-row">
             <div>
-              <span className="eyebrow">01 / TERRITORIES</span>
-              <h2>
-                <MapPin size={17} />
-                联邦疆域
-              </h2>
-            </div>
-            <span className="badge">3省 · 6区</span>
-          </div>
-          <WorldMap
-            selected={selected}
-            onSelect={setSelected}
-            dangers={
-              new Set(
-                state.tasks
-                  .filter((t) => getCard(t.cardId).category !== "active")
-                  .map((t) => {
-                    const c = getCard(t.cardId);
-                    return (
-                      (c.province === "north"
-                        ? 0
-                        : c.province === "industry"
-                          ? 2
-                          : 4) + c.district
-                    );
-                  }),
-              )
-            }
-          />
-          <div className="province-tabs">
-            {state.provinces.map((p) => (
-              <button
-                key={p.id}
-                className={p.id === selected ? "active" : ""}
-                onClick={() => setSelected(p.id)}
-              >
-                {p.name.slice(0, 2)}
-                <span>{p.stock}</span>
-              </button>
-            ))}
-          </div>
-          <div className="province-card">
-            <div className="province-title">
-              <div>
-                <h3>{province.name}</h3>
-                <p>{province.subtitle}</p>
-              </div>
-              <span className="stock-badge">
-                <Boxes size={16} />
-                {province.stock}
+              <span className="v2-eyebrow">
+                任期档案 /{" "}
+                {m.mode === "national" ? "国家目标模式" : "南岭—北境紧急状态"}
               </span>
-            </div>
-            <div className="pressure-list">
-              {domains.map((d) => (
-                <div key={d}>
-                  <span>{domainNames[d]}压力</span>
-                  <div className={`pressure-dots ${d}`}>
-                    {Array.from(
-                      {
-                        length: Math.max(4, Math.min(8, province.pressure[d])),
-                      },
-                      (_, i) => (
-                        <i
-                          key={i}
-                          className={i < province.pressure[d] ? "on" : ""}
-                        />
-                      ),
-                    )}
-                  </div>
-                  <b>{province.pressure[d]}</b>
-                </div>
-              ))}
-            </div>
-            {domains.some((d) => province.pressure[d] >= 2) && (
-              <div className="inline-warning">
-                <AlertTriangle size={13} />
-                下季度将触发连锁事件，每类消耗2压力
-              </div>
-            )}
-            <div className="districts">
-              {province.districts.map((d, i) => (
-                <div key={d.name} className="district">
-                  <span className="district-icon">
-                    {i === 0 ? <Zap size={17} /> : <Building2 size={17} />}
-                  </span>
-                  <div>
-                    <b>{d.name}</b>
-                    <span>{d.type}</span>
-                  </div>
-                  <span className="output">
-                    +{d.output}
-                    <Boxes size={12} />
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="governor">
-              <Avatar id={state.appointments[`gov-${selected}`]} size={30} />
-              <div>
-                <span>省政府负责人</span>
-                <b>
-                  {getPerson(state.appointments[`gov-${selected}`])?.name ||
-                    "职位空缺"}
-                </b>
-              </div>
-              <button
-                onClick={() => {
-                  setOfficeId(`gov-${selected}`);
-                  setPersonId("");
-                  setFocusedPerson(
-                    state.appointments[`gov-${selected}`] || "bai",
-                  );
-                  setModal("people");
-                }}
-                aria-label="调整省政府负责人"
-              >
-                <Settings2 size={16} />
-              </button>
-            </div>
-            <div className="autonomy">
-              <span>地方自治特权</span>
-              <b>{province.autonomy}</b>
-            </div>
-            {state.tasks.filter((t) => getCard(t.cardId).province === selected)
-              .length > 0 && (
-              <div className="local-matters">
-                {state.tasks
-                  .filter((t) => getCard(t.cardId).province === selected)
-                  .map((t) => (
-                    <button key={t.uid} onClick={() => openTask(t.uid)}>
-                      <i className="dot orange" />
-                      {getCard(t.cardId).title}
-                      <ChevronRight size={12} />
-                    </button>
-                  ))}
-              </div>
-            )}
-            {state.projects
-              .filter((p) => p.province === selected)
-              .map((p) => (
-                <div className="project" key={p.id}>
-                  <Layers size={14} />
-                  <span>
-                    {p.name}
-                    <small>
-                      产出 +{p.output} · 已运行{p.age}季度
-                    </small>
-                  </span>
-                  {p.risk && <AlertTriangle size={13} />}
-                </div>
-              ))}
-          </div>
-          <div className="map-note">
-            <Compass size={16} />
-            <p>
-              每个省都在运转。
-              <br />
-              <span>但没有一种秩序能让所有人满意。</span>
-            </p>
-          </div>
-        </aside>
-        <main className="events-column">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">02 / MATTERS OF STATE</span>
               <h2>
-                <Layers size={17} />
-                当前事务
+                {m.mode === "national"
+                  ? goals[m.goal].name
+                  : "四回合组织验证战役"}
               </h2>
             </div>
-            <span className="live">
-              <i className="dot orange" />
-              行动阶段
-            </span>
+            <span className="v2-regime-label">{regimes[m.regime].name}</span>
           </div>
-          <div className="event-tabs">
-            <button
-              className={tab === "current" ? "active" : ""}
-              onClick={() => setTab("current")}
-            >
-              立即处理 <span>{state.tasks.length}</span>
-            </button>
-            <button
-              className={tab === "backlog" ? "active" : ""}
-              onClick={() => setTab("backlog")}
-            >
-              公开待办 <span>{state.backlog.length}</span>
-            </button>
-            <span className="admission">本季接纳 {state.admitted}/3</span>
-          </div>
-          <div className="events-scroll">
-            {(tab === "current" ? state.tasks : state.backlog).map(
-              (t, index) => {
-                const c = getCard(t.cardId),
-                  pr = state.provinces.find((p) => p.id === c.province)!;
-                return (
-                  <article
-                    className={`event-card ${c.category === "active" ? "opportunity" : ""}`}
-                    key={t.uid}
-                    data-task-id={t.uid}
-                  >
-                    <div className="card-top">
-                      <span className="card-type">
-                        {c.category === "active" ? (
-                          <Sparkles size={13} />
-                        ) : (
-                          <AlertTriangle size={13} />
-                        )}{" "}
-                        {catNames[c.category]}
-                      </span>
-                      <span className="card-number">
-                        档案 {String(index + 1).padStart(3, "0")} / Q{t.created}
-                      </span>
-                    </div>
-                    <div className="event-location">
-                      <MapPin size={12} />
-                      {pr.name} · {pr.districts[c.district].name}
-                    </div>
-                    <h3>{c.title}</h3>
-                    <p className="event-description">{c.description}</p>
-                    <div className="event-tags">
-                      <span>{domainNames[c.domain]}事务</span>
-                      <span>
-                        {
-                          getOffice(
-                            state.jurisdictions[`${c.province}:${c.domain}`] ||
-                              c.lead,
-                          ).short
-                        }
-                        主责
-                      </span>
-                      <span>中央 × 地方</span>
-                    </div>
-                    {c.id === "base-0" && (
-                      <div className="conflict-summary">
-                        <span>
-                          <span className="conflict-symbol">权</span>事权重叠
-                        </span>
-                        <span>
-                          <span className="conflict-symbol">策</span>路线分歧
-                        </span>
-                        <span>
-                          <span className="conflict-symbol">资</span>资源征调
-                        </span>
-                      </div>
-                    )}
-                    <div className="event-bottom">
-                      <span>
-                        {c.category === "active"
-                          ? "机会保留2个季度"
-                          : t.age
-                            ? `已延期${t.age}季度 · 每季继续恶化`
-                            : "未处理：危机 +1 / 压力 +1"}
-                      </span>
-                      {tab === "current" ? (
-                        <button
-                          className="button-primary"
-                          onClick={() => openTask(t.uid)}
-                          disabled={!playing}
-                        >
-                          审议事务 <ArrowRight size={14} />
-                        </button>
-                      ) : (
-                        <span className="badge">下季度接纳</span>
-                      )}
-                    </div>
-                  </article>
-                );
-              },
-            )}
-            {(tab === "current" ? state.tasks : state.backlog).length === 0 && (
-              <div className="empty-state">
-                <Check size={32} />
-                <h3>
-                  {tab === "current" ? "本季事务已处理" : "待办栏暂无事务"}
-                </h3>
-                <p>
-                  {tab === "current"
-                    ? "秩序是暂时的。你可以投资未来，或调整国家机器。"
-                    : "每季度最多3张新事件进入立即处理区。"}
-                </p>
+          {m.mode === "tutorial" && (
+            <section className="v2-tutorial">
+              <div className="v2-title-row">
+                <h3>{lessons[m.tutorial].title}</h3>
+                <button onClick={() => choose({ type: "skip" })}>
+                  跳过教学
+                </button>
               </div>
-            )}
-            <div className="agenda-card">
-              <div>
-                <span className="eyebrow">主动塑造局势</span>
-                <h3>危机之外，仍有选择。</h3>
-                <p>支付1枚命令揭牌。机会与后果同时到来。</p>
-              </div>
-              <div className="explore-actions">
-                {(
-                  [
-                    { id: "survey", name: "调查灵脉", icon: Search },
-                    { id: "build", name: "建设探索", icon: Building2 },
-                    { id: "reform", name: "制度探索", icon: Landmark },
-                  ] as const
-                ).map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() =>
-                      run(
-                        () => investigate(state, a.id),
-                        "已揭开主动局势。请留意压力变化与待办栏。",
-                      )
+              <p>{lessons[m.tutorial].body}</p>
+              <div className="v2-steps">
+                {lessons.slice(0, 4).map((_, i) => (
+                  <span
+                    className={
+                      i === m.tutorial
+                        ? "current"
+                        : i < m.tutorial
+                          ? "done"
+                          : ""
                     }
-                    disabled={!playing || state.commands < 1}
+                    key={i}
                   >
-                    <a.icon size={18} />
-                    <span>{a.name}</span>
-                    <small>
-                      1命令 <ArrowRight size={12} />
-                    </small>
-                  </button>
+                    {i < m.tutorial ? <Check size={15} /> : i + 1}
+                  </span>
                 ))}
               </div>
-            </div>
-            <div className="forecast">
-              <Radio size={16} />
-              <div>
-                <b>未来局势预告</b>
-                <p>
-                  {state.provinces.some((p) =>
-                    domains.some((d) => p.pressure[d] >= 2),
-                  )
-                    ? "部分省份压力已达到阈值，下季度会生成连锁事件。"
-                    : "当前各类压力低于连锁阈值。下一季度将揭开新的基础危机。"}
-                </p>
+              {m.tutorial === 0 && (
+                <button
+                  className="v2-primary"
+                  onClick={() => setModal("staff")}
+                >
+                  前往人事任命 <ArrowRight size={16} />
+                </button>
+              )}
+              {m.tutorial === 2 && (
+                <button
+                  className="v2-primary"
+                  onClick={() => choose({ type: "forecast" })}
+                >
+                  核对财政预测
+                </button>
+              )}
+            </section>
+          )}
+          {m.mode === "national" && (
+            <section className="v2-goal">
+              <p>{goals[m.goal].description}</p>
+              <div className="v2-milestones">
+                {target.map((c) => (
+                  <div key={c.label} className={c.met ? "met" : ""}>
+                    <span>
+                      {c.met ? <Check size={17} /> : <Flag size={17} />}
+                    </span>
+                    <div>
+                      <b>{c.label}</b>
+                      <p>{c.reason}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
+              <p className="v2-goal-deadline">
+                第8回合解锁「{goals[m.goal].finale}」。还剩{" "}
+                {Math.max(0, 8 - s.turn)}{" "}
+                个建设回合；终局会重新检查负责人和合作资格。
+              </p>
+            </section>
+          )}
+          <section className="v2-finance">
+            <div className="v2-title-row">
+              <h3>
+                <Coins size={19} />
+                财政预测 · 先支出，后收入
+              </h3>
+              <strong className={f.default ? "danger" : ""}>
+                {f.current} → {f.next}
+              </strong>
             </div>
-          </div>
-        </main>
-        <aside className="machine-column">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">03 / STATE APPARATUS</span>
-              <h2>
-                <Landmark size={17} />
-                国家机器
-              </h2>
+            <div className="v2-finance-grid">
+              <span>
+                收入<b>+{f.income}</b>
+              </span>
+              <span>
+                固定支出<b>−{f.fixed}</b>
+              </span>
+              <span>
+                制度与预算<b>−{f.maintenance}</b>
+              </span>
+              <span>
+                可暂停施工<b>−{f.projectCosts}</b>
+              </span>
             </div>
-            <button
-              className="icon-button"
-              aria-label="人事管理"
-              onClick={() => setModal("people")}
-            >
-              <Settings2 size={17} />
-            </button>
-          </div>
-          <div className="offices">
-            {offices
-              .filter((o) => !o.province)
-              .map((o, i) => {
-                const person = getPerson(state.appointments[o.id]);
-                return (
-                  <button
-                    className="office-card"
-                    key={o.id}
-                    onClick={() => {
-                      setOfficeId(o.id);
-                      setPersonId("");
-                      setFocusedPerson(person?.id || "sergei");
-                      setModal("people");
-                    }}
-                  >
-                    <div className="office-top">
-                      <span className="office-symbol">
-                        {i === 0 ? (
-                          <Building2 size={16} />
-                        ) : i === 1 ? (
-                          <Shield size={16} />
-                        ) : (
-                          <Sparkles size={16} />
-                        )}
-                      </span>
-                      <span>{o.name}</span>
-                      <ChevronRight size={14} />
-                    </div>
-                    <div className="office-person">
-                      <Avatar id={person?.id} />
-                      <div>
-                        <b>{person?.name || "职位空缺"}</b>
-                        <span>{person?.title || "事务无法主持"}</span>
-                      </div>
-                      <span
-                        className={`grievance ${person && state.grievances[person.id] >= 2 ? "high" : ""}`}
-                      >
-                        {person ? `积怨 ${state.grievances[person.id]}` : "—"}
-                      </span>
-                    </div>
-                    <div className="office-skills">
-                      {o.domains.map((d) => (
-                        <span key={d}>
-                          {domainNames[d]} <b>{person?.skills[d] || 0}</b>
-                        </span>
-                      ))}
-                      <span className="faction-label">
-                        {person
-                          ? factionNames[person.faction]
-                              .replace("集团", "")
-                              .replace("革命", "")
-                          : ""}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-          <div className="factions-heading">
-            <h3>
-              <Users size={15} />
-              政治派系
-            </h3>
-            <span>影响 / 不满</span>
-          </div>
-          <div className="factions">
-            {(
-              Object.keys(state.factions) as (keyof typeof state.factions)[]
-            ).map((id, i) => (
-              <div key={id}>
-                <div className="faction-row">
+            <p>
+              税收5 +已完工能源设施{f.income - 5}；维护：委员会
+              {m.regime === "joint" ? 1 : 0} /兼容标准{m.standards ? 1 : 0}{" "}
+              /预算{m.budgets.length}。
+            </p>
+            <p>
+              {f.default
+                ? `现有财政不足以支付${f.total}承诺，本次将违约。连续两回合违约即失败。`
+                : `本次可支付${f.total}财政承诺，结算后预计${f.next}财政。`}
+            </p>
+            {m.works
+              .filter((w) => !w.completed)
+              .map((w) => (
+                <div className="v2-work" key={w.id}>
                   <span>
-                    <i className={`faction-dot f${i}`} />
-                    {factionNames[id]}
+                    {s.provinces.find((p) => p.id === w.province)!.name} ·{" "}
+                    {w.type === "energy" ? "灵脉能源工程" : "预警站"} ·{" "}
+                    {w.progress}/{w.duration}
+                    {w.paused ? "（暂停）" : ""}
                   </span>
-                  <b>
-                    {state.factions[id].influence}
-                    <small> / {state.factions[id].discontent}</small>
-                  </b>
+                  <button onClick={() => choose({ type: "pause", work: w.id })}>
+                    {w.paused ? "恢复施工" : "暂停承诺"}
+                  </button>
                 </div>
-                <div className="faction-track">
-                  <i
-                    className={`f${i}`}
-                    style={{
-                      width: `${Math.min(100, (state.factions[id].influence / 14) * 100)}%`,
-                    }}
-                  />
-                </div>
+              ))}
+            {m.budgets.map((pid) => (
+              <div className="v2-work" key={pid}>
+                <span>
+                  {s.provinces.find((p) => p.id === pid)!.name}
+                  预算承诺：每回合1财政
+                </span>
+                <button
+                  onClick={() =>
+                    choose({ type: "pause", work: `budget:${pid}` })
+                  }
+                >
+                  撤销预算（信任下降）
+                </button>
               </div>
             ))}
-          </div>
-          <div className="institutions-note">
-            <LockKeyhole size={16} />
-            <div>
-              <b>权力不是免费的。</b>
-              <p>关键职位提供派系优势；积怨与自治会改变未来事务的成本。</p>
-            </div>
-          </div>
-          {state.paralysis > 0 && (
-            <div className="paralysis-warning">
-              <AlertTriangle size={16} />
-              <b>行政阻塞 {state.paralysis} / 4</b>
-              <p>阻塞≥2，下季命令减少1；连续两季≥4失败。</p>
-              <button
-                onClick={() => run(() => unblock(state))}
-                disabled={!playing}
-              >
-                紧急疏通 · 1命令 + 1财政
+          </section>
+          {s.paralysis > 0 && (
+            <div className="v2-alert">
+              <AlertTriangle size={20} />
+              <div>
+                <b>中央审批阻塞 {s.paralysis}/4</b>
+                <p>
+                  ≥2会封闭垂直体制地方审批，并减少下一回合命令；连续两回合≥4失败。
+                </p>
+              </div>
+              <button onClick={() => choose({ type: "unblock" })}>
+                预览疏通
               </button>
             </div>
           )}
-          <div className="policies-mini">
-            <h3>全国政策</h3>
-            {(Object.keys(issueNames) as Issue[]).map((i) => (
-              <div key={i}>
-                <span>{issueNames[i].join(" / ")}</span>
-                <b>
-                  {state.policies[i] === null
-                    ? "未定路线"
-                    : issueNames[i][state.policies[i]!]}
-                </b>
-              </div>
-            ))}
+          <div className="v2-tab-row">
+            <button
+              className={tab === "matters" ? "active" : ""}
+              onClick={() => setTab("matters")}
+            >
+              当前局势 <b>{m.matters.length}</b>
+            </button>
+            <button
+              className={tab === "history" ? "active" : ""}
+              onClick={() => setTab("history")}
+            >
+              因果历史 <b>{m.history.length}</b>
+            </button>
+            <span>新增接纳 {m.admitted}/3</span>
           </div>
+          {tab === "matters" ? (
+            <>
+              <div className="v2-matters">
+                {m.matters.map((item) => {
+                  const part = participants(g, item);
+                  return (
+                    <article
+                      className={`v2-matter ${item.kind}`}
+                      key={item.id}
+                      data-matter-id={item.id}
+                    >
+                      <div className="v2-matter-meta">
+                        <span>
+                          <MapPin size={16} />
+                          {
+                            s.provinces.find((p) => p.id === item.province)!
+                              .name
+                          }
+                        </span>
+                        <span>
+                          {["accident", "oldgod"].includes(item.kind)
+                            ? `持续危机 · 阶段${item.stage}/4 · ${["", "异常出现", "生产交通受阻", "人口行政危机", "全国紧急状态"][item.stage]}`
+                            : "决策事务"}
+                        </span>
+                      </div>
+                      <h3>{item.title}</h3>
+                      <p>{item.description}</p>
+                      {item.containment > 0 && (
+                        <div className="v2-managed">
+                          <Shield size={16} />
+                          已遏制 {item.containment} 回合
+                          {item.evacuated ? " · 人口已撤离" : ""}
+                          {item.isolated ? " · 区域隔离、产出停止" : ""}
+                        </div>
+                      )}
+                      <div className="v2-actor-line">
+                        <span>主管：{getOffice(part.lead).name}</span>
+                        <span>
+                          负责人：
+                          {part.actors
+                            .map((id) => getPerson(id)!.name)
+                            .join("、") || "空缺"}
+                        </span>
+                      </div>
+                      {item.source && (
+                        <button
+                          className="v2-source"
+                          onClick={() => historySource(item.source)}
+                        >
+                          这一局势来自哪次决定？ <ArrowRight size={14} />
+                        </button>
+                      )}
+                      <div className="v2-plan-list">
+                        {plansFor(item, m.goal).map((plan) => {
+                          const a: Action = {
+                            type: "resolve",
+                            matter: item.id,
+                            option: plan.id,
+                          };
+                          const view = previewAction(g, a);
+                          return (
+                            <button
+                              key={plan.id}
+                              className={
+                                view.errors.length ? "blocked" : "available"
+                              }
+                              disabled={!playing}
+                              onClick={() => choose(a)}
+                            >
+                              <span className="v2-plan-icon">
+                                {view.errors.length ? (
+                                  <AlertTriangle size={18} />
+                                ) : (
+                                  <Sparkles size={18} />
+                                )}
+                              </span>
+                              <div>
+                                <b>{plan.title}</b>
+                                <p>
+                                  {view.errors.length
+                                    ? view.errors[0]
+                                    : plan.description}
+                                </p>
+                              </div>
+                              <span className="v2-availability">
+                                {view.errors.length ? "查看原因" : "可执行"}
+                                <ArrowRight size={15} />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        className="v2-authorize-link"
+                        disabled={!playing}
+                        onClick={() => {
+                          setAuthorizationMatter(item.id);
+                          setLead(`gov-${item.province}`);
+                          setModal("reform");
+                        }}
+                      >
+                        调整本事务指挥关系 / 临时授权
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+              {m.backlog.length > 0 && (
+                <details className="v2-panel">
+                  <summary>
+                    公开待办 · {m.backlog.length}项（下回合按名额接纳）
+                  </summary>
+                  {m.backlog.map((x) => (
+                    <p key={x.id}>
+                      {x.title} · 来源 {x.source || "主动局势"}
+                    </p>
+                  ))}
+                </details>
+              )}
+              {m.matters.length === 0 && (
+                <div className="v2-empty">
+                  <Check size={28} />
+                  <h3>当前事务已处理</h3>
+                  <p>可以继续建设国家能力，或结束回合。</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="v2-history">
+              {m.history.map((h) => (
+                <article key={h.id} id={h.id}>
+                  <span className="v2-eyebrow">
+                    第{h.turn}回合 / {h.id}
+                  </span>
+                  <h3>{h.title}</h3>
+                  <p>
+                    参与：
+                    {h.actors
+                      .map((id) => getPerson(id)?.name || id)
+                      .join("、") || "制度/自动结算"}{" "}
+                    ·{" "}
+                    {h.institutions
+                      .map((id) => getOffice(id)?.name || id)
+                      .join("、")}
+                  </p>
+                  <details>
+                    <summary>当时的判定条件</summary>
+                    {h.conditions.map((c, i) => (
+                      <p key={i}>{c}</p>
+                    ))}
+                  </details>
+                  <ul>
+                    {h.effects.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
+                  </ul>
+                  {h.parents.map((id) => (
+                    <button
+                      className="v2-source"
+                      key={id}
+                      onClick={() => historySource(id)}
+                    >
+                      ← 因果前序：{m.history.find((x) => x.id === id)?.title}
+                    </button>
+                  ))}
+                </article>
+              ))}
+            </div>
+          )}
+          <section className="v2-actions">
+            <h3>主动建设国家能力</h3>
+            <p>每个行动都先展示条件和后果。资源不能购买缺失的正式资格。</p>
+            <div>
+              <button onClick={() => setModal("staff")} disabled={!playing}>
+                <Users size={18} />
+                人事与特殊能力
+              </button>
+              <button onClick={() => setModal("reform")} disabled={!playing}>
+                <Landmark size={18} />
+                三层权力改革
+              </button>
+              <button onClick={() => setModal("policy")} disabled={!playing}>
+                <Flag size={18} />
+                政策与批准路线
+              </button>
+              <button
+                onClick={() => choose({ type: "investigate", deck: "ley" })}
+                disabled={!playing}
+              >
+                <Zap size={18} />
+                灵脉勘探
+              </button>
+              <button
+                onClick={() => choose({ type: "investigate", deck: "archive" })}
+                disabled={!playing}
+              >
+                <BookOpen size={18} />
+                密封档案调查
+              </button>
+              <button
+                onClick={() =>
+                  choose({ type: "investigate", deck: "standards" })
+                }
+                disabled={!playing}
+              >
+                <Layers size={18} />
+                标准化试点
+              </button>
+              <button
+                onClick={() => choose({ type: "investigate", deck: "civic" })}
+                disabled={!playing}
+              >
+                <Globe2 size={18} />
+                跨文明公报
+              </button>
+            </div>
+          </section>
+        </section>
+        <aside className="v2-sidebar">
+          <section className="v2-panel v2-structure">
+            <h3>
+              <Landmark size={21} />
+              当前国家结构
+            </h3>
+            <h4>{regimes[m.regime].name}</h4>
+            <p className="v2-gain">解锁：{regimes[m.regime].gain}</p>
+            <p className="v2-loss">限制：{regimes[m.regime].loss}</p>
+            {m.pending && (
+              <div className="v2-transition">
+                改革过渡中 → {regimes[m.pending.regime].name}
+                <br />第{m.pending.due}回合生效，当前审批仍按旧体制。
+              </div>
+            )}
+            <p>
+              全国部门改革：
+              {m.department === "none"
+                ? "尚无"
+                : m.department === "anomaly"
+                  ? "异常垂直主责"
+                  : m.department === "transport"
+                    ? "中央运输体系"
+                    : "疏散权下放"}
+            </p>
+            {m.departmentPending && (
+              <p>部门改革将在第{m.departmentPending.due}回合生效。</p>
+            )}
+            <button onClick={() => setModal("reform")} disabled={!playing}>
+              查看制度与失去的能力 <ArrowRight size={16} />
+            </button>
+          </section>
+          <section className="v2-panel">
+            <h3>
+              <MapPin size={21} />
+              三省六区
+            </h3>
+            <div className="v2-province-buttons">
+              {s.provinces.map((p) => (
+                <button
+                  className={p.id === selected ? "active" : ""}
+                  key={p.id}
+                  onClick={() => setSelected(p.id)}
+                >
+                  {p.name.slice(0, 2)}
+                  <b>{p.stock}</b>
+                </button>
+              ))}
+            </div>
+            <h4>{local.name}</h4>
+            <p>
+              {local.districts
+                .map((d) => `${d.name}（产出${d.output}）`)
+                .join(" / ")}
+            </p>
+            <div className="v2-local-stats">
+              <span>
+                地方信任<b>{m.trust[selected]}/3</b>
+              </span>
+              <span>
+                自治特权<b>{local.autonomy}</b>
+              </span>
+              <span>
+                群众疲劳<b>{m.fatigue[selected]}</b>
+              </span>
+            </div>
+            <p>
+              {m.suppressed[selected]
+                ? "群众组织已压制：不能公开动员"
+                : "群众组织尚可公开动员"}{" "}
+              · 收益权{m.rights[selected] ? "已保留" : "未签订"}
+            </p>
+            <p>
+              {(["production", "social", "anomaly"] as const)
+                .map((d) => `${domainNames[d]}压力 ${local.pressure[d]}`)
+                .join(" / ")}
+            </p>
+            <div className="v2-local-actions">
+              <button
+                onClick={() =>
+                  choose({
+                    type: "project",
+                    project: "warning",
+                    province: selected,
+                  })
+                }
+                disabled={!playing}
+              >
+                预警站建设
+              </button>
+              <button
+                onClick={() =>
+                  choose({
+                    type: "project",
+                    project: "energy",
+                    province: selected,
+                  })
+                }
+                disabled={!playing}
+              >
+                宗门能源工程
+              </button>
+              <button
+                onClick={() =>
+                  choose({ type: "reconcile", province: selected })
+                }
+                disabled={!playing}
+              >
+                恢复地方协约
+              </button>
+            </div>
+          </section>
+          <details className="v2-panel">
+            <summary>
+              <Users size={19} />
+              机构、人物与派系
+            </summary>
+            {offices.map((o) => {
+              const id = s.appointments[o.id];
+              return (
+                <div className="v2-office" key={o.id}>
+                  <b>{o.name}</b>
+                  <p>
+                    {getPerson(id)?.name || "职位空缺"} · 积怨{" "}
+                    {id ? s.grievances[id] : "—"}
+                  </p>
+                  {id && coreAbilities[id] && <p>{coreAbilities[id].name}</p>}
+                  <button
+                    onClick={() => {
+                      setOffice(o.id);
+                      setPerson(id || "xing");
+                      setModal("staff");
+                    }}
+                  >
+                    调整 / 查看
+                  </button>
+                </div>
+              );
+            })}
+            {Object.keys(s.factions).map((id) => (
+              <p key={id}>
+                {factionNames[id as keyof typeof factionNames]}：影响{" "}
+                {s.factions[id as keyof typeof s.factions].influence} / 不满{" "}
+                {s.factions[id as keyof typeof s.factions].discontent}
+              </p>
+            ))}
+          </details>
+          <details className="v2-panel">
+            <summary>
+              <Sparkles size={19} />
+              当前行动能力资格
+            </summary>
+            {Object.keys(capNames).map((id) => {
+              const matter = m.matters.find((x) => x.province === selected) || {
+                id: "inspect",
+                province: selected,
+                kind: "oldgod" as const,
+                title: "",
+                description: "",
+                stage: 1,
+                containment: 0,
+                evacuated: false,
+                isolated: false,
+                age: 0,
+              };
+              const conditions = capability(
+                g,
+                id as keyof typeof capNames,
+                matter,
+                id === "seal" ? 0 : 1,
+              );
+              return (
+                <div className="v2-capability" key={id}>
+                  <b>
+                    {capNames[id as keyof typeof capNames]} ·{" "}
+                    {conditions.every((c) => c.met) ? "当前可用" : "当前受阻"}
+                  </b>
+                  {conditions
+                    .filter((c) => !c.met)
+                    .map((c) => (
+                      <p key={c.label}>{c.reason}</p>
+                    ))}
+                </div>
+              );
+            })}
+          </details>
         </aside>
       </div>
-      <section className="decision-log">
-        <div className="log-title">
-          <ScrollText size={16} />
-          <b>决策记录</b>
-          <span>DECISION ARCHIVE</span>
-        </div>
-        <div className="log-content">
-          {state.logs.slice(0, 3).map((l, i) => (
-            <div className={`log-line ${l.kind}`} key={i}>
-              <span>Q{String(l.turn).padStart(2, "0")}</span>
-              <p>{l.text}</p>
-            </div>
-          ))}
-        </div>
-        <button onClick={() => setModal("help")}>
-          全部记录 <ChevronRight size={14} />
-        </button>
-      </section>
-      <footer className="action-bar">
-        <div className="action-group">
-          <button onClick={() => setModal("people")} disabled={!playing}>
-            <Users size={16} />
-            人事任命<small>1命令</small>
-          </button>
-          <button onClick={() => setModal("reform")} disabled={!playing}>
-            <Settings2 size={16} />
-            权限改革<small>1命令 / 2+资本</small>
-          </button>
-          <button onClick={() => setModal("transfer")} disabled={!playing}>
-            <ArrowDownUp size={16} />
-            物资调拨<small>1–2命令</small>
-          </button>
-          <button onClick={() => setModal("policy")} disabled={!playing}>
-            <Flag size={16} />
-            政策路线<small>1命令 / 1资本</small>
-          </button>
-        </div>
+      <footer className="v2-bottom">
+        <span>
+          {regimes[m.regime].name} ·{" "}
+          {m.mode === "national" ? goals[m.goal].name : "南岭—北境"} · 种子{" "}
+          {s.seed}
+        </span>
         <button
-          className="end-turn"
-          onClick={() => setModal("end")}
+          className="v2-primary"
           disabled={!playing}
+          onClick={() => choose({ type: "end" })}
         >
-          结束本季度 <ArrowRight size={17} />
+          预览回合结算 <ArrowRight size={20} />
         </button>
       </footer>
-      <div className="footer-caption">
-        <span>诸界联邦 · 单人 PvE 策略原型</span>
-        <span>没有完美的组织，只有可以承担的后果。</span>
-        <button onClick={() => setModal("help")}>
-          <CircleHelp size={12} />
-          游戏帮助
-        </button>
-      </div>
       {notice && (
-        <div className="toast" role="status">
-          <span>{notice}</span>
+        <div className="v2-notice" role="status">
+          <p>{notice}</p>
           <button onClick={() => setNotice("")} aria-label="关闭提示">
-            <X size={15} />
+            <X size={20} />
           </button>
         </div>
       )}
-      {state.status !== "playing" && !modal && (
-        <div className="modal-overlay">
-          <div className="modal ending">
-            <span className="eyebrow">FEDERATION / FINAL REPORT</span>
+      {s.status !== "playing" && !modal && !action && (
+        <div className="v2-overlay">
+          <section
+            className="v2-dialog v2-report"
+            role="dialog"
+            aria-modal="true"
+            aria-label="执政报告"
+          >
+            <span className="v2-eyebrow">FEDERATION / ACTUAL DECISIONS</span>
             <h2>
-              {state.status === "won" ? "联邦仍在运转。" : "国家机器停止运转。"}
+              {s.status === "won"
+                ? "国家机器发挥了作用。"
+                : "任期结束，仍有未竟之事。"}
             </h2>
-            <p>{state.ending}</p>
-            <div className="ending-stats">
-              <div>
-                中央财政<strong>{state.treasury}</strong>
-              </div>
-              <div>
-                完成事务<strong>{state.resolved}</strong>
-              </div>
-              <div>
-                危机指标<strong>{state.crisis}/12</strong>
-              </div>
-            </div>
-            <div className="ending-report">
-              <p>
-                累积危机{" "}
-                {
-                  state.logs.filter(
-                    (l) =>
-                      l.text.startsWith("揭开基础危机") ||
-                      l.text.startsWith("揭开连锁事件"),
-                  ).length
-                }{" "}
-                / 未完成危机{" "}
-                {
-                  state.tasks.filter(
-                    (t) => getCard(t.cardId).category !== "active",
-                  ).length
-                }{" "}
-                / 待办 {state.backlog.length}
+            <pre>{report(g)}</pre>
+            <p>
+              财政 {s.treasury} · 危机 {s.crisis}/12 · 完成事务 {s.resolved}
+            </p>
+            {s.provinces.map((p) => (
+              <p key={p.id}>
+                {p.name}物资 {p.stock} / 信任 {m.trust[p.id]} / 自治{" "}
+                {p.autonomy}
               </p>
-              {state.provinces.map((p) => (
-                <p key={p.id}>
-                  {p.name}：物资 {p.stock} / 生产 {p.pressure.production} · 社会{" "}
-                  {p.pressure.social} · 异常 {p.pressure.anomaly} / 自治{" "}
-                  {p.autonomy}
-                </p>
+            ))}
+            <button className="v2-primary" onClick={() => setModal("new")}>
+              开始新任期
+            </button>
+            <button
+              onClick={() => {
+                setTab("history");
+                setModal("help");
+              }}
+            >
+              查阅完整决策历史
+            </button>
+          </section>
+        </div>
+      )}
+      {action && v && (
+        <div className="v2-overlay">
+          <section
+            className="v2-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="行动预览"
+          >
+            <button
+              className="v2-close"
+              onClick={() => setAction(null)}
+              aria-label="关闭"
+            >
+              <X />
+            </button>
+            <span className="v2-eyebrow">选择 → 判定 → 解释 → 预览 → 确认</span>
+            <h2>{v.title}</h2>
+            <p className="v2-participants">
+              参与人物：
+              {v.actors.map((id) => getPerson(id)?.name || id).join("、") ||
+                "国家制度行动"}
+              <br />
+              参与机构：
+              {v.institutions
+                .map((id) => getOffice(id)?.name || id)
+                .join("、") || "全国组织"}
+            </p>
+            <div className="v2-conditions">
+              {v.conditions.map((c, i) => (
+                <div className={c.met ? "met" : "unmet"} key={i}>
+                  {c.met ? <Check size={19} /> : <AlertTriangle size={19} />}
+                  <div>
+                    <b>{c.label}</b>
+                    <p>{c.reason}</p>
+                    {c.source && (
+                      <button onClick={() => historySource(c.source)}>
+                        查看限制来源
+                      </button>
+                    )}
+                  </div>
+                </div>
               ))}
-              {(Object.keys(state.factions) as FactionId[]).map((id) => (
-                <p key={id}>
-                  {factionNames[id]}：影响 {state.factions[id].influence} / 不满{" "}
-                  {state.factions[id].discontent}
-                </p>
-              ))}
-              <p>
-                人物积怨：
-                {people
-                  .map((p) => `${p.name} ${state.grievances[p.id]}`)
-                  .join(" · ")}
-              </p>
-              <h4>关键政策与组织调整</h4>
-              {state.logs
-                .filter((l) =>
-                  /政策调整|组织改革|人事调整|负责人|省政府.*→|权限补偿/.test(l.text),
-                )
-                .map((l, i) => (
-                  <p key={i}>
-                    Q{l.turn} · {l.text}
-                  </p>
-                ))}
             </div>
-            <div className="modal-actions">
-              <button onClick={() => setModal("help")}>查看完整决策记录</button>
-              <button className="button-primary" onClick={restart}>
-                <RotateCcw size={15} />
-                重新开始
+            {action.type === "resolve" && (
+              <>
+                <label className="v2-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={!!action.force}
+                    onChange={(e) =>
+                      choose({ ...action, force: e.target.checked })
+                    }
+                  />
+                  申请紧急强制（必须已有正式紧急授权；不能绕过能力条件）
+                </label>
+                <label className="v2-field">
+                  地方资源的实际交换条件
+                  <select
+                    value={action.exchange || "ownership"}
+                    onChange={(e) =>
+                      choose({
+                        ...action,
+                        exchange: e.target.value as
+                          | "ownership"
+                          | "budget"
+                          | "central",
+                      })
+                    }
+                  >
+                    <option value="ownership">保留地方收益权与1物资</option>
+                    <option value="budget">承诺以后每回合1财政部门预算</option>
+                    <option value="central">
+                      改用中央工业省物资（须有供应能力）
+                    </option>
+                  </select>
+                </label>
+              </>
+            )}
+            <div className="v2-costs">
+              <span>
+                命令<b>−{v.costs.commands}</b>
+              </span>
+              <span>
+                财政<b>−{v.costs.treasury}</b>
+              </span>
+              <span>
+                资本<b>−{v.costs.capital}</b>
+              </span>
+              <span>
+                物资<b>−{v.costs.stock}</b>
+              </span>
+            </div>
+            <h3>改变的不只是余额</h3>
+            <ul>
+              {v.effects.map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+            {confirmedPreview && (
+              <div className="v2-result">
+                <h3>执行后资源</h3>
+                <p>
+                  命令 {s.commands} → {v.after.commands} / 财政 {s.treasury} →{" "}
+                  {v.after.treasury} / 资本 {s.capital} → {v.after.capital}
+                </p>
+                {v.errors.length > 0 && (
+                  <p className="danger">当前不可执行：{v.errors.join("；")}</p>
+                )}
+              </div>
+            )}
+            <div className="v2-dialog-actions">
+              <button onClick={() => setConfirmedPreview(true)}>
+                预览后果
+              </button>
+              <button
+                className="v2-primary"
+                disabled={!confirmedPreview || v.errors.length > 0}
+                onClick={perform}
+              >
+                确认执行 <ArrowRight size={18} />
               </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
       {modal && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
-          <div
-            className={`modal ${modal === "task" ? "task-modal" : ""}`}
+        <div className="v2-overlay">
+          <section
+            className="v2-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label="治理决策"
-            onClick={(e) => e.stopPropagation()}
+            aria-label="国家设置"
           >
             <button
-              className="modal-close"
+              className="v2-close"
               onClick={() => setModal(null)}
               aria-label="关闭"
             >
-              <X size={20} />
+              <X />
             </button>
-            {modal === "task" && p && (
+            {modal === "new" && (
               <>
-                <span className="eyebrow">
-                  议事档案 / {catNames[p.card.category]}
-                </span>
-                <h2>{p.card.title}</h2>
-                <p className="modal-intro">{p.card.description}</p>
-                <div className="participants">
-                  {p.participants.map(({ office, person }) => (
-                    <div key={office.id}>
-                      <Avatar id={person?.id} size={28} />
-                      <span>
-                        <b>{person?.name || "空缺"}</b>
-                        <small>
-                          {office.short}
-                          {office.id === p.lead ? " · 主持" : ""}
-                        </small>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <h4 className="form-heading">01 / 选择处置路线</h4>
-                <div className="option-grid">
-                  {p.card.options.map((o) => (
+                <h2>你要建立怎样的国家？</h2>
+                <p>
+                  新任期替换当前进度，不覆盖已保存的存档。v0.1存档会保留，不作静默转换。
+                </p>
+                <label className="v2-field">
+                  游玩模式
+                  <select
+                    value={mode}
+                    onChange={(e) => setMode(e.target.value as Mode)}
+                  >
+                    <option value="tutorial">四阶段操作教学（4回合）</option>
+                    <option value="campaign">南岭—北境紧急状态（4回合）</option>
+                    <option value="national">国家目标正式模式（8回合）</option>
+                  </select>
+                </label>
+                <div className="v2-goal-choices">
+                  {Object.keys(goals).map((id) => (
                     <button
-                      key={o.id}
-                      className={`option-card ${choice.optionId === o.id ? "selected" : ""}`}
-                      onClick={() => {
-                        setChoice({ ...choice, optionId: o.id });
-                        setShowPreview(false);
-                      }}
+                      className={goal === id ? "selected" : ""}
+                      key={id}
+                      onClick={() => setGoal(id as Goal)}
                     >
-                      <span className="radio-circle">
-                        {choice.optionId === o.id && <i />}
-                      </span>
-                      <b>{o.name}</b>
-                      <p>{o.description}</p>
-                      <small>
-                        原始成本 {o.commands}命令 · {o.treasury}财政 · {o.stock}
-                        地方物资
-                      </small>
+                      <b>{goals[id as Goal].name}</b>
+                      <p>{goals[id as Goal].description}</p>
                     </button>
                   ))}
                 </div>
-                <h4 className="form-heading">
-                  02 / 动态冲突 · {p.conflicts.length} 项
-                </h4>
-                {p.conflicts.length === 0 && (
-                  <p className="no-conflict">
-                    <Check size={14} />
-                    当前参与者与权限配置未产生基础冲突。
-                  </p>
-                )}
-                {p.conflicts.map((c) => (
-                  <div className="conflict-detail" key={c.type}>
-                    <div>
-                      <span className="conflict-symbol">
-                        {c.type === "jurisdiction"
-                          ? "权"
-                          : c.type === "route"
-                            ? "策"
-                            : "资"}
-                      </span>
-                      <b>{c.title}</b>
-                    </div>
-                    <p>{c.reason}</p>
-                    <label>
-                      处理方式
-                      <select
-                        value={c.strategy}
-                        onChange={(e) => {
-                          setChoice({
-                            ...choice,
-                            strategies: {
-                              ...choice.strategies,
-                              [c.type]: e.target.value as Strategy,
-                            },
-                          });
-                          setShowPreview(false);
-                        }}
-                      >
-                        {strategies[c.type].map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={12} />
-                    </label>
-                    <small>{c.future}</small>
-                  </div>
-                ))}
-                <div className="preview-controls">
-                  <span>
-                    专业能力{" "}
-                    <b>
-                      {p.ability} / {p.required}
-                    </b>
-                    {p.resentmentCost > 0 && " · 主持人积怨阻力 +1命令"}
-                  </span>
-                  <button
-                    className="button-outline"
-                    onClick={() => setShowPreview(true)}
-                  >
-                    <Search size={14} />
-                    预览执行
-                  </button>
-                </div>
-                {showPreview && (
-                  <div className="execution-preview">
-                    <h4>结算预览 · 不会立即执行</h4>
-                    <div className="cost-equation">
-                      {p.base} 原始命令 +{" "}
-                      {p.conflicts.reduce((a, c) => a + c.commands, 0)} 冲突协调
-                      + {p.resentmentCost} 积怨阻力 = <b>{p.commands} 命令</b>
-                    </div>
-                    <div className="preview-resources">
-                      <span>
-                        命令{" "}
-                        <b>
-                          {state.commands} → {p.final.commands}
-                        </b>
-                      </span>
-                      <span>
-                        财政{" "}
-                        <b>
-                          {state.treasury} → {p.final.treasury}
-                        </b>
-                      </span>
-                      <span>
-                        资本{" "}
-                        <b>
-                          {state.capital} → {p.final.capital}
-                        </b>
-                      </span>
-                      <span>
-                        当地物资{" "}
-                        <b>
-                          {
-                            state.provinces.find(
-                              (x) => x.id === p.card.province,
-                            )!.stock
-                          }{" "}
-                          → {p.final.stock}
-                        </b>
-                      </span>
-                    </div>
-                    <p className="preview-caption">
-                      以上为扣除成本并应用补偿与方案效果后的最终余额；压力、项目和政治后果如下。
-                    </p>
-                    <ul>
-                      {[...p.conflicts.map((c) => c.future), ...p.effects].map(
-                        (e, i) => (
-                          <li key={i}>{e}</li>
-                        ),
-                      )}
-                    </ul>
-                    {p.errors.length > 0 && (
-                      <div className="inline-warning">
-                        <AlertTriangle size={15} />
-                        {p.errors.join("；")}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="modal-actions">
-                  {p.card.category === "active" ? (
-                    <button
-                      onClick={() => {
-                        if (run(() => abandon(state, p.task.uid)))
-                          setModal(null);
-                      }}
-                    >
-                      放弃机会（揭牌后果保留）
-                    </button>
-                  ) : (
-                    <button onClick={() => setModal(null)}>暂缓处理</button>
-                  )}
-                  <button
-                    className="button-primary"
-                    disabled={!showPreview || p.errors.length > 0}
-                    onClick={() => {
-                      if (
-                        run(
-                          () => execute(state, p.task.uid, choice),
-                          "事务已执行，全部政治后果已记录。",
-                        )
-                      )
-                        setModal(null);
-                    }}
-                  >
-                    确认执行 <ArrowRight size={15} />
-                  </button>
-                </div>
+                <label className="v2-field">
+                  固定随机种子
+                  <input
+                    value={seed}
+                    maxLength={64}
+                    onChange={(e) => setSeed(e.target.value)}
+                  />
+                </label>
+                <button
+                  className="v2-primary"
+                  onClick={() => {
+                    setG(newV2(mode, goal, seed || "南岭—北境-020"));
+                    setModal(null);
+                    setAction(null);
+                    setTab("matters");
+                  }}
+                >
+                  开始任期
+                </button>
               </>
             )}
-            {modal === "people" && (
+            {modal === "staff" && (
               <>
-                <span className="eyebrow">STATE APPARATUS / 人事</span>
-                <h2>每个位置，都改变一种可能。</h2>
-                <p className="modal-intro">
-                  任命或免职消耗1命令。人物只能占据一个职位；在任满2季度后免职会增加1积怨。
+                <h2>人物的才能需要合适的位置。</h2>
+                <p>
+                  任命/免职1命令，一人一职。合法参与资格与当前制度共同决定特殊能力。
                 </p>
-                <label className="form-field">
-                  目标职位
+                <label className="v2-field">
+                  职位
                   <select
-                    value={officeId}
-                    onChange={(e) => {
-                      setOfficeId(e.target.value);
-                      setPersonId("");
-                    }}
+                    value={office}
+                    onChange={(e) => setOffice(e.target.value)}
                   >
                     {offices.map((o) => (
                       <option key={o.id} value={o.id}>
                         {o.name} ·{" "}
-                        {getPerson(state.appointments[o.id])?.name || "空缺"}
+                        {getPerson(s.appointments[o.id])?.name || "空缺"}
                       </option>
                     ))}
                   </select>
                 </label>
-                <div className="person-roster">
-                  {people.map((person) => {
-                    const position = Object.entries(state.appointments).find(
-                      ([, p]) => p === person.id,
-                    )?.[0];
-                    return (
-                      <button
-                        key={person.id}
-                        className={
-                          focusedPerson === person.id ? "selected" : ""
-                        }
-                        onClick={() => {
-                          setFocusedPerson(person.id);
-                          if (!position) setPersonId(person.id);
-                        }}
-                      >
-                        <Avatar id={person.id} size={30} />
-                        <span>
-                          <b>{person.name}</b>
-                          <small>
-                            {position ? getOffice(position).short : "待任命"}
-                          </small>
-                        </span>
-                        <span className="roster-grievance">
-                          {state.grievances[person.id]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="person-detail">
-                  <h3>
-                    {selectedPerson.name} <small>{selectedPerson.title}</small>
-                  </h3>
-                  <p>
-                    {factionNames[selectedPerson.faction]} · 积怨{" "}
-                    {state.grievances[selectedPerson.id]} / 职务根基{" "}
-                    {state.roots[selectedPerson.id]}
-                  </p>
-                  <div className="person-skills">
-                    {domains.map((d) => (
-                      <span key={d}>
-                        {domainNames[d]} <b>{selectedPerson.skills[d]}</b>
-                      </span>
-                    ))}
-                  </div>
-                  <p>{selectedPerson.ability}</p>
-                  <div className="stance-tags">
-                    {(Object.keys(issueNames) as Issue[]).map((i) => (
-                      <span key={i}>
-                        {issueNames[i][selectedPerson.stance[i]]}
-                      </span>
-                    ))}
-                  </div>
-                  {state.grievances[selectedPerson.id] >= 2 && (
-                    <p className="text-danger">
-                      积怨≥2：主持额外消耗1命令。积怨≥3：拒绝协办。
-                    </p>
-                  )}
-                  {state.grievances[selectedPerson.id] > 0 && (
+                <div className="v2-roster">
+                  {people.map((p) => (
                     <button
-                      className="button-outline"
-                      onClick={() =>
-                        run(() => mediate(state, selectedPerson.id))
-                      }
+                      className={person === p.id ? "selected" : ""}
+                      key={p.id}
+                      onClick={() => setPerson(p.id)}
                     >
-                      政治和解 · 1命令 + 1资本
+                      <b>{p.name}</b>
+                      <span>{personOfficeLabel(s.appointments, p.id)}</span>
                     </button>
-                  )}
+                  ))}
                 </div>
-                <label className="form-field">
-                  任命选择
-                  <select
-                    value={personId}
-                    onChange={(e) => setPersonId(e.target.value)}
-                  >
-                    <option value="">免职 / 保持职位空缺</option>
-                    {people
-                      .filter(
-                        (p) =>
-                          !Object.values(state.appointments).includes(p.id),
-                      )
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} · {p.title}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <div className="modal-actions">
-                  <span>禁止一人多职；调任请先免职。</span>
+                <section className="v2-person-details">
+                  <h3>{getPerson(person)?.name || "保持职位空缺"}</h3>
+                  {getPerson(person) && (
+                    <>
+                      <p>
+                        {getPerson(person)!.title} ·{" "}
+                        {factionNames[getPerson(person)!.faction]}
+                      </p>
+                      <p>
+                        {Object.keys(issueNames)
+                          .map(
+                            (i) =>
+                              issueNames[i as Issue][
+                                getPerson(person)!.stance[i as Issue]
+                              ],
+                          )
+                          .join(" / ")}
+                      </p>
+                      {coreAbilities[person] ? (
+                        <>
+                          <h4>
+                            <Sparkles size={18} />
+                            {coreAbilities[person].name}
+                          </h4>
+                          <p>启用：{coreAbilities[person].condition}</p>
+                          <p>限制：{coreAbilities[person].limit}</p>
+                        </>
+                      ) : (
+                        <p>
+                          保留基础专业与立场；本版尚未为该人物扩展独特特殊行动。
+                        </p>
+                      )}
+                      <p>
+                        积怨 {s.grievances[person]} · 根基 {s.roots[person]}
+                      </p>
+                    </>
+                  )}
+                </section>
+                <div className="v2-dialog-actions">
                   <button
-                    className="button-primary"
                     onClick={() =>
-                      run(
-                        () => appoint(state, officeId, personId || null),
-                        "人事调整已生效。",
-                      )
+                      choose({ type: "appoint", office, person: null })
                     }
                   >
-                    确认{personId ? "任命" : "免职"} · 1命令
+                    预览免职
+                  </button>
+                  {s.grievances[person] > 0 && (
+                    <button onClick={() => choose({ type: "mediate", person })}>
+                      预览政治和解
+                    </button>
+                  )}
+                  <button
+                    className="v2-primary"
+                    onClick={() => choose({ type: "appoint", office, person })}
+                  >
+                    预览任命
                   </button>
                 </div>
               </>
             )}
             {modal === "reform" && (
               <>
-                <span className="eyebrow">AUTHORITY / 组织改革</span>
-                <h2>将争议写成制度。</h2>
-                <p className="modal-intro">
-                  支付1命令和2政治资本，永久指定某省某领域的主责机构。安全集团影响≥4时，将异常权限授予地方额外支付1资本。
-                </p>
-                <label className="form-field">
-                  管辖省份
+                <h2>改变行动权限，而不是购买通行费。</h2>
+                <h3>第一层 · 当前事务临时授权</h3>
+                <label className="v2-field">
+                  具体事务
                   <select
-                    value={selected}
+                    value={authorizationMatter || m.matters[0]?.id || ""}
                     onChange={(e) => {
-                      setSelected(e.target.value as ProvinceId);
-                      setReformOffice(`gov-${e.target.value}`);
+                      setAuthorizationMatter(e.target.value);
+                      const it = m.matters.find((x) => x.id === e.target.value);
+                      if (it) setLead(`gov-${it.province}`);
                     }}
                   >
-                    {state.provinces.map((p) => (
-                      <option value={p.id} key={p.id}>
-                        {p.name}
+                    {m.matters.map((x) => (
+                      <option value={x.id} key={x.id}>
+                        {x.title}
                       </option>
                     ))}
                   </select>
                 </label>
-                <label className="form-field">
-                  事务领域
+                <label className="v2-field">
+                  临时主管
                   <select
-                    value={domain}
-                    onChange={(e) => {
-                      setDomain(e.target.value as Domain);
-                      setReformOffice(`gov-${selected}`);
-                    }}
+                    value={lead}
+                    onChange={(e) => setLead(e.target.value)}
                   >
-                    {domains.map((d) => (
-                      <option key={d} value={d}>
-                        {domainNames[d]}事务
+                    {offices.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
                       </option>
                     ))}
                   </select>
                 </label>
-                <label className="form-field">
-                  主责机构
-                  <select
-                    value={reformOffice}
-                    onChange={(e) => setReformOffice(e.target.value)}
-                  >
-                    {offices
-                      .filter(
-                        (o) =>
-                          o.domains.includes(domain) &&
-                          (!o.province || o.province === selected),
-                      )
-                      .map((o) => (
-                        <option value={o.id} key={o.id}>
-                          {o.name}
-                        </option>
-                      ))}
-                  </select>
+                <label className="v2-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={joint}
+                    onChange={(e) => setJoint(e.target.checked)}
+                  />
+                  正式邀请中央—地方联合参与
                 </label>
-                <div className="explanation-box">
-                  <b>制度后果</b>
-                  <p>
-                    同省同类事务将不再触发事权冲突。主管机构负责人改变，能力与积怨阻力随之改变。地方获得主责时自治
-                    +1。路线与利益冲突仍按实际事务判断。
-                  </p>
-                  <p>
-                    当前主责：
-                    {state.jurisdictions[`${selected}:${domain}`]
-                      ? getOffice(state.jurisdictions[`${selected}:${domain}`])
-                          .name
-                      : "中央与地方重叠"}
-                  </p>
-                </div>
-                <div className="modal-actions">
-                  <button onClick={() => setModal(null)}>取消</button>
+                <label className="v2-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={emergency}
+                    onChange={(e) => setEmergency(e.target.checked)}
+                  />
+                  阶段≥2时取得紧急强制权
+                </label>
+                <button
+                  onClick={() =>
+                    choose({
+                      type: "authorize",
+                      matter: authorizationMatter || m.matters[0]?.id || "",
+                      lead,
+                      joint,
+                      emergency,
+                    })
+                  }
+                  className="v2-primary"
+                >
+                  预览临时授权
+                </button>
+                <h3>第二层 · 全国部门改革</h3>
+                <div className="v2-reform-buttons">
                   <button
-                    className="button-primary"
-                    onClick={() => {
-                      if (
-                        run(
-                          () => reform(state, selected, domain, reformOffice),
-                          "主责改革已生效；下一次预览将使用新权限。",
-                        )
-                      )
-                        setModal(null);
-                    }}
+                    onClick={() =>
+                      choose({ type: "department", department: "anomaly" })
+                    }
                   >
-                    确认改革
+                    全国异常垂直主责
+                  </button>
+                  <button
+                    onClick={() =>
+                      choose({ type: "department", department: "evacuation" })
+                    }
+                  >
+                    各省独立灾害疏散权
+                  </button>
+                  <button
+                    onClick={() =>
+                      choose({ type: "department", department: "transport" })
+                    }
+                  >
+                    中央跨省运输体系
                   </button>
                 </div>
+                <h3>第三层 · 国家基础制度</h3>
+                {Object.keys(regimes).map((id) => (
+                  <button
+                    key={id}
+                    className="v2-regime-choice"
+                    onClick={() =>
+                      choose({ type: "regime", regime: id as Regime })
+                    }
+                  >
+                    <b>{regimes[id as Regime].name}</b>
+                    <p>获得：{regimes[id as Regime].gain}</p>
+                    <p>限制：{regimes[id as Regime].loss}</p>
+                    <span>1命令 +1财政 +2资本 / 下一回合生效</span>
+                  </button>
+                ))}
+                <details>
+                  <summary>小范围异常主责修补</summary>
+                  <p>
+                    针对当前选中的{local.name}；不自动给予跨省或联合行动权限。
+                  </p>
+                  {offices
+                    .filter(
+                      (o) =>
+                        o.domains.includes("anomaly") &&
+                        (!o.province || o.province === selected),
+                    )
+                    .map((o) => (
+                      <button
+                        key={o.id}
+                        onClick={() =>
+                          choose({
+                            type: "local",
+                            province: selected,
+                            lead: o.id,
+                          })
+                        }
+                      >
+                        {o.name}
+                      </button>
+                    ))}
+                </details>
               </>
             )}
             {modal === "policy" && (
               <>
-                <span className="eyebrow">POLICY / 全国路线</span>
-                <h2>一条路线，许多种代价。</h2>
-                <p className="modal-intro">
-                  政策消耗1命令与1政治资本。后续偏离该路线的事务额外消耗1命令，支持政策的在任人物为派系贡献影响力。
-                </p>
-                <label className="form-field">
+                <h2>路线是一种真实的许可。</h2>
+                <label className="v2-field">
                   政策议题
                   <select
                     value={issue}
                     onChange={(e) => setIssue(e.target.value as Issue)}
                   >
-                    {(Object.keys(issueNames) as Issue[]).map((i) => (
+                    {Object.keys(issueNames).map((i) => (
                       <option key={i} value={i}>
-                        {issueNames[i].join(" / ")}
+                        {issueNames[i as Issue].join(" / ")}
                       </option>
                     ))}
                   </select>
                 </label>
-                <div className="option-grid">
-                  {issueNames[issue].map((label, i) => (
+                <p>
+                  当前：
+                  {s.policies[issue] === null
+                    ? "未定路线"
+                    : issueNames[issue][s.policies[issue]!]}
+                </p>
+                <div className="v2-policy-buttons">
+                  {issueNames[issue].map((name, side) => (
                     <button
-                      key={label}
-                      className={`option-card ${side === i ? "selected" : ""}`}
-                      onClick={() => setSide(i)}
+                      key={name}
+                      onClick={() => choose({ type: "policy", issue, side })}
                     >
-                      <b>{label}</b>
-                      <p>
-                        支持：
-                        {people
-                          .filter(
-                            (p) =>
-                              Object.values(state.appointments).includes(
-                                p.id,
-                              ) && p.stance[issue] === i,
-                          )
-                          .map((p) => p.name)
-                          .join("、")}
-                      </p>
+                      {name}
+                      <ArrowRight size={16} />
                     </button>
                   ))}
                 </div>
-                <div className="modal-actions">
-                  <button onClick={() => setModal(null)}>取消</button>
-                  <button
-                    className="button-primary"
-                    onClick={() => {
-                      if (run(() => policy(state, issue, side))) setModal(null);
-                    }}
-                  >
-                    确认路线
-                  </button>
-                </div>
-              </>
-            )}
-            {modal === "transfer" && (
-              <>
-                <span className="eyebrow">RESOURCES / 物资调拨</span>
-                <h2>资源总是属于某个人。</h2>
-                <p className="modal-intro">
-                  调拨2物资，基础成本1命令。正常协商额外消耗1命令；强制征调免除协调成本，但调出省负责人积怨
-                  +1。
+                <p>
+                  群众公开救援无法在保密政策下发动。秘密高级封印无法在公开政策下发动。委员会合作需要协商路线和有限技术公开协议。
                 </p>
-                <label className="form-field">
-                  调出省份
-                  <select
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value as ProvinceId)}
-                  >
-                    {state.provinces.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · 库存 {p.stock}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="form-field">
-                  调入省份
-                  <select
-                    value={to}
-                    onChange={(e) => setTo(e.target.value as ProvinceId)}
-                  >
-                    {state.provinces.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · 库存 {p.stock}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={forceTransfer}
-                    onChange={(e) => setForceTransfer(e.target.checked)}
-                  />
-                  强制征调：1命令，受损省长积怨 +1
-                </label>
-                <div className="explanation-box">
-                  <b>执行预览</b>
-                  <p>
-                    命令 {state.commands} →{" "}
-                    {state.commands - (forceTransfer ? 1 : 2)} ·{" "}
-                    {state.provinces.find((p) => p.id === from)!.name}物资{" "}
-                    {state.provinces.find((p) => p.id === from)!.stock} →{" "}
-                    {state.provinces.find((p) => p.id === from)!.stock - 2} ·{" "}
-                    {state.provinces.find((p) => p.id === to)!.name}物资{" "}
-                    {state.provinces.find((p) => p.id === to)!.stock} →{" "}
-                    {state.provinces.find((p) => p.id === to)!.stock + 2}
-                  </p>
-                  <p>
-                    {from === to
-                      ? "请选择不同省份"
-                      : forceTransfer
-                        ? `${getPerson(state.appointments[`gov-${from}`])?.name || "岗位空缺"}将承担征调积怨`
-                        : "支付1命令，与实际受损的地方政府达成征调协议。"}
-                  </p>
-                </div>
-                <div className="modal-actions">
-                  <button onClick={() => setModal(null)}>取消</button>
-                  <button
-                    className="button-primary"
-                    onClick={() => {
-                      if (run(() => transfer(state, from, to, forceTransfer)))
-                        setModal(null);
-                    }}
-                  >
-                    确认调拨
-                  </button>
-                </div>
-              </>
-            )}
-            {modal === "new" && (
-              <>
-                <span className="eyebrow">NEW SESSION / 新的任期</span>
-                <h2>诸界的未来，从这里开始。</h2>
-                <p className="modal-intro">
-                  新游戏会替换当前进度，不会覆盖已有存档。相同种子和相同操作会产生相同结果。
-                </p>
-                <label className="form-field">
-                  随机种子
-                  <input
-                    value={seed}
-                    onChange={(e) => setSeed(e.target.value)}
-                    maxLength={64}
-                  />
-                </label>
-                <label className="checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={demo}
-                    onChange={(e) => setDemo(e.target.checked)}
-                  />
-                  从「南岭灵脉电站事故」演示场景开始
-                </label>
-                <div className="modal-actions">
-                  <button onClick={restart}>
-                    <RotateCcw size={14} />
-                    相同种子重开演示
-                  </button>
-                  <button
-                    className="button-primary"
-                    onClick={() => {
-                      setState(newGame(seed || "南岭-071", demo));
-                      setUid(null);
-                      setSelected("south");
-                      setModal(null);
-                      setNotice("新的8季度任期已开始。");
-                    }}
-                  >
-                    开始新游戏
-                  </button>
-                </div>
-              </>
-            )}
-            {modal === "end" && (
-              <>
-                <span className="eyebrow">QUARTERLY SETTLEMENT / 季度结算</span>
-                <h2>
-                  {state.turn === 8
-                    ? "结束任期，提交最终报告。"
-                    : "让国家机器继续运转。"}
-                </h2>
-                <p className="modal-intro">
-                  结算后无法撤回。请留意未处理事务和下一季度压力。
-                </p>
-                <div className="settlement-list">
-                  <p>
-                    <Boxes size={17} />
-                    三省基础产出各 +3物资；项目按产出结算。
-                  </p>
-                  <p>
-                    <Coins size={17} />
-                    先支付最低行政支出4财政，再获得税收5财政；政治资本 +1。
-                  </p>
-                  <p>
-                    <ScrollText size={17} />
-                    剩余 {state.commands} 命令作废，下季重置为
-                    {state.paralysis >= 2 ? 4 : 5}。
-                  </p>
-                  <p>
-                    <AlertTriangle size={17} />
-                    未处理危机{" "}
-                    {
-                      state.tasks.filter(
-                        (t) => getCard(t.cardId).category !== "active",
-                      ).length
-                    }{" "}
-                    项，各按卡牌后果恶化。
-                  </p>
-                  {state.tasks
-                    .filter((t) => getCard(t.cardId).category !== "active")
-                    .map((t) => (
-                      <small key={t.uid}>
-                        「{getCard(t.cardId).title}」：危机 +1，地区压力 +1
-                        {t.age >= 2 ? "，超过时限额外危机 +1" : ""}
-                      </small>
-                    ))}
-                  <p>
-                    <Radio size={17} />
-                    压力 ≥2 生成连锁；先接纳待办，每季最多3张新增事件。
-                  </p>
-                </div>
-                <div className="modal-actions">
-                  <button onClick={() => setModal(null)}>继续本季度</button>
-                  <button
-                    className="button-primary"
-                    onClick={() => {
-                      if (run(() => endTurn(state))) setModal(null);
-                    }}
-                  >
-                    确认结算 <ArrowRight size={15} />
-                  </button>
-                </div>
               </>
             )}
             {modal === "help" && (
               <>
-                <span className="eyebrow">FIELD MANUAL / 治理手册</span>
-                <h2>不是找到完美的人，而是安排合适的权力。</h2>
-                <div className="help-content">
-                  <h3>你的目标</h3>
-                  <p>
-                    度过8个季度。危机达到12、连续两次财政违约，或行政阻塞连续两季达到4，即告失败。每季5命令，不结转；行政阻塞≥2时下季4命令。
+                <h2>治理手册 · 国家机器 v0.2</h2>
+                <p>
+                  先看目标与危机，点击方案查看人物、事权、路线和利益条件。受阻不等于资源不够：你可能需要换职位、改制度、提供正式授权，或采用不同能力。
+                </p>
+                <h3>财政与失败</h3>
+                <p>
+                  每回合基本收入5（完工能源设施另增税收1），先支付固定4、制度维护与可暂停项目。连续两次无法履行承诺会失败；全国危机≥12或中央阻塞连续两回合≥4也会失败。全国模式还要完成目标终局，存活本身不是正式胜利。
+                </p>
+                <h3>三种体制如何不同</h3>
+                {Object.values(regimes).map((r) => (
+                  <section key={r.name}>
+                    <h4>{r.name}</h4>
+                    <p>
+                      {r.gain} {r.loss}
+                    </p>
+                  </section>
+                ))}
+                <h3>建议的短战役路线</h3>
+                <p>
+                  地方路线可以公开救援、撤离并遏制北境危机。垂直路线可提前改革，再以谢尔盖与档案启动全国秘密封印。委员会路线需要公开有限技术资料与协商政策，还要将群众救援人物放到当前省份的合法职位。三条路径不能互相用资源替代。
+                </p>
+                <h3>国家目标建设提示</h3>
+                <p>
+                  星火：勘探→墨玄在南岭任职→标准委员会→中央运输改革→工程竣工→保留收益权。协约：联合体制或疏散权下放→真实合作协议→处理事故→保留负责人信任。长夜：三个预警站→合法高级封印/联合行动→跨省应急→管理北境。每个目标还须在第8回合执行终局方案。
+                </p>
+                <h3>能力与危机的真实限制</h3>
+                <p>
+                  积怨达到3会拒绝协办；工程师离岗或被抽调会中断工程。临时授权本回合到期，改革下回合生效。公开救援不会自动消灭异常源；持续危机仍需要遏制、撤离、隔离或封印。每回合最多接纳3项新增事务，压力只检测一次。
+                </p>
+                <h3>实际历史</h3>
+                {m.history.slice(0, 12).map((h) => (
+                  <p key={h.id}>
+                    第{h.turn}回合 · {h.title}：{h.effects[0]}
                   </p>
-                  <h3>三个冲突，一次真实决策</h3>
-                  <p>
-                    事权：中央与省政府权限重叠。路线：参与者反对所选方案。利益：地方被征调物资而没有协议。每类最多1枚，通常各消耗1命令。强制免去协调成本，但明确的反对者每项积怨
-                    +1。
-                  </p>
-                  <h3>南岭演示的三条路径</h3>
-                  <p>
-                    正常协调：公开处置，消耗4命令、1财政、2物资，无新增积怨。强制执行：全部强制，仅1命令，但省长承担事权和征调两项积怨，异常局长承担路线积怨。组织改革：先支付1命令、2资本授予异常局主责，再协调公开处置，事务只需3命令；今后南岭异常事务不再争夺事权。
-                  </p>
-                  <h3>人物与派系</h3>
-                  <p>
-                    积怨2：主持额外1命令。积怨3：拒绝协办，并一次性触发危机
-                    +1政治事件。用1命令+1资本调解可降低积怨。任职每季根基
-                    +1；根基≥2时免职新增积怨。关键职位每个贡献2影响，支持的政策和方案提供影响。影响≥4时派系擅长领域能力
-                    +1；不满≥4时本派主持能力 -1。
-                  </p>
-                  <h3>连锁与长期项目</h3>
-                  <p>
-                    压力在季度末结算后检测，达到2则在下季生成一张同省同类连锁并消耗2压力。新揭牌增加的压力留到以后检测。重大危机额外揭3张，额外牌不会再次触发抽牌。未处理危机每季恶化，延期3季失效并额外危机
-                    +1。主动机会保留2季，揭牌压力不可撤销。
-                  </p>
-                  <h3>资源与制度</h3>
-                  <p>
-                    三省六区每季产出各3物资；先支付行政支出4，再收到税收5；无力支付计一次违约。全国政策变更1命令+1资本，偏离该政策的事务额外1命令。临时协调只解决本次冲突；改革永久改变当地该领域主责。详细规则、安装方式与测试见仓库
-                    RULES.md 和 README.md。
-                  </p>
-                  <h3>完整决策记录 · {state.logs.length} 条</h3>
-                  <div className="full-log">
-                    {state.logs.map((l, i) => (
-                      <div key={i} className={`log-line ${l.kind}`}>
-                        <span>Q{l.turn}</span>
-                        <p>{l.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ))}
+                <p>
+                  详细规则与已知简化见仓库
+                  RULES.md、CHANGELOG.md。旧存档保留；v0.2使用独立存档键。
+                </p>
               </>
             )}
-          </div>
+          </section>
         </div>
       )}
     </div>
   );
 }
-export default App;
+function personOfficeLabel(
+  appointments: Record<string, string | null>,
+  id: string,
+) {
+  const office = Object.entries(appointments).find(([, p]) => p === id)?.[0];
+  return office ? getOffice(office).short : "待任命";
+}

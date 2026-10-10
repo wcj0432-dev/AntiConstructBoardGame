@@ -27,7 +27,7 @@ await zip(`${prefix}-Offline.zip`, archive => {
 });
 await zip(`${prefix}-Source.zip`, archive => {
   for (const name of ['src', 'desktop', 'scripts', '.github']) archive.directory(path.join(root, name), `${prefix}-Source/${name}`);
-  for (const name of ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'index.html', 'README.md', 'RULES.md', 'PLAYER_GUIDE.md', 'RELEASE_NOTES.md', 'THIRD_PARTY_NOTICES.md', '.gitignore']) archive.file(path.join(root, name), { name: `${prefix}-Source/${name}` });
+  for (const name of ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'index.html', 'README.md', 'RULES.md', 'PLAYER_GUIDE.md', 'RELEASE_NOTES.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', '.gitignore']) archive.file(path.join(root, name), { name: `${prefix}-Source/${name}` });
 });
 const dirs = await readdir(path.join(artifacts, 'desktop')).catch(() => []);
 for (const name of dirs) {
