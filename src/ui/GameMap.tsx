@@ -255,7 +255,7 @@ export function GameMap({
                       {matters
                         .map(
                           (x) =>
-                            `${x.title} · 阶段${x.stage} · ${x.containment > 0 ? `遏制${x.containment}回合` : "下次结算恶化"}`,
+                            `${x.title} · 阶段${x.stage} · ${x.isolated ? "持续隔离 · 本省停产" : x.containment > 0 ? `遏制${x.containment}回合` : "下次结算恶化"}`,
                         )
                         .join("；") || "暂无持续危机"}
                     </p>

@@ -1,10 +1,10 @@
-# 诸界联邦 v0.3.0 · 游玩说明
+# 诸界联邦 v0.3.1 · 游玩说明
 
 ## 下载与打开
 
-Windows：下载 `Federation-of-Worlds-v0.3.0-Windows-x64.zip`，**解压整个压缩包**，双击 `FederationOfWorlds.exe`。保留exe旁的运行库和resources目录。无需安装Node.js，无需网络或注册；适用Windows10/11 64位。本版未进行发行者代码签名。
+Windows：下载 `Federation-of-Worlds-v0.3.1-Windows-x64.zip`，**解压整个压缩包**，双击 `FederationOfWorlds.exe`。保留exe旁的运行库和resources目录。无需安装Node.js，无需网络或注册；适用Windows10/11 64位。本版未进行发行者代码签名。
 
-浏览器：下载 `Federation-of-Worlds-v0.3.0-Offline.zip`，完整解压后双击 `诸界联邦.html`。所有脚本和样式都在HTML内，可用当前Chrome/Edge，macOS/Linux现代浏览器也可用。不要在压缩包中直接打开。
+浏览器：下载 `Federation-of-Worlds-v0.3.1-Offline.zip`，完整解压后双击 `诸界联邦.html`。所有脚本和样式都在HTML内，可用当前Chrome/Edge，macOS/Linux现代浏览器也可用。不要在压缩包中直接打开。
 
 ## 主菜单与操作
 
@@ -39,6 +39,6 @@ Windows：下载 `Federation-of-Worlds-v0.3.0-Windows-x64.zip`，**解压整个�
 
 暂停菜单「保存游戏」手动保存，重启后从主菜单「继续游戏」或「读取存档」。网页存档属于当前浏览器/文件位置，移动文件、隐私模式或清除浏览器数据可能使其不可见。Windows版保存到当前用户的应用数据目录，不写到游戏文件夹；两个版本不共享存档。
 
-v0.3.0保存制度、工程、临时授权、随机序列与因果历史。旧v0.2存档兼容，原目标和事件进度保留；旧v0.1存档保留，但不能静默转换，需新开任期。
+v0.3.1保存制度、工程、临时授权、随机序列与因果历史。旧v0.2存档兼容，原目标和事件进度保留；旧v0.1存档保留，但不能静默转换，需新开任期。
 
 源码包包含完整工程、规则、测试和打包脚本。开发方法见README.md，未完成部分见CHANGELOG.md。

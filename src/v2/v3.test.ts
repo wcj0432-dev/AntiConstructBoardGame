@@ -453,3 +453,33 @@ describe("v0.3 随机模板的真实完整胜利", () => {
     expect(g.machine.goalPending).toBe(false);
   });
 });
+
+describe("十二回合隔离的持续状态", () => {
+  it("隔离存在且地区持续停产时，不会在第九次结算突然升级", () => {
+    let g = newV2("experimental", "night", "隔离-十二年");
+    g = go(g, { type: "regime", regime: "vertical" });
+    g = end(g);
+    g = resolveKind(g, "accident", "seal");
+    g = end(g);
+    g = go(g, {
+      type: "authorize",
+      matter: g.machine.matters.find((x) => x.kind === "distrust")!.id,
+      lead: "plan",
+      joint: false,
+      emergency: false,
+    });
+    g = resolveKind(g, "distrust", "rights");
+    g = end(g);
+    g = resolveKind(g, "oldgod", "isolate");
+    const god = g.machine.matters.find((x) => x.kind === "oldgod")!,
+      crisis = g.core.crisis,
+      stock = g.core.provinces.find((x) => x.id === "north")!.stock;
+    while (g.core.turn < 12) g = end(g);
+    g = end(g);
+    const retained = g.machine.matters.find((x) => x.id === god.id)!;
+    expect(retained.isolated).toBe(true);
+    expect(retained.stage).toBe(god.stage);
+    expect(g.core.crisis).toBe(crisis);
+    expect(g.core.provinces.find((x) => x.id === "north")!.stock).toBe(stock);
+  });
+});

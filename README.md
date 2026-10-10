@@ -1,4 +1,4 @@
-# 诸界联邦 · 地图指挥台 v0.3.0
+# 诸界联邦 · 地图指挥台 v0.3.1
 
 本地单人 PvE 数字桌游。React + TypeScript + Vite，无后端或在线裁判。通过人事、实际事权、路线和具体资源交换，构建一套能够治理奇幻世界的国家机器。
 
@@ -81,9 +81,9 @@ npm run release:pack        # Windows-x64、离线HTML、源码zip及SHA256
 npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
 ```
 
-GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.3.0`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
+GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.3.1`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
 
-[下载v0.3离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.3.0-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。旧发布仍保留，新包以v0.3.0命名。
+[下载v0.3离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.3.1-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。旧发布仍保留，新包以v0.3.1命名。
 
 ## 工程结构
 

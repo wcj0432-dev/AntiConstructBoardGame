@@ -208,7 +208,7 @@ export function newV2(
       archive: [],
       results: [],
       difficulty: "standard",
-      rulesVersion: "0.3.0",
+      rulesVersion: "0.3.1",
       politics: "classic",
       agendaSeen: [],
     },
@@ -1192,7 +1192,7 @@ function enactPlan(
   }
   if (p.effect === "isolate") {
     matter.isolated = true;
-    matter.containment = 8;
+    matter.containment = 0;
     m.suppressed[matter.province] = true;
     m.origins[`suppressed:${matter.province}`] = source;
     if (matter.kind === "oldgod") {
@@ -1385,6 +1385,8 @@ function advance(g: V2Game, source: string) {
     )
       continue;
     item.age++;
+    // Isolation is a persistent territorial restriction, not an eight-turn timer.
+    if (item.isolated) continue;
     if (item.containment > 0) {
       item.containment--;
       continue;
@@ -1850,11 +1852,11 @@ export function deserializeV2(raw: string): V2Game {
   m.rulesVersion ??= "0.2";
   m.politics ??= "classic";
   m.agendaSeen ??= [];
-  if (!["0.2", "0.3.0"].includes(m.rulesVersion))
+  if (!["0.2", "0.3.0", "0.3.1"].includes(m.rulesVersion))
     throw new Error("存档来自不同规则版本，请使用对应版本读取；原存档未改动");
-  if (m.rulesVersion === "0.2") {
-    m.migratedFrom = "0.2";
-    m.rulesVersion = "0.3.0";
+  if (m.rulesVersion !== "0.3.1") {
+    m.migratedFrom = m.rulesVersion;
+    m.rulesVersion = "0.3.1";
   }
   if (g.core.turn > duration(g)) throw new Error("回合超出剧本期限");
   if (
@@ -1912,13 +1914,19 @@ export function matterProgress(m: Matter) {
       completed: [
         m.evacuated ? "居民已救援 / 撤离" : "",
         m.isolated ? "隔离边界已建立" : "",
-        m.containment > 0 ? `管控仍有效：${m.containment}回合` : "",
+        m.isolated
+          ? "隔离持续有效；本省基础生产暂停"
+          : m.containment > 0
+            ? `管控仍有效：${m.containment}回合`
+            : "",
       ].filter(Boolean),
       remaining: [
         "异常源尚未封印；可组织合法封印，或选择持续遏制 / 隔离治理",
-        m.containment === 0
-          ? "本回合结束将升级并损害物资；未撤离时还可能造成审批阻塞"
-          : "管控到期后再次检查；不会因撤离自动消除异常源",
+        m.isolated
+          ? "隔离没有时限，但本省持续停产；须真正封印异常源才能恢复基础生产"
+          : m.containment === 0
+            ? "本回合结束将升级并损害物资；未撤离时还可能造成审批阻塞"
+            : "管控到期后再次检查；不会因撤离自动消除异常源",
       ],
     };
   return {
@@ -2035,7 +2043,7 @@ export function executeCommand(
   if (before && !after) effects.push(`${before.title}已移出待处理队列并归档`);
   if (after)
     effects.push(
-      `仍有异常源：阶段${after.stage}/4，遏制${after.containment}回合，${after.evacuated ? "人口已保护" : "人口尚未撤离"}`,
+      `仍有异常源：阶段${after.stage}/4，${after.isolated ? "持续隔离，本省停产" : `遏制${after.containment}回合`}，${after.evacuated ? "人口已保护" : "人口尚未撤离"}`,
     );
   const newItems = [...n.machine.matters, ...n.machine.backlog].filter(
     (x) =>
@@ -2302,6 +2310,7 @@ function experimentalAgenda(g: V2Game, source: string) {
   const ongoing = m.matters.filter(
     (x) =>
       ["accident", "oldgod", "supply", "distrust"].includes(x.kind) &&
+      !x.isolated &&
       x.containment === 0,
   );
   if (s.turn === 10)

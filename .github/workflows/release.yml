@@ -7,7 +7,7 @@ on:
       release_tag:
         description: "要打包并发布的已有版本标签"
         required: true
-        default: "v0.3.0"
+        default: "v0.3.1"
         type: string
 permissions:
   contents: read

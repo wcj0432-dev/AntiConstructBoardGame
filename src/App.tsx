@@ -567,7 +567,11 @@ export default function App() {
           <MapPin size={18} />
           {s.provinces.find((p) => p.id === item.province)!.name} · 阶段{" "}
           {item.stage}/4
-          {item.containment > 0 ? ` · 遏制${item.containment}回合` : ""}
+          {item.isolated
+            ? " · 持续隔离 / 本省停产"
+            : item.containment > 0
+              ? ` · 遏制${item.containment}回合`
+              : ""}
         </div>
         <div className="matter-heading">
           <h3>{item.title}</h3>
@@ -701,9 +705,11 @@ export default function App() {
           <small>
             {s.provinces.find((p) => p.id === x.province)!.name} ·{" "}
             {["oldgod", "accident", "distrust", "supply"].includes(x.kind)
-              ? x.containment
-                ? "当前受控"
-                : `阶段${x.stage} · 结算时将恶化`
+              ? x.isolated
+                ? "持续隔离 · 本省停产"
+                : x.containment
+                  ? "当前受控"
+                  : `阶段${x.stage} · 结算时将恶化`
               : "机构诉求 / 可审议"}
           </small>
         </div>
@@ -913,7 +919,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.3.0 · 离线单人治理原型 / 原创联邦地图
+              v0.3.1 · 离线单人治理原型 / 原创联邦地图
             </small>
           </section>
           {modal === "settings" && (
@@ -1274,7 +1280,9 @@ export default function App() {
                     (x) =>
                       ["oldgod", "accident", "distrust", "supply"].includes(
                         x.kind,
-                      ) && x.containment === 0,
+                      ) &&
+                      !x.isolated &&
+                      x.containment === 0,
                   ) && (
                     <div className="action-warning">
                       <AlertTriangle />
