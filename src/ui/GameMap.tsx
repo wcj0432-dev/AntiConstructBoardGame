@@ -1,3 +1,4 @@
+import {Tooltip} from "./Tooltip";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { getPerson } from "../data";
@@ -222,8 +223,7 @@ export function GameMap({
                         ? "#4d7260"
                         : "#656881";
             return (
-              <g
-                key={i}
+              <Tooltip key={i} title={`${p.name} · ${p.districts[d].name}`} content={<><p>政：{getPerson(g.core.appointments[`gov-${r.pid}`])?.name||"负责人空缺"}；当前体制{g.machine.regime==="vertical"?"中央垂直":g.machine.regime==="joint"?"联合委员会":"地方分权"}。</p><p>建：{g.machine.works.filter(w=>w.province===r.pid).map(w=>`${w.type==="energy"?"能源网":"预警站"} ${w.completed?"已竣工":`${w.progress}/${w.duration}`}`).join("；")||"暂无设施"}</p><p>危机：{matters.map(x=>`${x.title} · 阶段${x.stage} · ${x.containment>0?`遏制${x.containment}回合`:"下次结算恶化"}`).join("；")||"暂无持续危机"}</p><p>库存{p.stock} · 信任{g.machine.trust[r.pid]}/3 · {g.machine.rights[r.pid]?"保留地方收益权":"收益协议尚未建立"}。点击调阅地方；地图上的管控标记不代表异常源已消除。</p></>}><g
                 data-map-region={i}
                 data-province={r.pid}
                 data-district={d}
@@ -308,7 +308,7 @@ export function GameMap({
                     </text>
                   </g>
                 )}
-              </g>
+              </g></Tooltip>
             );
           })}
         </g>

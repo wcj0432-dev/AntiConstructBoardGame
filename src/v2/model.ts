@@ -1,6 +1,8 @@
 import type { GameState, Issue, ProvinceId } from "../types";
 export type Regime = "vertical" | "devolved" | "joint";
-export type Mode = "tutorial" | "campaign" | "national";
+export type Mode = "tutorial" | "campaign" | "national" | "experimental";
+export type Difficulty = "relaxed" | "standard" | "challenging";
+export type Lifecycle = "unrevealed" | "revealed" | "processing" | "partial" | "resolved" | "deteriorated";
 export type Goal = "spark" | "accord" | "night";
 export type Capability =
   | "mobilize"
@@ -32,6 +34,10 @@ export interface Matter {
   source?: string;
   variant?: string;
   age: number;
+  lifecycle?: Lifecycle;
+  steps?: string[];
+  lastOptionTurn?: number;
+  lastOption?: string;
 }
 export interface History {
   id: string;
@@ -98,6 +104,13 @@ export interface Machine {
   finalDone: boolean;
   tutorial: number;
   milestones: string[];
+  goalPending: boolean;
+  revision: number;
+  archive: Matter[];
+  results: ActionResult[];
+  difficulty: Difficulty;
+  rulesVersion: string;
+  opening?: { template: Regime; risk: ProvinceId; summary: string[] };
 }
 export interface V2Game {
   schema: 2;
@@ -105,6 +118,7 @@ export interface V2Game {
   machine: Machine;
 }
 export type Action =
+  | { type: "selectGoal"; goal: Goal }
   | {
       type: "resolve";
       matter: string;
@@ -185,4 +199,19 @@ export interface Plan {
     | "activate"
     | "invest"
     | "archive";
+}
+export type ResultStatus = "failed" | "partial" | "resolved" | "changed" | "applied";
+export interface ActionResult {
+  id: string;
+  revision: number;
+  turn: number;
+  action: Action;
+  status: ResultStatus;
+  title: string;
+  effects: string[];
+  completed: string[];
+  remaining: string[];
+  errors: string[];
+  costs: V2Preview["costs"];
+  phase?: { before: number; after?: number };
 }

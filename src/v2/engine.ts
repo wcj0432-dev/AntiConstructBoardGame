@@ -12,6 +12,8 @@ import type { ProvinceId } from "../types";
 import { gazettes, goals, plansFor, regimes } from "./data";
 import type {
   Action,
+  ActionResult,
+  Difficulty,
   Capability,
   Condition,
   Goal,
@@ -85,7 +87,7 @@ function sync(g: V2Game) {
   }
 }
 function addMatter(g: V2Game, m: Omit<Matter, "id" | "age">) {
-  const item = { ...m, id: `matter-${g.core.nextId++}`, age: 0 };
+  const item = { ...m, id: `matter-${g.core.nextId++}`, age: 0, lifecycle: "revealed" as const, steps: [] };
   if (g.machine.admitted < 3) {
     g.machine.matters.push(item);
     g.machine.admitted++;
@@ -193,6 +195,7 @@ export function newV2(
       finalDone: false,
       tutorial: 0,
       milestones: [],
+      goalPending: false, revision: 0, archive: [], results: [], difficulty: "standard", rulesVersion: "0.3.0",
     },
   };
   sync(g);
@@ -213,7 +216,7 @@ export function newV2(
   return g;
 }
 export function duration(g: V2Game) {
-  return g.machine.mode === "national" ? 8 : 4;
+  return g.machine.mode === "experimental" ? 12 : g.machine.mode === "national" ? 8 : 4;
 }
 export function participants(g: V2Game, m: Matter) {
   const a = g.machine.authorization[m.id];
@@ -423,7 +426,7 @@ export function finance(g: V2Game) {
       g.machine.works.filter((w) => w.completed && w.type === "energy").length,
   );
 }
-export function milestones(g: V2Game) {
+export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
   const m = g.machine;
   const dummy: Matter = {
     id: "goal-check",
@@ -437,7 +440,7 @@ export function milestones(g: V2Game) {
     isolated: false,
     age: 0,
   };
-  if (m.goal === "spark")
+  if (goal === "spark")
     return [
       condition(
         "工业与宗门建设能力",
@@ -463,7 +466,7 @@ export function milestones(g: V2Game) {
         "保留地方收益权，避免以强制建设摧毁合作",
       ),
     ];
-  if (m.goal === "accord")
+  if (goal === "accord")
     return [
       condition(
         "跨文明行政制度",
@@ -551,7 +554,13 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
   const need = (label: string, met: boolean, reason: string, source?: string) =>
     v.conditions.push(condition(label, met, reason, source));
   if (s.status !== "playing") v.errors.push("本局已经结束");
-  if (action.type === "resolve") {
+  if (action.type === "selectGoal") {
+    v.title = `国家发展规划会议：立项${goals[action.goal].name}`;
+    v.costs.commands = 1; v.costs.capital = 1;
+    need("战略尚未立项", m.goalPending, "主要战略已经确立，本版不允许无代价改换路线");
+    need("规划会议开放", s.turn >= 2 && s.turn <= 3, "第2回合开放，最迟第3回合结束前立项；第1回合先认识国情");
+    v.effects = [goals[action.goal].description, "保留此前所有工程、人员、制度与普通建设入口；终局重新检验组织能力"];
+  } else if (action.type === "resolve") {
     const matter = m.matters.find((x) => x.id === action.matter);
     if (!matter) {
       v.errors.push("事务不在立即处理区");
@@ -563,6 +572,10 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
       return v;
     }
     v.title = p.title;
+    need("本回合尚未执行同一方案", matter.lastOptionTurn !== s.turn || matter.lastOption !== p.id, "这项方案本回合已结算；请查看实际结果，等待下一回合或选择不同处理路径");
+    if (p.effect === "evacuate") need("仍有人口需要撤离", !matter.evacuated, "居民已经撤离；可继续遏制异常源或组织最终封印");
+    if (p.effect === "contain") need("遏制尚未生效", matter.containment === 0, "遏制已生效，不必重复支付；到期后可重新组织");
+    if (p.effect === "isolate") need("尚未完成隔离", !matter.isolated, "地区已经隔离；异常源仍保留，继续监测或封印");
     const part = participants(g, matter);
     if (p.effect === "isolate") {
       part.offices = [...new Set([...part.offices, "defense"])];
@@ -914,6 +927,7 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     v.effects = ["中央阻塞 -2；中央垂直审批在低于2后恢复"];
   } else if (action.type === "end") {
     v.title = "结算并进入下一回合";
+    if (m.goalPending && s.turn >= 3) v.errors.push("国家发展规划期限：请先在国家目标面板召开会议并立项主要战略");
     const f = finance(g);
     v.effects = [
       `先支出${f.total}（固定${f.fixed} / 制度${f.maintenance} / 工程${f.projectCosts}），再收入${f.income}；财政${f.current} → ${f.next}`,
@@ -1035,6 +1049,8 @@ function enactPlan(
     m.origins.cooperation = source;
   }
   const remove = () => {
+    matter.lifecycle = "resolved";
+    m.archive.push(structuredClone(matter));
     m.matters = m.matters.filter((x) => x.id !== matter.id);
     g.core.resolved++;
   };
@@ -1297,6 +1313,7 @@ function advance(g: V2Game, source: string) {
       continue;
     }
     item.stage = Math.min(4, item.stage + 1);
+    item.lifecycle = "deteriorated";
     const station = m.works.some(
       (w) =>
         w.type === "warning" && w.province === item.province && w.completed,
@@ -1335,7 +1352,7 @@ function advance(g: V2Game, source: string) {
   if (s.status !== "playing") return;
   if (s.turn === duration(g)) {
     const victory =
-      m.mode === "national"
+      (m.mode === "national" || m.mode === "experimental")
         ? m.finalDone
         : m.milestones.includes("accident-managed") &&
           m.milestones.includes("north-managed");
@@ -1466,7 +1483,7 @@ function advance(g: V2Game, source: string) {
       );
     }
 }
-export function executeAction(g: V2Game, action: Action): V2Game {
+function applyAction(g: V2Game, action: Action): V2Game {
   const v = previewAction(g, action);
   if (v.errors.length) throw new Error(v.errors.join("；"));
   const n = structuredClone(g),
@@ -1497,8 +1514,12 @@ export function executeAction(g: V2Game, action: Action): V2Game {
   s.treasury -= v.costs.treasury;
   s.capital -= v.costs.capital;
   if (v.costs.province) province(n, v.costs.province).stock -= v.costs.stock;
-  if (action.type === "resolve") {
+  if (action.type === "selectGoal") {
+    m.goal = action.goal; m.goalPending = false; m.origins.goal = source;
+  } else if (action.type === "resolve") {
     const item = m.matters.find((x) => x.id === action.matter)!;
+    item.lastOptionTurn = s.turn; item.lastOption = action.option;
+    item.steps = [...new Set([...(item.steps || []),v.title])];
     enactPlan(
       n,
       item,
@@ -1506,6 +1527,8 @@ export function executeAction(g: V2Game, action: Action): V2Game {
       action,
       source,
     );
+    const retained = m.matters.find(x => x.id === item.id);
+    if (retained) { retained.lastOptionTurn = s.turn; retained.lastOption = action.option; }
   } else if (action.type === "regime")
     m.pending = { regime: action.regime, due: s.turn + 1, source };
   else if (action.type === "department")
@@ -1635,7 +1658,7 @@ export function deserializeV2(raw: string): V2Game {
   const m = g.machine;
   if (
     !m ||
-    !["tutorial", "campaign", "national"].includes(m.mode) ||
+    !["tutorial", "campaign", "national", "experimental"].includes(m.mode) ||
     !Object.hasOwn(goals, m.goal) ||
     !Object.hasOwn(regimes, m.regime) ||
     !Array.isArray(m.matters) ||
@@ -1722,5 +1745,84 @@ export function deserializeV2(raw: string): V2Game {
         m.pending.due <= g.core.turn))
   )
     throw new Error("工程或改革过渡状态无效");
+  m.goalPending ??= false; m.revision ??= 0; m.archive ??= []; m.results ??= [];
+  m.difficulty ??= "standard"; m.rulesVersion ??= "0.2";
+  if (typeof m.goalPending !== "boolean" || !Number.isSafeInteger(m.revision) || m.revision < 0 || !Array.isArray(m.archive) || !Array.isArray(m.results) || !["relaxed", "standard", "challenging"].includes(m.difficulty)) throw new Error("v0.3执行记录或开局配置无效");
+  const all = [...m.matters, ...m.backlog, ...m.archive];
+  if (new Set(all.map(x => x.id)).size !== all.length || m.archive.some(x => x.lifecycle !== "resolved")) throw new Error("事务ID重复或归档状态无效");
+  return g;
+}
+
+export function matterProgress(m: Matter) {
+  if (m.lifecycle === "resolved") return { completed: ["本事务全部要求完成，已归档"], remaining: [] };
+  if (["accident", "oldgod"].includes(m.kind)) return {
+    completed: [m.evacuated ? "居民已救援 / 撤离" : "", m.isolated ? "隔离边界已建立" : "", m.containment > 0 ? `管控仍有效：${m.containment}回合` : ""].filter(Boolean),
+    remaining: ["异常源尚未封印；可组织合法封印，或选择持续遏制 / 隔离治理", m.containment === 0 ? "本回合结束将升级并损害物资；未撤离时还可能造成审批阻塞" : "管控到期后再次检查；不会因撤离自动消除异常源"],
+  };
+  return { completed: m.steps || [], remaining: ["选择并执行一个合法方案完成本事务"] };
+}
+export const resultNames = { failed: "执行失败", partial: "部分完成", resolved: "完全解决", changed: "危机持续 · 局势改变", applied: "决策已生效" };
+
+/** UI commands are revision-checked and idempotent. A failed transaction returns the original state. */
+export function executeCommand(g: V2Game, action: Action, request?: { id: string; revision: number }): { game: V2Game; result: ActionResult } {
+  const prior = request && g.machine.results.find(x => x.id === request.id);
+  if (prior) return { game: g, result: prior };
+  const v = previewAction(g, action);
+  const failed = (errors: string[]): { game: V2Game; result: ActionResult } => ({ game: g, result: {
+    id: request?.id || `failed-${g.machine.revision}`, revision: g.machine.revision, turn: g.core.turn,
+    action, status: "failed", title: v.title, effects: ["未扣除任何资源，原游戏状态保留"], completed: [], remaining: ["调整条件后重新预览"], errors,
+    costs: { commands: 0, treasury: 0, capital: 0, stock: 0 },
+  } });
+  if (request && request.revision !== g.machine.revision) return failed(["局势已经变化，旧预览未执行。请重新预览当前状态"]);
+  if (v.errors.length) return failed(v.errors);
+  let n: V2Game;
+  try { n = applyAction(g, action); } catch(e) { return failed([`结算中止，状态已回滚：${(e as Error).message}`]); }
+  n.machine.revision = g.machine.revision + 1;
+  const before = action.type === "resolve" ? g.machine.matters.find(x => x.id === action.matter) : undefined;
+  const after = before ? n.machine.matters.find(x => x.id === before.id) : undefined;
+  let status: ActionResult["status"] = "applied";
+  if (before) {
+    if (!after) status = "resolved";
+    else {
+      status = !before.evacuated && after.evacuated ? "partial" : "changed";
+      after.lifecycle = status === "partial" ? "partial" : "processing";
+      after.steps = [...new Set([...(before.steps || []), v.title])];
+    }
+  }
+  const effects: string[] = [];
+  for (const [key, label] of [["commands", "行政命令"], ["treasury", "财政"], ["capital", "政治资本"], ["crisis", "全国危机"], ["paralysis", "中央阻塞"]] as const) {
+    if (n.core[key] !== g.core[key]) effects.push(`${label}：${g.core[key]} → ${n.core[key]}`);
+  }
+  for (const p of n.core.provinces) {
+    const b = province(g, p.id);
+    if (b.stock !== p.stock) effects.push(`${p.name}物资：${b.stock} → ${p.stock}`);
+    if (g.machine.trust[p.id] !== n.machine.trust[p.id]) effects.push(`${p.name}信任：${g.machine.trust[p.id]} → ${n.machine.trust[p.id]}`);
+    if (!g.machine.rights[p.id] && n.machine.rights[p.id]) effects.push(`${p.name}取得长期资源收益权`);
+    if (g.machine.suppressed[p.id] !== n.machine.suppressed[p.id]) effects.push(`${p.name}群众组织${n.machine.suppressed[p.id] ? "受到压制" : "恢复组织资格"}`);
+  }
+  if (before && !after) effects.push(`${before.title}已移出待处理队列并归档`);
+  if (after) effects.push(`仍有异常源：阶段${after.stage}/4，遏制${after.containment}回合，${after.evacuated ? "人口已保护" : "人口尚未撤离"}`);
+  const newItems = [...n.machine.matters, ...n.machine.backlog].filter(x => ![...g.machine.matters, ...g.machine.backlog].some(b => b.id === x.id));
+  effects.push(...newItems.map(x => `新局势：${x.title}${n.machine.backlog.some(b=>b.id===x.id) ? "（排队等待接纳）" : ""}`));
+  const progress = before ? after ? matterProgress(after) : {completed: [v.title, "本事务全部要求完成，已归档"], remaining: []} : { completed: [v.title], remaining: [] };
+  if (action.type === "selectGoal") effects.push(`主要战略已立项：${goals[n.machine.goal].name}；前期建设全部保留`);
+  if (!effects.length) effects.push(...v.effects);
+  const result: ActionResult = { id: request?.id || `command-${n.machine.revision}`, revision: n.machine.revision, turn: g.core.turn, action, status, title: v.title, effects, ...progress, errors: [], costs: v.costs,
+    phase: before ? {before:before.stage, after:after?.stage} : undefined };
+  n.machine.results.push(result);
+  return { game: n, result };
+}
+/** Legacy API keeps throw-on-failure semantics for regression routes. */
+export function executeAction(g: V2Game, action: Action): V2Game {
+  const {game, result} = executeCommand(g, action);
+  if (result.status === "failed") throw new Error(result.errors.join("；"));
+  return game;
+}
+export function startCampaign(config: {mode: Mode; seed: string; difficulty: Difficulty}): V2Game {
+  const g = newV2(config.mode, "night", config.seed);
+  g.machine.goalPending = config.mode === "national" || config.mode === "experimental";
+  g.machine.difficulty = config.difficulty;
+  if (config.difficulty === "relaxed") g.core.treasury += 4;
+  if (config.difficulty === "challenging") { g.core.treasury -= 3; g.core.capital -= 1; }
   return g;
 }
