@@ -16,6 +16,15 @@ npm run build               # TypeScript检查及生产构建
 npm run preview
 ```
 
+可选浏览器集成测试（开发服务已运行时）：
+
+```bash
+npx playwright install chromium
+npm run test:browser -- http://localhost:5173
+```
+
+覆盖完整教程、存档读回、390px布局、国家目标入口、四回合UI胜利和终局历史浏览。使用系统Chromium时可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
+
 首次安装需要网络；游玩不需要账号、密钥或服务器。所有字体使用本机字体，图标随游戏打包。
 
 ## v0.2的实际变化
@@ -59,9 +68,9 @@ npm run release:pack        # Windows-x64、离线HTML、源码zip及SHA256
 npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
 ```
 
-GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.2.0`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
+GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.2.1`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
 
-[下载v0.2离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.2.0-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。原v0.1下载仍保留，新包以v0.2.0命名。
+[下载v0.2离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.2.1-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。原v0.1下载仍保留，新包以v0.2.1命名。
 
 ## 工程结构
 

@@ -222,7 +222,9 @@ export function participants(g: V2Game, m: Matter) {
       ? "plan"
       : "anomaly";
   const gov = `gov-${m.province}`;
-  const override = g.machine.overrides[m.province];
+  const override = ["warning", "accident", "oldgod"].includes(m.kind)
+    ? g.machine.overrides[m.province]
+    : undefined;
   const dept =
     g.machine.department === "anomaly" &&
     ["accident", "oldgod"].includes(m.kind)
@@ -562,13 +564,20 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     }
     v.title = p.title;
     const part = participants(g, matter);
+    if (p.effect === "isolate") {
+      part.offices = [...new Set([...part.offices, "defense"])];
+      const commander = s.appointments.defense;
+      if (commander) part.actors = [...new Set([...part.actors, commander])];
+    }
     v.actors = part.actors;
     v.institutions = part.offices;
     v.parents = [
       matter.source || "",
       m.origins.regime || "",
       m.origins.department || "",
-      m.origins[`local:${matter.province}`] || "",
+      ["warning", "accident", "oldgod"].includes(matter.kind)
+        ? m.origins[`local:${matter.province}`] || ""
+        : "",
       m.origins.policy || "",
       m.authorization[matter.id]?.source || "",
       ...part.actors.map((id) => m.origins[`person:${id}`] || ""),

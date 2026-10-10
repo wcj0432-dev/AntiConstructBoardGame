@@ -2,9 +2,9 @@
 
 ## 下载与打开
 
-Windows：下载 `Federation-of-Worlds-v0.2.0-Windows-x64.zip`，**解压整个压缩包**，双击 `FederationOfWorlds.exe`。保留exe旁的运行库和resources目录。无需安装Node.js，无需网络或注册；适用Windows10/11 64位。本版未进行发行者代码签名。
+Windows：下载 `Federation-of-Worlds-v0.2.1-Windows-x64.zip`，**解压整个压缩包**，双击 `FederationOfWorlds.exe`。保留exe旁的运行库和resources目录。无需安装Node.js，无需网络或注册；适用Windows10/11 64位。本版未进行发行者代码签名。
 
-浏览器：下载 `Federation-of-Worlds-v0.2.0-Offline.zip`，完整解压后双击 `诸界联邦.html`。所有脚本和样式都在HTML内，可用当前Chrome/Edge，macOS/Linux现代浏览器也可用。不要在压缩包中直接打开。
+浏览器：下载 `Federation-of-Worlds-v0.2.1-Offline.zip`，完整解压后双击 `诸界联邦.html`。所有脚本和样式都在HTML内，可用当前Chrome/Edge，macOS/Linux现代浏览器也可用。不要在压缩包中直接打开。
 
 ## 默认教程
 

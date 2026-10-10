@@ -6,6 +6,7 @@ import {
   finance,
   milestones,
   newV2,
+  participants,
   previewAction,
   serializeV2,
 } from "./engine";
@@ -623,5 +624,32 @@ describe("状态恢复边界", () => {
     g = resolve(g, "oldgod", "evacuate");
     g = end(g);
     expect(deserializeV2(serializeV2(g))).toEqual(g);
+  });
+});
+
+describe("领域与执行者边界", () => {
+  it("本省异常主责不劫持运输和政治公报", () => {
+    let g = newV2();
+    g = go(g, { type: "local", province: "south", lead: "anomaly" });
+    const warning = find(g, "warning");
+    expect(participants(g, warning).lead).toBe("anomaly");
+    expect(participants(g, { ...warning, kind: "supply" }).lead).toBe(
+      "gov-south",
+    );
+    expect(participants(g, { ...warning, kind: "gazette" }).lead).toBe(
+      "gov-south",
+    );
+    g.machine.matters[0].kind = "supply";
+    const localSource = g.machine.origins["local:south"];
+    g = resolve(g, "supply", "priority");
+    expect(g.machine.history[0].parents).not.toContain(localSource);
+  });
+  it("军事隔离的实际执行记录包括国安委与陆霆", () => {
+    let g = scene();
+    g.machine.regime = "vertical";
+    g = resolve(g, "oldgod", "isolate");
+    const h = g.machine.history.find((h) => h.title === "封锁并承担局部损失")!;
+    expect(h.actors).toContain("lu");
+    expect(h.institutions).toContain("defense");
   });
 });

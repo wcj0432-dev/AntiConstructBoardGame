@@ -78,6 +78,7 @@ export default function App() {
     "new" | "staff" | "reform" | "policy" | "help" | null
   >(null);
   const [notice, setNotice] = useState("");
+  const [reportOpen, setReportOpen] = useState(true);
   const [mode, setMode] = useState<Mode>("campaign");
   const [goal, setGoal] = useState<Goal>("night");
   const [seed, setSeed] = useState("南岭—北境-020");
@@ -126,6 +127,7 @@ export default function App() {
         localStorage.getItem("federation-worlds-v1");
       if (!raw) throw new Error("没有本地存档");
       setG(deserializeV2(raw));
+      setReportOpen(true);
       setAction(null);
       setNotice("完整组织状态已恢复。");
     } catch (e) {
@@ -159,6 +161,9 @@ export default function App() {
           </div>
         </div>
         <nav>
+          {!playing && (
+            <button onClick={() => setReportOpen(true)}>执政报告</button>
+          )}
           <button onClick={() => setModal("help")}>
             <BookOpen size={18} />
             帮助
@@ -824,7 +829,7 @@ export default function App() {
           </button>
         </div>
       )}
-      {s.status !== "playing" && !modal && !action && (
+      {s.status !== "playing" && reportOpen && !modal && !action && (
         <div className="v2-overlay">
           <section
             className="v2-dialog v2-report"
@@ -854,7 +859,7 @@ export default function App() {
             <button
               onClick={() => {
                 setTab("history");
-                setModal("help");
+                setReportOpen(false);
               }}
             >
               查阅完整决策历史
@@ -1043,6 +1048,7 @@ export default function App() {
                   className="v2-primary"
                   onClick={() => {
                     setG(newV2(mode, goal, seed || "南岭—北境-020"));
+                    setReportOpen(true);
                     setModal(null);
                     setAction(null);
                     setTab("matters");
