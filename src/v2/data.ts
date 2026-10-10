@@ -461,8 +461,35 @@ export const gazettes = [
   },
 ];
 
-export const strategyDetails: Record<Goal, {direction:string; beneficiaries:string; resistance:string; needs:string}> = {
- spark: {direction:"南岭灵脉勘探与能源施工、工业兼容标准、跨省运输",beneficiaries:"计划委员会、修仙工程师、工业与南岭能源部门",resistance:"地方收益权被征调、墨玄调离或被抽调会中断工程；标准产生长期维护费",needs:"林铸负责工业标准；墨玄在计划委或南岭连续施工；真实运输授权与宗门收益协约"},
- accord: {direction:"疏散权下放或联合体制、跨文明合作渠道、地方代表与信任",beneficiaries:"省政府、魔法少女救援社团、地方文明代表",resistance:"委员会路线否决与维护费、紧急强制损害信任、负责人积怨达到3时拒绝协办",needs:"中央与三省负责人实际在任；合作协议有效；事故经过真实授权或改革处理"},
- night: {direction:"三省预警站、合法高级异常处置、跨省应急体系",beneficiaries:"异常事务局、安全机构与各省应急组织",resistance:"秘密处置留下说明诉求，公开路线影响秘密封印；地方分权须建立跨省协议",needs:"谢尔盖与密封档案或具备妥协的联合处置；预警站全部竣工；北境得到管理"},
+export const strategyDetails: Record<
+  Goal,
+  {
+    direction: string;
+    beneficiaries: string;
+    resistance: string;
+    needs: string;
+  }
+> = {
+  spark: {
+    direction: "南岭灵脉勘探与能源施工、工业兼容标准、跨省运输",
+    beneficiaries: "计划委员会、修仙工程师、工业与南岭能源部门",
+    resistance:
+      "地方收益权被征调、墨玄调离或被抽调会中断工程；标准产生长期维护费",
+    needs:
+      "林铸负责工业标准；墨玄在计划委或南岭连续施工；真实运输授权与宗门收益协约",
+  },
+  accord: {
+    direction: "疏散权下放或联合体制、跨文明合作渠道、地方代表与信任",
+    beneficiaries: "省政府、魔法少女救援社团、地方文明代表",
+    resistance:
+      "委员会路线否决与维护费、紧急强制损害信任、负责人积怨达到3时拒绝协办",
+    needs: "中央与三省负责人实际在任；合作协议有效；事故经过真实授权或改革处理",
+  },
+  night: {
+    direction: "三省预警站、合法高级异常处置、跨省应急体系",
+    beneficiaries: "异常事务局、安全机构与各省应急组织",
+    resistance:
+      "秘密处置留下说明诉求，公开路线影响秘密封印；地方分权须建立跨省协议",
+    needs: "谢尔盖与密封档案或具备妥协的联合处置；预警站全部竣工；北境得到管理",
+  },
 };

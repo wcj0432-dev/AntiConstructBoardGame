@@ -25,7 +25,14 @@ import {
   Play,
   ChevronRight,
 } from "lucide-react";
-import { coreAbilities, goals, strategyDetails, plansFor, regimes, capNames } from "./v2/data";
+import {
+  coreAbilities,
+  goals,
+  strategyDetails,
+  plansFor,
+  regimes,
+  capNames,
+} from "./v2/data";
 import {
   capability,
   deserializeV2,
@@ -52,14 +59,23 @@ import {
   offices,
   people,
 } from "./data";
-import type { Action, ActionResult, Difficulty, Goal, Mode, Regime, V2Game } from "./v2/model";
+import type {
+  Action,
+  ActionResult,
+  Difficulty,
+  Goal,
+  Mode,
+  Regime,
+  V2Game,
+} from "./v2/model";
 import type { Issue, ProvinceId } from "./types";
 import { PanelFrame } from "./ui/PanelFrame";
 import { GameMap } from "./ui/GameMap";
-import {Tooltip} from "./ui/Tooltip";
-import {PersonBadge, EventArt} from "./ui/Visuals";
+import { Tooltip } from "./ui/Tooltip";
+import { PersonBadge, EventArt } from "./ui/Visuals";
 import "./ui/command.css";
 type Panel =
+  | "briefing"
   | "staff"
   | "reform"
   | "policy"
@@ -72,7 +88,13 @@ type Panel =
   | "history"
   | "settings"
   | "pause";
+const difficultyNames = {
+  standard: "标准",
+  relaxed: "宽裕",
+  challenging: "紧缩",
+};
 const titles: Record<Panel, string> = {
+  briefing: "初始国情报告",
   staff: "人事管理",
   reform: "政策改革",
   policy: "全国政策",
@@ -158,9 +180,12 @@ function ResourceTip({
 }) {
   return (
     <div className="resource-tip">
-      <Tooltip title={label} content={children}><button onClick={onClick}>
-        <span>{label}</span><strong>{value}</strong>
-      </button></Tooltip>
+      <Tooltip title={label} content={children}>
+        <button onClick={onClick}>
+          <span>{label}</span>
+          <strong>{value}</strong>
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -177,12 +202,15 @@ export default function App() {
   const [backPanel, setBackPanel] = useState<Panel | null>(null);
   const [notice, setNotice] = useState("");
   const [reportOpen, setReportOpen] = useState(true);
-  const [mode, setMode] = useState<Mode>("campaign");
+  const [mode, setMode] = useState<Mode>("national");
+  const [politics, setPolitics] = useState<"random" | "classic">("random");
   const [seed, setSeed] = useState("联邦-v03-验收");
   const [seedMode, setSeedMode] = useState("random");
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [result, setResult] = useState<ActionResult | null>(null);
-  const stateRef = useRef(g), commandRef = useRef<{id:string;revision:number}|null>(null), serialRef = useRef(0);
+  const stateRef = useRef(g),
+    commandRef = useRef<{ id: string; revision: number } | null>(null),
+    serialRef = useRef(0);
   stateRef.current = g;
   const [office, setOffice] = useState("gov-south");
   const [person, setPerson] = useState("xing");
@@ -218,7 +246,10 @@ export default function App() {
   function choose(a: Action) {
     if (!action) setBackPanel(modal);
     setAction(a);
-    commandRef.current = {id:`ui-${g.machine.revision}-${serialRef.current++}`,revision:g.machine.revision};
+    commandRef.current = {
+      id: `ui-${g.machine.revision}-${serialRef.current++}`,
+      revision: g.machine.revision,
+    };
     setConfirmedPreview(false);
     setModal(null);
   }
@@ -232,29 +263,95 @@ export default function App() {
     commandRef.current = null; // Synchronous lock: the second click cannot replay this command.
     const outcome = executeCommand(stateRef.current, action, request);
     stateRef.current = outcome.game;
-    setG(outcome.game); setResult(outcome.result);
+    setG(outcome.game);
+    setResult(outcome.result);
     if (outcome.result.status !== "failed") {
       setAction(null);
       setModal(action.type === "end" ? null : backPanel);
     }
-    setNotice(`${resultNames[outcome.result.status]}：${outcome.result.effects[0] || outcome.result.errors[0]}`);
+    setNotice(
+      `${resultNames[outcome.result.status]}：${outcome.result.effects[0] || outcome.result.errors[0]}`,
+    );
   }
   function actionExplanation(a: Action) {
-    const view = previewAction(g,a);
-    return <><p><b>作用：</b>{view.title}</p>{view.effects.map((x,i)=><p key={i}>{x}</p>)}
-      <p><b>代价：</b>{view.costs.commands}命令 / {view.costs.treasury}财政 / {view.costs.capital}资本 / {view.costs.stock}物资</p>
-      {view.conditions.map((c,i)=><p key={i} className={c.met?"met":"unmet"}>{c.met?"✓ 已满足":"✕ 未满足"} · {c.label}：{c.reason}</p>)}
-      {view.errors.map((x,i)=><p className="unmet" key={i}>{x}</p>)}
-      {view.errors.length>0 && <p><b>解决建议：</b>检查对应人事、政策与指挥权；授权只改变参与关系，不会创造人才或技术。调整后重新预览。</p>}
-    </>;
+    const view = previewAction(g, a);
+    return (
+      <>
+        <p>
+          <b>作用：</b>
+          {view.title}
+        </p>
+        {view.effects.map((x, i) => (
+          <p key={i}>{x}</p>
+        ))}
+        <p>
+          <b>代价：</b>
+          {view.costs.commands}命令 / {view.costs.treasury}财政 /{" "}
+          {view.costs.capital}资本 / {view.costs.stock}物资
+        </p>
+        {view.conditions.map((c, i) => (
+          <p key={i} className={c.met ? "met" : "unmet"}>
+            {c.met ? "✓ 已满足" : "✕ 未满足"} · {c.label}：{c.reason}
+          </p>
+        ))}
+        {view.errors.map((x, i) => (
+          <p className="unmet" key={i}>
+            {x}
+          </p>
+        ))}
+        {view.errors.length > 0 && (
+          <p>
+            <b>解决建议：</b>
+            检查对应人事、政策与指挥权；授权只改变参与关系，不会创造人才或技术。调整后重新预览。
+          </p>
+        )}
+      </>
+    );
   }
-  const executionFeedback = result && <section role="status" className={`execution-result ${result.status}`}>
-    <h3>{result.status==="failed"?<AlertTriangle/>:<Check/>}{resultNames[result.status]} · {result.title}</h3>
-    {result.errors.map(x=><p key={x}>{x}</p>)}{result.effects.map((x,i)=><p key={i}>{x}</p>)}
-    {result.completed.length>0 && <p><b>已完成：</b>{result.completed.join("；")}</p>}
-    {result.remaining.length>0 && <p className="result-next"><b>接下来：</b>{result.remaining.join("；")}</p>}
-    <div className="result-actions"><button onClick={()=>setResult(null)}>收起结果</button><button onClick={()=>{open("history");}}>查看执行诊断</button></div>
-  </section>;
+  const executionFeedback = result && (
+    <section role="status" className={`execution-result ${result.status}`}>
+      <h3>
+        {result.status === "failed" ? <AlertTriangle /> : <Check />}
+        {resultNames[result.status]} · {result.title}
+      </h3>
+      {result.errors.map((x) => (
+        <p key={x}>{x}</p>
+      ))}
+      {result.effects.slice(0, 4).map((x, i) => (
+        <p key={i}>{x}</p>
+      ))}
+      {result.effects.length > 4 && (
+        <details>
+          <summary>全部实际变化 · {result.effects.length}项</summary>
+          {result.effects.slice(4).map((x, i) => (
+            <p key={i}>{x}</p>
+          ))}
+        </details>
+      )}
+      {result.completed.length > 0 && (
+        <p>
+          <b>已完成：</b>
+          {result.completed.join("；")}
+        </p>
+      )}
+      {result.remaining.length > 0 && (
+        <p className="result-next">
+          <b>接下来：</b>
+          {result.remaining.join("；")}
+        </p>
+      )}
+      <div className="result-actions">
+        <button onClick={() => setResult(null)}>收起结果</button>
+        <button
+          onClick={() => {
+            open("history");
+          }}
+        >
+          查看执行诊断
+        </button>
+      </div>
+    </section>
+  );
   function store() {
     try {
       localStorage.setItem(SAVE_V2, serializeV2(g));
@@ -272,7 +369,8 @@ export default function App() {
       if (!raw) throw new Error("没有本地存档");
       const n = deserializeV2(raw);
       setG(n);
-      stateRef.current = n; setResult(null);
+      stateRef.current = n;
+      setResult(null);
       resetView(n);
       setSaved(n);
       setReportOpen(true);
@@ -280,6 +378,7 @@ export default function App() {
       setModal(null);
       setScreen("game");
       setGuideChoice(false);
+      setResult(n.machine.results.at(-1) || null);
       setNotice("完整组织状态已恢复。");
     } catch (e) {
       setNotice((e as Error).message);
@@ -300,14 +399,32 @@ export default function App() {
     setConfirmedPreview(false);
   }
   function begin(t: Mode = mode) {
-    const initialSeed = t === "tutorial" ? "教学-v03" : seedMode === "random" ? `联邦-${crypto.getRandomValues(new Uint32Array(2)).join("-")}` : seed.trim();
-    if (!initialSeed) {setNotice("请输入数字或字符串种子");return;}
-    const n = startCampaign({mode:t,seed:initialSeed,difficulty:t==="tutorial"?"standard":difficulty});
-    stateRef.current = n; setResult(null);
+    const initialSeed =
+      t === "tutorial"
+        ? "教学-v03"
+        : seedMode === "random"
+          ? `联邦-${crypto.getRandomValues(new Uint32Array(2)).join("-")}`
+          : seed.trim();
+    if (!initialSeed) {
+      setNotice("请输入数字或字符串种子");
+      return;
+    }
+    const n = startCampaign({
+      mode: t,
+      seed: initialSeed,
+      difficulty: t === "tutorial" ? "standard" : difficulty,
+      politics,
+    });
+    stateRef.current = n;
+    setResult(null);
     setG(n);
     resetView(n);
     setScreen("game");
-    setModal(null);
+    setModal(
+      n.machine.opening && (t === "tutorial" || hasGuideChoice())
+        ? "briefing"
+        : null,
+    );
     setAction(null);
     setReportOpen(true);
     setSelected("south");
@@ -325,6 +442,7 @@ export default function App() {
       setNotice("辅助选项在当前会话生效。");
     }
     setGuideChoice(false);
+    if (m.opening) setModal("briefing");
   }
   function historySource(id: string | undefined) {
     if (id) {
@@ -376,7 +494,7 @@ export default function App() {
         return;
       }
       if (guideChoice) {
-        setGuideChoice(false);
+        chooseGuide(ui.hints);
         return;
       }
       if (modal) {
@@ -451,11 +569,44 @@ export default function App() {
           {item.stage}/4
           {item.containment > 0 ? ` · 遏制${item.containment}回合` : ""}
         </div>
-        <div className="matter-heading"><h3>{item.title}</h3><span className={`matter-status ${item.lifecycle||"revealed"}`}>{({revealed:"已揭示",processing:"正在管控",partial:"部分完成",deteriorated:"已恶化",resolved:"已解决",unrevealed:"待触发"})[item.lifecycle||"revealed"]}</span></div>
-        <EventArt kind={item.kind}/>
+        <div className="matter-heading">
+          <h3>{item.title}</h3>
+          <span className={`matter-status ${item.lifecycle || "revealed"}`}>
+            {
+              {
+                revealed: "已揭示",
+                processing: "正在管控",
+                partial: "部分完成",
+                deteriorated: "已恶化",
+                resolved: "已解决",
+                unrevealed: "待触发",
+              }[item.lifecycle || "revealed"]
+            }
+          </span>
+        </div>
+        <EventArt kind={item.kind} />
         <p>{item.description.split("。")[0]}。</p>
-        <details><summary>事件背景与组织关系</summary><p>{item.description}</p><p>主管：{getOffice(part.lead).name} / 正式参与：{part.actors.map(id=>getPerson(id)!.name).join("、")||"岗位空缺"}</p></details>
-        <div className="matter-progress">{progress.completed.length>0 && <p><Check size={17}/> {progress.completed.join("；")}</p>}<p><b>待完成：</b>{progress.remaining[0]}</p>{progress.remaining[1]&&<p>{progress.remaining[1]}</p>}</div>
+        <details>
+          <summary>事件背景与组织关系</summary>
+          <p>{item.description}</p>
+          <p>
+            主管：{getOffice(part.lead).name} / 正式参与：
+            {part.actors.map((id) => getPerson(id)!.name).join("、") ||
+              "岗位空缺"}
+          </p>
+        </details>
+        <div className="matter-progress">
+          {progress.completed.length > 0 && (
+            <p>
+              <Check size={17} /> {progress.completed.join("；")}
+            </p>
+          )}
+          <p>
+            <b>待完成：</b>
+            {progress.remaining[0]}
+          </p>
+          {progress.remaining[1] && <p>{progress.remaining[1]}</p>}
+        </div>
         {item.source && (
           <button
             className="text-button"
@@ -473,24 +624,38 @@ export default function App() {
               },
               view = previewAction(g, a);
             return (
-              <Tooltip key={plan.id} title={plan.title} content={actionExplanation(a)}><button
-                className={view.errors.length ? "blocked" : "available"}
-                disabled={!playing}
-                onClick={() => choose(a)}
+              <Tooltip
+                key={plan.id}
+                title={plan.title}
+                content={actionExplanation(a)}
               >
-                <div>
-                  <b>{view.errors.length?<AlertTriangle size={19}/>:<Check size={19}/>} {plan.title}</b>
-                  <p>{view.errors[0] || plan.description}</p>
+                <button
+                  className={view.errors.length ? "blocked" : "available"}
+                  disabled={!playing}
+                  onClick={() => choose(a)}
+                >
+                  <div>
+                    <b>
+                      {view.errors.length ? (
+                        <AlertTriangle size={19} />
+                      ) : (
+                        <Check size={19} />
+                      )}{" "}
+                      {plan.title}
+                    </b>
+                    <p>{view.errors[0] || plan.description}</p>
+                    <span>
+                      命令{view.costs.commands} / 财政{view.costs.treasury} /
+                      物资
+                      {view.costs.stock}
+                    </span>
+                  </div>
                   <span>
-                    命令{view.costs.commands} / 财政{view.costs.treasury} / 物资
-                    {view.costs.stock}
+                    {view.errors.length ? "查看限制" : "审议方案"}
+                    <ChevronRight size={18} />
                   </span>
-                </div>
-                <span>
-                  {view.errors.length ? "查看限制" : "审议方案"}
-                  <ChevronRight size={18} />
-                </span>
-              </button></Tooltip>
+                </button>
+              </Tooltip>
             );
           })}
         </div>
@@ -504,7 +669,22 @@ export default function App() {
       </article>
     );
   });
-  const planningAlert = m.goalPending && <button className={`alert-item planning-alert ${s.turn>=3?"urgent urgent-pulse":"normal"}`} onClick={()=>open("goals")}><Target/><div><b>国家发展规划会议</b><small>{s.turn<2?"第2回合开放立项，可先预览路线":`已开放 · 第3回合结束前立项（当前${s.turn}）`}</small></div></button>;
+  const planningAlert = m.goalPending && (
+    <button
+      className={`alert-item planning-alert ${s.turn >= 3 ? "urgent urgent-pulse" : "normal"}`}
+      onClick={() => open("goals")}
+    >
+      <Target />
+      <div>
+        <b>国家发展规划会议</b>
+        <small>
+          {s.turn < 2
+            ? "第2回合开放立项，可先预览路线"
+            : `已开放 · 第3回合结束前立项（当前${s.turn}）`}
+        </small>
+      </div>
+    </button>
+  );
   const alerts = m.matters
     .filter((x) => x.kind !== "opportunity")
     .map((x) => (
@@ -652,15 +832,78 @@ export default function App() {
             ) : (
               <>
                 <h2>新任期设置</h2>
-                <label className="v2-field">剧本<select value={mode} onChange={e=>setMode(e.target.value as Mode)}>
-                  <option value="campaign">南岭—北境紧急状态 · 4回合</option><option value="national">国家治理 · 8回合</option>
-                </select></label>
-                <label className="v2-field">难度<select value={difficulty} onChange={e=>setDifficulty(e.target.value as Difficulty)}>
-                  <option value="relaxed">宽裕 · 初始财政+4</option><option value="standard">标准</option><option value="challenging">紧缩 · 初始财政-3、政治资本-1</option>
-                </select></label>
-                <label className="v2-field">种子模式<select value={seedMode} onChange={e=>setSeedMode(e.target.value)}><option value="random">随机生成（默认）</option><option value="specified">指定种子 · 可复现</option></select></label>
-                {seedMode==="specified" && <label className="v2-field">数字或字符串种子<input value={seed} maxLength={64} onChange={e=>setSeed(e.target.value)}/></label>}
-                <p>正式国家治理先了解国情，第2回合召开发展规划会议，最迟第3回合结束前立项主要战略。前期建设全部保留。</p>
+                <label className="v2-field">
+                  剧本
+                  <select
+                    aria-label="剧本"
+                    value={mode}
+                    onChange={(e) => {
+                      setMode(e.target.value as Mode);
+                      setPolitics(
+                        e.target.value === "campaign" ? "classic" : "random",
+                      );
+                    }}
+                  >
+                    <option value="campaign">南岭—北境紧急状态 · 4回合</option>
+                    <option value="national">国家治理 · 8回合</option>
+                    <option value="experimental">
+                      标准战役 · 12回合（实验）
+                    </option>
+                  </select>
+                </label>
+                <label className="v2-field">
+                  政治开局
+                  <select
+                    aria-label="政治开局"
+                    value={politics}
+                    onChange={(e) =>
+                      setPolitics(e.target.value as "random" | "classic")
+                    }
+                  >
+                    <option value="random">受约束随机政治结构</option>
+                    <option value="classic">经典地方分权 · 回归剧本</option>
+                  </select>
+                </label>
+                <label className="v2-field">
+                  难度
+                  <select
+                    aria-label="难度"
+                    value={difficulty}
+                    onChange={(e) =>
+                      setDifficulty(e.target.value as Difficulty)
+                    }
+                  >
+                    <option value="relaxed">宽裕 · 初始财政+4</option>
+                    <option value="standard">标准</option>
+                    <option value="challenging">
+                      紧缩 · 初始财政-3、政治资本-1
+                    </option>
+                  </select>
+                </label>
+                <label className="v2-field">
+                  种子模式
+                  <select
+                    aria-label="种子模式"
+                    value={seedMode}
+                    onChange={(e) => setSeedMode(e.target.value)}
+                  >
+                    <option value="random">随机生成（默认）</option>
+                    <option value="specified">指定种子 · 可复现</option>
+                  </select>
+                </label>
+                {seedMode === "specified" && (
+                  <label className="v2-field">
+                    数字或字符串种子
+                    <input
+                      value={seed}
+                      maxLength={64}
+                      onChange={(e) => setSeed(e.target.value)}
+                    />
+                  </label>
+                )}
+                <p>
+                  正式国家治理先了解国情，第2回合召开发展规划会议，最迟第3回合结束前立项主要战略。前期建设全部保留。
+                </p>
                 <div className="setup-actions">
                   <button onClick={() => setScreen("menu")}>返回主菜单</button>
                   <button className="v2-primary" onClick={() => begin()}>
@@ -699,8 +942,10 @@ export default function App() {
                 <p>
                   {m.mode === "tutorial"
                     ? "教学战役"
-                    : (m.mode === "national" || m.mode === "experimental")
-                      ? (m.goalPending ? "发展规划待立项" : goals[m.goal].name)
+                    : m.mode === "national" || m.mode === "experimental"
+                      ? m.goalPending
+                        ? "国家规划"
+                        : goals[m.goal].name
                       : "南岭—北境紧急状态"}
                 </p>
               </ResourceTip>
@@ -774,17 +1019,27 @@ export default function App() {
                 </p>
               </ResourceTip>
               <ResourceTip
-                label={(m.mode === "national" || m.mode === "experimental") ? (m.goalPending ? "发展规划待立项" : goals[m.goal].name) : "战役目标"}
+                label={
+                  m.mode === "national" || m.mode === "experimental"
+                    ? m.goalPending
+                      ? "国家规划"
+                      : goals[m.goal].name
+                    : "战役目标"
+                }
                 value={
-                  (m.mode === "national" || m.mode === "experimental")
-                    ? `${target.filter((c) => c.met).length} / ${target.length}`
+                  m.mode === "national" || m.mode === "experimental"
+                    ? m.goalPending
+                      ? "待立项"
+                      : `${target.filter((c) => c.met).length} / ${target.length}`
                     : `${Number(m.milestones.includes("accident-managed")) + Number(m.milestones.includes("north-managed"))} / 2`
                 }
                 onClick={() => open("goals")}
               >
                 <p>
-                  {(m.mode === "national" || m.mode === "experimental")
-                    ? "第8回合还须执行终局，存活本身不足以胜利。"
+                  {m.mode === "national" || m.mode === "experimental"
+                    ? m.goalPending
+                      ? "第2回合开放发展规划会议，最迟第3回合结束前立项；可先查看三条战略与当前国情。"
+                      : `第${duration(g)}回合还须执行终局，存活本身不足以胜利。`
                     : "实际管理南岭事故和北境危机，并生存至第4回合。"}
                 </p>
               </ResourceTip>
@@ -875,13 +1130,18 @@ export default function App() {
                   {m.tutorial === 0 ? "前往人事任命" : "查看本阶段操作"}{" "}
                   <ArrowRight size={18} />
                 </button>
-                <Tooltip title={previewAction(g,{ type: "skip" }).title} content={actionExplanation({ type: "skip" })}><button
-                  className="hint-close"
-                  aria-label="跳过教学提示"
-                  onClick={() => choose({ type: "skip" })}
+                <Tooltip
+                  title={previewAction(g, { type: "skip" }).title}
+                  content={actionExplanation({ type: "skip" })}
                 >
-                  <X size={18} />
-                </button></Tooltip>
+                  <button
+                    className="hint-close"
+                    aria-label="跳过教学提示"
+                    onClick={() => choose({ type: "skip" })}
+                  >
+                    <X size={18} />
+                  </button>
+                </Tooltip>
               </aside>
             )}
             {m.mode !== "tutorial" && ui.hints && !modal && !action && (
@@ -903,7 +1163,7 @@ export default function App() {
               <PanelFrame
                 title="开启辅助引导？"
                 modal
-                onClose={() => setGuideChoice(false)}
+                onClose={() => chooseGuide(ui.hints)}
                 footer={
                   <>
                     <button
@@ -959,6 +1219,22 @@ export default function App() {
                   </>
                 }
               >
+                {s.status === "won" && (
+                  <section className="victory-summary">
+                    <Target size={42} />
+                    <div>
+                      <h3>
+                        {m.finalDone
+                          ? `${goals[m.goal].name}正式完成`
+                          : "南岭—北境紧急状态得到治理"}
+                      </h3>
+                      <p>
+                        {duration(g)}
+                        个治理年度，真实设施、人物与组织权限共同通过检验。
+                      </p>
+                    </div>
+                  </section>
+                )}
                 <pre className="actual-report">{report(g)}</pre>
                 <p>
                   财政{s.treasury} /危机{s.crisis}/12 /完成事务{s.resolved}
@@ -971,7 +1247,15 @@ export default function App() {
                 onClose={closeAction}
                 footer={
                   <>
-                    <button onClick={() => {commandRef.current={id:`ui-${stateRef.current.machine.revision}-${serialRef.current++}`,revision:stateRef.current.machine.revision};setConfirmedPreview(true);}}>
+                    <button
+                      onClick={() => {
+                        commandRef.current = {
+                          id: `ui-${stateRef.current.machine.revision}-${serialRef.current++}`,
+                          revision: stateRef.current.machine.revision,
+                        };
+                        setConfirmedPreview(true);
+                      }}
+                    >
                       预览后果
                     </button>
                     <button
@@ -1049,9 +1333,7 @@ export default function App() {
                           choose({
                             ...action,
                             exchange: e.target.value as
-                              | "ownership"
-                              | "budget"
-                              | "central",
+                              "ownership" | "budget" | "central",
                           })
                         }
                       >
@@ -1146,56 +1428,101 @@ export default function App() {
                 footer={
                   modal === "staff" ? (
                     <>
-                      <Tooltip title={previewAction(g,{ type: "appoint", office, person: null }).title} content={actionExplanation({ type: "appoint", office, person: null })}><button
-                        onClick={() =>
-                          choose({ type: "appoint", office, person: null })
+                      <Tooltip
+                        title={
+                          previewAction(g, {
+                            type: "appoint",
+                            office,
+                            person: null,
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "appoint",
+                          office,
+                          person: null,
+                        })}
                       >
-                        预览免职
-                      </button></Tooltip>
-                      {s.grievances[person] > 0 && (
-                        <Tooltip title={previewAction(g,{ type: "mediate", person }).title} content={actionExplanation({ type: "mediate", person })}><button
-                          onClick={() => choose({ type: "mediate", person })}
+                        <button
+                          onClick={() =>
+                            choose({ type: "appoint", office, person: null })
+                          }
                         >
-                          预览政治和解
-                        </button></Tooltip>
+                          预览免职
+                        </button>
+                      </Tooltip>
+                      {s.grievances[person] > 0 && (
+                        <Tooltip
+                          title={
+                            previewAction(g, { type: "mediate", person }).title
+                          }
+                          content={actionExplanation({
+                            type: "mediate",
+                            person,
+                          })}
+                        >
+                          <button
+                            onClick={() => choose({ type: "mediate", person })}
+                          >
+                            预览政治和解
+                          </button>
+                        </Tooltip>
                       )}
-                      <Tooltip title={previewAction(g,{ type: "appoint", office, person }).title} content={actionExplanation({ type: "appoint", office, person })}><button
-                        className="v2-primary"
-                        onClick={() =>
-                          choose({ type: "appoint", office, person })
+                      <Tooltip
+                        title={
+                          previewAction(g, { type: "appoint", office, person })
+                            .title
                         }
+                        content={actionExplanation({
+                          type: "appoint",
+                          office,
+                          person,
+                        })}
                       >
-                        预览任命
-                      </button></Tooltip>
+                        <button
+                          className="v2-primary"
+                          onClick={() =>
+                            choose({ type: "appoint", office, person })
+                          }
+                        >
+                          预览任命
+                        </button>
+                      </Tooltip>
                     </>
                   ) : modal === "reform" ? (
-                    <Tooltip title={previewAction(g,{
+                    <Tooltip
+                      title={
+                        previewAction(g, {
                           type: "authorize",
                           matter: authorizationMatter || m.matters[0]?.id || "",
                           lead,
                           joint,
                           emergency,
-                        }).title} content={actionExplanation({
-                          type: "authorize",
-                          matter: authorizationMatter || m.matters[0]?.id || "",
-                          lead,
-                          joint,
-                          emergency,
-                        })}><button
-                      className="v2-primary"
-                      onClick={() =>
-                        choose({
-                          type: "authorize",
-                          matter: authorizationMatter || m.matters[0]?.id || "",
-                          lead,
-                          joint,
-                          emergency,
-                        })
+                        }).title
                       }
+                      content={actionExplanation({
+                        type: "authorize",
+                        matter: authorizationMatter || m.matters[0]?.id || "",
+                        lead,
+                        joint,
+                        emergency,
+                      })}
                     >
-                      预览临时授权
-                    </button></Tooltip>
+                      <button
+                        className="v2-primary"
+                        onClick={() =>
+                          choose({
+                            type: "authorize",
+                            matter:
+                              authorizationMatter || m.matters[0]?.id || "",
+                            lead,
+                            joint,
+                            emergency,
+                          })
+                        }
+                      >
+                        预览临时授权
+                      </button>
+                    </Tooltip>
                   ) : undefined
                 }
               >
@@ -1237,17 +1564,100 @@ export default function App() {
                     </label>
                     <div className="v2-roster">
                       {people.map((p) => (
-                        <Tooltip key={p.id} title={`${p.name} · ${coreAbilities[p.id]?.name||p.title}`} content={<><p>当前职位：{personOfficeLabel(s.appointments,p.id)}</p><p>积怨{s.grievances[p.id]}/3 · {s.grievances[p.id]>=3?"拒绝协办，请政治和解":"可参与正式事务"}</p><p>{coreAbilities[p.id]?.condition||p.ability}</p><p>{coreAbilities[p.id]?.limit||"基础专业仍受正式参与资格约束"}</p>{m.matters.filter(x=>x.province===selected).slice(0,1).map(it=><div key={it.id}>{Object.entries(capNames).filter(([cap])=>({xing:"mobilize",sergei:"seal",mo:"leywork",lin:"industry",lu:"rapid",ye:"transport"})[p.id]===cap).map(([cap,label])=><div key={cap}><b>{label} / {it.title}</b>{capability(g,cap as keyof typeof capNames,it).map((c,i)=><p key={i} className={c.met?"met":"unmet"}>{c.met?"✓":"✕"} {c.reason}</p>)}</div>)}</div>)}</>}><button
-                          className={person === p.id ? "selected" : ""}
-                          onClick={() => setPerson(p.id)}
+                        <Tooltip
+                          key={p.id}
+                          title={`${p.name} · ${coreAbilities[p.id]?.name || p.title}`}
+                          content={
+                            <>
+                              <p>
+                                当前职位：
+                                {personOfficeLabel(s.appointments, p.id)}
+                              </p>
+                              <p>
+                                积怨{s.grievances[p.id]}/3 ·{" "}
+                                {s.grievances[p.id] >= 3
+                                  ? "拒绝协办，请政治和解"
+                                  : "可参与正式事务"}
+                              </p>
+                              <p>
+                                {coreAbilities[p.id]?.condition || p.ability}
+                              </p>
+                              <p>
+                                {coreAbilities[p.id]?.limit ||
+                                  "基础专业仍受正式参与资格约束"}
+                              </p>
+                              {m.matters
+                                .filter((x) => x.province === selected)
+                                .slice(0, 1)
+                                .map((it) => (
+                                  <div key={it.id}>
+                                    {p.id === "lu" &&
+                                      ["accident", "oldgod"].includes(
+                                        it.kind,
+                                      ) &&
+                                      actionExplanation({
+                                        type: "resolve",
+                                        matter: it.id,
+                                        option: "isolate",
+                                      })}
+                                    {Object.entries(capNames)
+                                      .filter(
+                                        ([cap]) =>
+                                          ({
+                                            xing: "mobilize",
+                                            sergei: "seal",
+                                            mo: "leywork",
+                                            lin: "industry",
+                                            ye: "transport",
+                                          })[p.id] === cap,
+                                      )
+                                      .map(([cap, label]) => (
+                                        <div key={cap}>
+                                          <b>
+                                            {label} / {it.title}
+                                          </b>
+                                          {capability(
+                                            g,
+                                            cap as keyof typeof capNames,
+                                            it,
+                                            cap === "mobilize" ||
+                                              cap === "joint"
+                                              ? 1
+                                              : cap === "seal"
+                                                ? 0
+                                                : undefined,
+                                          ).map((c, i) => (
+                                            <p
+                                              key={i}
+                                              className={
+                                                c.met ? "met" : "unmet"
+                                              }
+                                            >
+                                              {c.met ? "✓" : "✕"} {c.reason}
+                                            </p>
+                                          ))}
+                                        </div>
+                                      ))}
+                                  </div>
+                                ))}
+                            </>
+                          }
                         >
-                          <PersonBadge id={p.id}/>
-                          <span>{personOfficeLabel(s.appointments, p.id)}</span>
-                        </button></Tooltip>
+                          <button
+                            className={person === p.id ? "selected" : ""}
+                            onClick={() => setPerson(p.id)}
+                          >
+                            <PersonBadge id={p.id} />
+                            <span>
+                              {personOfficeLabel(s.appointments, p.id)}
+                            </span>
+                          </button>
+                        </Tooltip>
                       ))}
                     </div>
                     <section className="v2-person-details">
-                      <PersonBadge id={person}/><h3>{getPerson(person)?.name || "保持职位空缺"}</h3>
+                      <PersonBadge id={person} />
+                      <h3>{getPerson(person)?.name || "保持职位空缺"}</h3>
                       {getPerson(person) && (
                         <>
                           <p>
@@ -1341,60 +1751,104 @@ export default function App() {
 
                     <h3>第二层 · 全国部门改革</h3>
                     <div className="v2-reform-buttons">
-                      <Tooltip title={previewAction(g,{ type: "department", department: "anomaly" }).title} content={actionExplanation({ type: "department", department: "anomaly" })}><button
-                        onClick={() =>
-                          choose({ type: "department", department: "anomaly" })
+                      <Tooltip
+                        title={
+                          previewAction(g, {
+                            type: "department",
+                            department: "anomaly",
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "department",
+                          department: "anomaly",
+                        })}
                       >
-                        全国异常垂直主责
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{
+                        <button
+                          onClick={() =>
+                            choose({
+                              type: "department",
+                              department: "anomaly",
+                            })
+                          }
+                        >
+                          全国异常垂直主责
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, {
                             type: "department",
                             department: "evacuation",
-                          }).title} content={actionExplanation({
-                            type: "department",
-                            department: "evacuation",
-                          })}><button
-                        onClick={() =>
-                          choose({
-                            type: "department",
-                            department: "evacuation",
-                          })
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "department",
+                          department: "evacuation",
+                        })}
                       >
-                        各省独立灾害疏散权
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{
+                        <button
+                          onClick={() =>
+                            choose({
+                              type: "department",
+                              department: "evacuation",
+                            })
+                          }
+                        >
+                          各省独立灾害疏散权
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, {
                             type: "department",
                             department: "transport",
-                          }).title} content={actionExplanation({
-                            type: "department",
-                            department: "transport",
-                          })}><button
-                        onClick={() =>
-                          choose({
-                            type: "department",
-                            department: "transport",
-                          })
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "department",
+                          department: "transport",
+                        })}
                       >
-                        中央跨省运输体系
-                      </button></Tooltip>
+                        <button
+                          onClick={() =>
+                            choose({
+                              type: "department",
+                              department: "transport",
+                            })
+                          }
+                        >
+                          中央跨省运输体系
+                        </button>
+                      </Tooltip>
                     </div>
                     <h3>第三层 · 国家基础制度</h3>
                     {Object.keys(regimes).map((id) => (
-                      <Tooltip key={id} title={previewAction(g,{ type: "regime", regime: id as Regime }).title} content={actionExplanation({ type: "regime", regime: id as Regime })}><button
+                      <Tooltip
                         key={id}
-                        className="v2-regime-choice"
-                        onClick={() =>
-                          choose({ type: "regime", regime: id as Regime })
+                        title={
+                          previewAction(g, {
+                            type: "regime",
+                            regime: id as Regime,
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "regime",
+                          regime: id as Regime,
+                        })}
                       >
-                        <b>{regimes[id as Regime].name}</b>
-                        <p>获得：{regimes[id as Regime].gain}</p>
-                        <p>限制：{regimes[id as Regime].loss}</p>
-                        <span>1命令 +1财政 +2资本 / 下一回合生效</span>
-                      </button></Tooltip>
+                        <button
+                          key={id}
+                          className="v2-regime-choice"
+                          onClick={() =>
+                            choose({ type: "regime", regime: id as Regime })
+                          }
+                        >
+                          <b>{regimes[id as Regime].name}</b>
+                          <p>获得：{regimes[id as Regime].gain}</p>
+                          <p>限制：{regimes[id as Regime].loss}</p>
+                          <span>1命令 +1财政 +2资本 / 下一回合生效</span>
+                        </button>
+                      </Tooltip>
                     ))}
                     <details>
                       <summary>小范围异常主责修补</summary>
@@ -1409,26 +1863,34 @@ export default function App() {
                             (!o.province || o.province === selected),
                         )
                         .map((o) => (
-                          <Tooltip key={o.id} title={previewAction(g,{
-                                type: "local",
-                                province: selected,
-                                lead: o.id,
-                              }).title} content={actionExplanation({
-                                type: "local",
-                                province: selected,
-                                lead: o.id,
-                              })}><button
+                          <Tooltip
                             key={o.id}
-                            onClick={() =>
-                              choose({
+                            title={
+                              previewAction(g, {
                                 type: "local",
                                 province: selected,
                                 lead: o.id,
-                              })
+                              }).title
                             }
+                            content={actionExplanation({
+                              type: "local",
+                              province: selected,
+                              lead: o.id,
+                            })}
                           >
-                            {o.name}
-                          </button></Tooltip>
+                            <button
+                              key={o.id}
+                              onClick={() =>
+                                choose({
+                                  type: "local",
+                                  province: selected,
+                                  lead: o.id,
+                                })
+                              }
+                            >
+                              {o.name}
+                            </button>
+                          </Tooltip>
                         ))}
                     </details>
                   </>
@@ -1457,15 +1919,28 @@ export default function App() {
                     </p>
                     <div className="v2-policy-buttons">
                       {issueNames[issue].map((name, side) => (
-                        <Tooltip key={name} title={previewAction(g,{ type: "policy", issue, side }).title} content={actionExplanation({ type: "policy", issue, side })}><button
+                        <Tooltip
                           key={name}
-                          onClick={() =>
-                            choose({ type: "policy", issue, side })
+                          title={
+                            previewAction(g, { type: "policy", issue, side })
+                              .title
                           }
+                          content={actionExplanation({
+                            type: "policy",
+                            issue,
+                            side,
+                          })}
                         >
-                          {name}
-                          <ArrowRight size={16} />
-                        </button></Tooltip>
+                          <button
+                            key={name}
+                            onClick={() =>
+                              choose({ type: "policy", issue, side })
+                            }
+                          >
+                            {name}
+                            <ArrowRight size={16} />
+                          </button>
+                        </Tooltip>
                       ))}
                     </div>
                     <p>
@@ -1502,7 +1977,7 @@ export default function App() {
                     </p>
                     <h3>国家目标建设提示</h3>
                     <p>
-                      星火：勘探→墨玄在南岭任职→标准委员会→中央运输改革→工程竣工→保留收益权。协约：联合体制或疏散权下放→真实合作协议→处理事故→保留负责人信任。长夜：三个预警站→合法高级封印/联合行动→跨省应急→管理北境。每个目标还须在第8回合执行终局方案。
+                      星火：勘探→墨玄在南岭任职→标准委员会→中央运输改革→工程竣工→保留收益权。协约：联合体制或疏散权下放→真实合作协议→处理事故→保留负责人信任。长夜：三个预警站→合法高级封印/联合行动→跨省应急→管理北境。正式8回合与实验12回合各在最后一回合执行终局；实验战役还须在第10～11回合完成协作演练。
                     </p>
                     <h3>能力与危机的真实限制</h3>
                     <p>
@@ -1523,6 +1998,47 @@ export default function App() {
                 {modal === "settings" && settings}
                 {modal === "pause" && (
                   <div className="pause-options">
+                    <p className="seed-info">
+                      初始种子：<b>{s.seed}</b>
+                      <br />
+                      随机序列状态：{s.rng} · 规则{m.rulesVersion} ·{" "}
+                      {m.politics === "random" ? "随机政治开局" : "经典开局"}
+                    </p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(s.seed);
+                          setNotice("种子已复制");
+                        } catch {
+                          setNotice(`复制受限，请手动复制：${s.seed}`);
+                        }
+                      }}
+                    >
+                      复制种子
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "重玩将丢弃未保存的进度，使用相同剧本、难度、政治模式和种子重新开始。",
+                          )
+                        ) {
+                          const n = startCampaign({
+                            mode: m.mode,
+                            seed: s.seed,
+                            difficulty: m.difficulty,
+                            politics: m.politics,
+                          });
+                          setG(n);
+                          stateRef.current = n;
+                          resetView(n);
+                          setResult(null);
+                          setModal(n.machine.opening ? "briefing" : null);
+                        }
+                      }}
+                    >
+                      重玩同一种子
+                    </button>
                     <button onClick={() => setModal(null)}>
                       <Play />
                       继续游戏
@@ -1557,8 +2073,41 @@ export default function App() {
                     </button>
                   </div>
                 )}
+                {modal === "briefing" && (
+                  <>
+                    <section className="opening-report">
+                      <h3>{regimes[m.regime].name}</h3>
+                      {m.opening?.summary.map((x, i) => (
+                        <p key={i}>{x}</p>
+                      ))}
+                      <p className="seed-info">
+                        种子：{s.seed} · 难度{difficultyNames[m.difficulty]} ·{" "}
+                        {duration(g)}回合
+                      </p>
+                    </section>
+                    <div className="quick-grid">
+                      <button onClick={() => open("central")}>
+                        调阅中央政府
+                      </button>
+                      <button onClick={() => open("goals")}>
+                        预览国家战略
+                      </button>
+                      <button onClick={() => setModal(null)}>
+                        返回国家地图
+                      </button>
+                    </div>
+                  </>
+                )}
                 {modal === "central" && (
                   <>
+                    {m.opening && (
+                      <details>
+                        <summary>初始国情报告（任期开始时）</summary>
+                        {m.opening.summary.map((x, i) => (
+                          <p key={i}>{x}</p>
+                        ))}
+                      </details>
+                    )}
                     <p>
                       现行制度：<strong>{regimes[m.regime].name}</strong>
                     </p>
@@ -1584,38 +2133,92 @@ export default function App() {
                       /4。达到2限制中央审批，连续两次结算≥4失败。
                     </p>
                     {s.paralysis > 0 && (
-                      <Tooltip title={previewAction(g,{ type: "unblock" }).title} content={actionExplanation({ type: "unblock" })}><button
-                        disabled={!playing}
-                        onClick={() => choose({ type: "unblock" })}
+                      <Tooltip
+                        title={previewAction(g, { type: "unblock" }).title}
+                        content={actionExplanation({ type: "unblock" })}
                       >
-                        预览疏通审批
-                      </button></Tooltip>
+                        <button
+                          disabled={!playing}
+                          onClick={() => choose({ type: "unblock" })}
+                        >
+                          预览疏通审批
+                        </button>
+                      </Tooltip>
                     )}
                     <button onClick={() => open("reform")}>调阅三层改革</button>
                     {offices.map((o) => {
                       const id = s.appointments[o.id];
                       return (
-                        <Tooltip key={o.id} title={o.name} content={<><p>法定领域：{o.domains.map(d=>domainNames[d]).join(" / ")}</p><p>当前负责人：{getPerson(id)?.name||"岗位空缺"}，{id&&s.grievances[id]>=3?"已拒绝协办，需政治和解":"仍可实际履职"}</p><p>{o.province?"省内能力受基础制度、具体授权与部门试点共同约束。":"中央专家只有正式参与才提供能力；跨省行动仍需合法指挥体系。"}</p></>}><article tabIndex={0} className="document-card">
-                          <h3>{o.name}</h3>
-                          <p>
-                            {getPerson(id)?.name || "岗位空缺"} · 积怨
-                            {id ? s.grievances[id] : "—"} · 权限：
-                            {o.domains.map((d) => domainNames[d]).join(" / ")}
-                          </p>
-                          <button
-                            disabled={!playing}
-                            onClick={() => {
-                              setOffice(o.id);
-                              setPerson(id || "xing");
-                              open("staff");
-                            }}
-                          >
-                            调整 / 查看负责人
-                          </button>
-                        </article></Tooltip>
+                        <Tooltip
+                          key={o.id}
+                          title={o.name}
+                          content={
+                            <>
+                              <p>
+                                法定领域：
+                                {o.domains
+                                  .map((d) => domainNames[d])
+                                  .join(" / ")}
+                              </p>
+                              <p>
+                                当前负责人：{getPerson(id)?.name || "岗位空缺"}
+                                ，
+                                {id && s.grievances[id] >= 3
+                                  ? "已拒绝协办，需政治和解"
+                                  : "仍可实际履职"}
+                              </p>
+                              <p>
+                                {o.province
+                                  ? "省内能力受基础制度、具体授权与部门试点共同约束。"
+                                  : "中央专家只有正式参与才提供能力；跨省行动仍需合法指挥体系。"}
+                              </p>
+                            </>
+                          }
+                        >
+                          <article tabIndex={0} className="document-card">
+                            <h3>{o.name}</h3>
+                            <p>
+                              {getPerson(id)?.name || "岗位空缺"} · 积怨
+                              {id ? s.grievances[id] : "—"} · 权限：
+                              {o.domains.map((d) => domainNames[d]).join(" / ")}
+                            </p>
+                            <button
+                              disabled={!playing}
+                              onClick={() => {
+                                setOffice(o.id);
+                                setPerson(id || "xing");
+                                open("staff");
+                              }}
+                            >
+                              调整 / 查看负责人
+                            </button>
+                          </article>
+                        </Tooltip>
                       );
                     })}
-                    {Object.entries(s.factions).map(([id,fac])=><Tooltip key={id} title={factionNames[id as keyof typeof factionNames]} content={<><p>影响由当前实际任职人数×2与已获得政治支持构成；当前{fac.influence}。</p><p>不满{fac.discontent}，由派系人物积怨汇总。任命影响机构控制，强制与改革可能增加积怨；人物到3会关闭协办资格。</p></>}><p tabIndex={0}>{factionNames[id as keyof typeof factionNames]}：影响{fac.influence} / 不满{fac.discontent}</p></Tooltip>)}
+                    {Object.entries(s.factions).map(([id, fac]) => (
+                      <Tooltip
+                        key={id}
+                        title={factionNames[id as keyof typeof factionNames]}
+                        content={
+                          <>
+                            <p>
+                              影响由当前实际任职人数×2与已获得政治支持构成；当前
+                              {fac.influence}。
+                            </p>
+                            <p>
+                              不满{fac.discontent}
+                              ，由派系人物积怨汇总。任命影响机构控制，强制与改革可能增加积怨；人物到3会关闭协办资格。
+                            </p>
+                          </>
+                        }
+                      >
+                        <p tabIndex={0}>
+                          {factionNames[id as keyof typeof factionNames]}：影响
+                          {fac.influence} / 不满{fac.discontent}
+                        </p>
+                      </Tooltip>
+                    ))}
                   </>
                 )}
                 {modal === "economy" && (
@@ -1641,12 +2244,17 @@ export default function App() {
                         : "本次能履行全部承诺。"}
                     </p>
                     {m.mode === "tutorial" && m.tutorial === 2 && (
-                      <Tooltip title={previewAction(g,{ type: "forecast" }).title} content={actionExplanation({ type: "forecast" })}><button
-                        className="v2-primary tutorial-highlight"
-                        onClick={() => choose({ type: "forecast" })}
+                      <Tooltip
+                        title={previewAction(g, { type: "forecast" }).title}
+                        content={actionExplanation({ type: "forecast" })}
                       >
-                        核对财政预测
-                      </button></Tooltip>
+                        <button
+                          className="v2-primary tutorial-highlight"
+                          onClick={() => choose({ type: "forecast" })}
+                        >
+                          核对财政预测
+                        </button>
+                      </Tooltip>
                     )}
                     <h3>真实工程与持续承诺</h3>
                     {m.works.map((w) => (
@@ -1664,14 +2272,25 @@ export default function App() {
                             : ""}
                         </p>
                         {!w.completed && (
-                          <Tooltip title={previewAction(g,{ type: "pause", work: w.id }).title} content={actionExplanation({ type: "pause", work: w.id })}><button
-                            disabled={!playing}
-                            onClick={() =>
-                              choose({ type: "pause", work: w.id })
+                          <Tooltip
+                            title={
+                              previewAction(g, { type: "pause", work: w.id })
+                                .title
                             }
+                            content={actionExplanation({
+                              type: "pause",
+                              work: w.id,
+                            })}
                           >
-                            {w.paused ? "恢复施工" : "暂停承诺"}
-                          </button></Tooltip>
+                            <button
+                              disabled={!playing}
+                              onClick={() =>
+                                choose({ type: "pause", work: w.id })
+                              }
+                            >
+                              {w.paused ? "恢复施工" : "暂停承诺"}
+                            </button>
+                          </Tooltip>
                         )}
                       </article>
                     ))}
@@ -1681,110 +2300,262 @@ export default function App() {
                           {s.provinces.find((p) => p.id === pid)!.name}
                           预算承诺：每回合1财政
                         </p>
-                        <Tooltip title={previewAction(g,{ type: "pause", work: `budget:${pid}` }).title} content={actionExplanation({ type: "pause", work: `budget:${pid}` })}><button
-                          disabled={!playing}
-                          onClick={() =>
-                            choose({ type: "pause", work: `budget:${pid}` })
+                        <Tooltip
+                          title={
+                            previewAction(g, {
+                              type: "pause",
+                              work: `budget:${pid}`,
+                            }).title
                           }
+                          content={actionExplanation({
+                            type: "pause",
+                            work: `budget:${pid}`,
+                          })}
                         >
-                          撤销预算（信任下降）
-                        </button></Tooltip>
+                          <button
+                            disabled={!playing}
+                            onClick={() =>
+                              choose({ type: "pause", work: `budget:${pid}` })
+                            }
+                          >
+                            撤销预算（信任下降）
+                          </button>
+                        </Tooltip>
                       </article>
                     ))}
                     <h3>当前地区：{local.name}</h3>
                     <div className="quick-grid">
-                      <Tooltip title={previewAction(g,{
+                      <Tooltip
+                        title={
+                          previewAction(g, {
                             type: "project",
                             project: "warning",
                             province: selected,
-                          }).title} content={actionExplanation({
-                            type: "project",
-                            project: "warning",
-                            province: selected,
-                          })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({
-                            type: "project",
-                            project: "warning",
-                            province: selected,
-                          })
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "project",
+                          project: "warning",
+                          province: selected,
+                        })}
                       >
-                        预警站建设
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({
+                              type: "project",
+                              project: "warning",
+                              province: selected,
+                            })
+                          }
+                        >
+                          预警站建设
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, {
                             type: "project",
                             project: "energy",
                             province: selected,
-                          }).title} content={actionExplanation({
-                            type: "project",
-                            project: "energy",
-                            province: selected,
-                          })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({
-                            type: "project",
-                            project: "energy",
-                            province: selected,
-                          })
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "project",
+                          project: "energy",
+                          province: selected,
+                        })}
                       >
-                        宗门能源工程
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{ type: "investigate", deck: "ley" }).title} content={actionExplanation({ type: "investigate", deck: "ley" })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({ type: "investigate", deck: "ley" })
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({
+                              type: "project",
+                              project: "energy",
+                              province: selected,
+                            })
+                          }
+                        >
+                          宗门能源工程
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, { type: "investigate", deck: "ley" })
+                            .title
                         }
+                        content={actionExplanation({
+                          type: "investigate",
+                          deck: "ley",
+                        })}
                       >
-                        <Zap size={18} />
-                        灵脉勘探
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{ type: "investigate", deck: "standards" }).title} content={actionExplanation({ type: "investigate", deck: "standards" })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({ type: "investigate", deck: "standards" })
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({ type: "investigate", deck: "ley" })
+                          }
+                        >
+                          <Zap size={18} />
+                          灵脉勘探
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, {
+                            type: "investigate",
+                            deck: "standards",
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "investigate",
+                          deck: "standards",
+                        })}
                       >
-                        <Layers size={18} />
-                        标准化试点
-                      </button></Tooltip>
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({ type: "investigate", deck: "standards" })
+                          }
+                        >
+                          <Layers size={18} />
+                          标准化试点
+                        </button>
+                      </Tooltip>
                     </div>
                   </>
                 )}
                 {modal === "goals" && (
                   <>
-                    {(m.mode === "national" || m.mode === "experimental") ? (
+                    {m.mode === "national" || m.mode === "experimental" ? (
                       <>
-                        {m.goalPending ? <>
-                          <h3>国家发展规划会议</h3><p>{s.turn===1?"第1回合：先了解国情，可预览三条战略。第2回合开放正式立项。":"会议已开放：最迟第3回合结束前确立主要战略。"}</p>
-                          <div className="goal-strategies">{Object.entries(goals).map(([id,x])=>{const goal=id as Goal, d=strategyDetails[goal];return <article className="strategy-card" key={goal}>
-                            <h3><Target/> {x.name}</h3><p>{x.description}</p><p><b>建设方向：</b>{d.direction}</p><p><b>组织能力：</b>{d.needs}</p><p><b>受益者：</b>{d.beneficiaries}</p><p><b>政治阻力：</b>{d.resistance}</p>
-                            <details><summary>当前国情适配与里程碑</summary>{milestones(g,goal).map(c=><p key={c.label} className={c.met?"met":"unmet"}>{c.met?"✓":"○"} {c.label}：{c.reason}</p>)}</details>
-                            <Tooltip title={`立项${x.name}`} content={actionExplanation({type:"selectGoal",goal})}><button disabled={s.turn<2 || !playing} onClick={()=>choose({type:"selectGoal",goal})}>提交{x.name}立项</button></Tooltip>
-                          </article>})}</div>
-                        </> : <>
-                        <h3>{goals[m.goal].name}</h3>
-                        <p>{goals[m.goal].description}</p>
-                        <p>
-                          第{duration(g)}回合需执行「{goals[m.goal].finale}
-                          」，建设条件终局重新判定。
-                        </p>
-                        {target.map((c) => (
-                          <Tooltip key={c.label} title={c.label} content={<><p>{c.reason}</p><p>当前{c.met?"已满足":"尚未满足"}，终局将重新检查人员、制度和设施。</p></>}><article tabIndex={0}
-                            className={`goal-condition ${c.met ? "met" : "unmet"}`}
-                            key={c.label}
-                          >
-                            {c.met ? <Check /> : <Target />}
-                            <div>
-                              <b>{c.label}</b>
-                              <p>{c.reason}</p>
+                        {m.goalPending ? (
+                          <>
+                            <h3>国家发展规划会议</h3>
+                            <p>
+                              {s.turn === 1
+                                ? "第1回合：先了解国情，可预览三条战略。第2回合开放正式立项。"
+                                : "会议已开放：最迟第3回合结束前确立主要战略。"}
+                            </p>
+                            <div className="goal-strategies">
+                              {Object.entries(goals).map(([id, x]) => {
+                                const goal = id as Goal,
+                                  d = strategyDetails[goal];
+                                return (
+                                  <article className="strategy-card" key={goal}>
+                                    <h3>
+                                      <Target /> {x.name}
+                                    </h3>
+                                    <p>{x.description}</p>
+                                    <p>
+                                      <b>建设方向：</b>
+                                      {d.direction}
+                                    </p>
+                                    <p>
+                                      <b>组织能力：</b>
+                                      {d.needs}
+                                    </p>
+                                    <p>
+                                      <b>受益者：</b>
+                                      {d.beneficiaries}
+                                    </p>
+                                    <p>
+                                      <b>政治阻力：</b>
+                                      {d.resistance}
+                                    </p>
+                                    <details>
+                                      <summary>当前国情适配与里程碑</summary>
+                                      {milestones(g, goal).map((c) => (
+                                        <p
+                                          key={c.label}
+                                          className={c.met ? "met" : "unmet"}
+                                        >
+                                          {c.met ? "✓" : "○"} {c.label}：
+                                          {c.reason}
+                                        </p>
+                                      ))}
+                                    </details>
+                                    <Tooltip
+                                      title={`立项${x.name}`}
+                                      content={actionExplanation({
+                                        type: "selectGoal",
+                                        goal,
+                                      })}
+                                    >
+                                      <button
+                                        disabled={!playing}
+                                        onClick={() =>
+                                          choose({ type: "selectGoal", goal })
+                                        }
+                                      >
+                                        {s.turn < 2 ? "预览" : "提交"}
+                                        {x.name}立项
+                                      </button>
+                                    </Tooltip>
+                                  </article>
+                                );
+                              })}
                             </div>
-                          </article></Tooltip>
-                        ))}
-                        </>}
+                          </>
+                        ) : (
+                          <>
+                            <h3>{goals[m.goal].name}</h3>
+                            <p>{goals[m.goal].description}</p>
+                            <p>
+                              第{duration(g)}回合需执行「{goals[m.goal].finale}
+                              」，建设条件终局重新判定。
+                            </p>
+                            {m.mode === "experimental" && (
+                              <div className="document-card">
+                                <b>第10～12回合 · 终局检验</b>
+                                <p>
+                                  {m.terminalInspected
+                                    ? "✓ 全国协作演练已通过；终局仍复核当前组织资格"
+                                    : "第10～11回合须完成全国工程与协作演练；先完成下方全部建设条件。"}
+                                </p>
+                                <Tooltip
+                                  title="全国工程与协作演练"
+                                  content={actionExplanation({
+                                    type: "inspect",
+                                  })}
+                                >
+                                  <button
+                                    disabled={!playing}
+                                    onClick={() => choose({ type: "inspect" })}
+                                  >
+                                    预览全国协作演练
+                                  </button>
+                                </Tooltip>
+                              </div>
+                            )}
+                            {target.map((c) => (
+                              <Tooltip
+                                key={c.label}
+                                title={c.label}
+                                content={
+                                  <>
+                                    <p>{c.reason}</p>
+                                    <p>
+                                      当前{c.met ? "已满足" : "尚未满足"}
+                                      ，终局将重新检查人员、制度和设施。
+                                    </p>
+                                  </>
+                                }
+                              >
+                                <article
+                                  tabIndex={0}
+                                  className={`goal-condition ${c.met ? "met" : "unmet"}`}
+                                  key={c.label}
+                                >
+                                  {c.met ? <Check /> : <Target />}
+                                  <div>
+                                    <b>{c.label}</b>
+                                    <p>{c.reason}</p>
+                                  </div>
+                                </article>
+                              </Tooltip>
+                            ))}
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1824,24 +2595,71 @@ export default function App() {
                     ) : (
                       <p>当前事务已处理。可以继续建设，或结束回合。</p>
                     )}
-                    <details><summary>已解决事务归档 · {m.archive.length}项</summary>{m.archive.map(x=><article className="document-card" key={x.id}><b><Check size={17}/> {x.title}</b><p>已解决 · {s.provinces.find(p=>p.id===x.province)?.name}</p><p>{m.results.find(r=>r.action.type==="resolve"&&r.action.matter===x.id&&r.status==="resolved")?.title||"旧记录"}</p></article>)}</details>
+                    <details>
+                      <summary>已解决事务归档 · {m.archive.length}项</summary>
+                      {m.archive.map((x) => (
+                        <article className="document-card" key={x.id}>
+                          <b>
+                            <Check size={17} /> {x.title}
+                          </b>
+                          <p>
+                            已解决 ·{" "}
+                            {s.provinces.find((p) => p.id === x.province)?.name}
+                          </p>
+                          <p>
+                            {m.results.find(
+                              (r) =>
+                                r.action.type === "resolve" &&
+                                r.action.matter === x.id &&
+                                r.status === "resolved",
+                            )?.title || "旧记录"}
+                          </p>
+                        </article>
+                      ))}
+                    </details>
                     <div className="quick-grid">
-                      <Tooltip title={previewAction(g,{ type: "investigate", deck: "archive" }).title} content={actionExplanation({ type: "investigate", deck: "archive" })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({ type: "investigate", deck: "archive" })
+                      <Tooltip
+                        title={
+                          previewAction(g, {
+                            type: "investigate",
+                            deck: "archive",
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "investigate",
+                          deck: "archive",
+                        })}
                       >
-                        密封档案调查
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{ type: "investigate", deck: "civic" }).title} content={actionExplanation({ type: "investigate", deck: "civic" })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({ type: "investigate", deck: "civic" })
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({ type: "investigate", deck: "archive" })
+                          }
+                        >
+                          密封档案调查
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, {
+                            type: "investigate",
+                            deck: "civic",
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "investigate",
+                          deck: "civic",
+                        })}
                       >
-                        跨文明公报
-                      </button></Tooltip>
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({ type: "investigate", deck: "civic" })
+                          }
+                        >
+                          跨文明公报
+                        </button>
+                      </Tooltip>
                     </div>
                     {m.backlog.length > 0 && (
                       <details>
@@ -1878,54 +2696,81 @@ export default function App() {
                         .join(" / ")}
                     </p>
                     <div className="quick-grid">
-                      <Tooltip title={previewAction(g,{
+                      <Tooltip
+                        title={
+                          previewAction(g, {
                             type: "project",
                             project: "warning",
                             province: selected,
-                          }).title} content={actionExplanation({
-                            type: "project",
-                            project: "warning",
-                            province: selected,
-                          })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({
-                            type: "project",
-                            project: "warning",
-                            province: selected,
-                          })
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "project",
+                          project: "warning",
+                          province: selected,
+                        })}
                       >
-                        预警站建设
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({
+                              type: "project",
+                              project: "warning",
+                              province: selected,
+                            })
+                          }
+                        >
+                          预警站建设
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, {
                             type: "project",
                             project: "energy",
                             province: selected,
-                          }).title} content={actionExplanation({
-                            type: "project",
-                            project: "energy",
-                            province: selected,
-                          })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({
-                            type: "project",
-                            project: "energy",
-                            province: selected,
-                          })
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "project",
+                          project: "energy",
+                          province: selected,
+                        })}
                       >
-                        宗门能源工程
-                      </button></Tooltip>
-                      <Tooltip title={previewAction(g,{ type: "reconcile", province: selected }).title} content={actionExplanation({ type: "reconcile", province: selected })}><button
-                        disabled={!playing}
-                        onClick={() =>
-                          choose({ type: "reconcile", province: selected })
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({
+                              type: "project",
+                              project: "energy",
+                              province: selected,
+                            })
+                          }
+                        >
+                          宗门能源工程
+                        </button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          previewAction(g, {
+                            type: "reconcile",
+                            province: selected,
+                          }).title
                         }
+                        content={actionExplanation({
+                          type: "reconcile",
+                          province: selected,
+                        })}
                       >
-                        恢复地方协约
-                      </button></Tooltip>
+                        <button
+                          disabled={!playing}
+                          onClick={() =>
+                            choose({ type: "reconcile", province: selected })
+                          }
+                        >
+                          恢复地方协约
+                        </button>
+                      </Tooltip>
                       <button
                         onClick={() => {
                           setOffice(`gov-${selected}`);
@@ -2016,6 +2861,52 @@ export default function App() {
                 )}
                 {modal === "history" && (
                   <div className="v2-history">
+                    {executionFeedback}
+                    <details>
+                      <summary>
+                        结构化执行诊断（实际效果、事务ID与随机状态）
+                      </summary>
+                      <pre className="actual-report">
+                        {JSON.stringify(
+                          {
+                            seed: s.seed,
+                            rng: s.rng,
+                            rules: m.rulesVersion,
+                            revision: m.revision,
+                            results: m.results,
+                          },
+                          null,
+                          2,
+                        )}
+                      </pre>
+                      <button
+                        onClick={async () => {
+                          const text = JSON.stringify(
+                            {
+                              seed: s.seed,
+                              rng: s.rng,
+                              rules: m.rulesVersion,
+                              revision: m.revision,
+                              results: m.results,
+                              lastFailure:
+                                result?.status === "failed"
+                                  ? result
+                                  : undefined,
+                            },
+                            null,
+                            2,
+                          );
+                          try {
+                            await navigator.clipboard.writeText(text);
+                            setNotice("执行诊断已复制");
+                          } catch {
+                            setNotice("复制受限，可选中诊断文本手动复制");
+                          }
+                        }}
+                      >
+                        复制执行诊断
+                      </button>
+                    </details>
                     {m.history.map((h) => (
                       <article id={h.id} key={h.id} className="document-card">
                         <span className="eyebrow">
@@ -2079,9 +2970,35 @@ export default function App() {
               </button>
             </header>
             <div className="alerts-scroll">
-              {result && <button className={`alert-item ${result.status==="failed"?"urgent":"info"}`} onClick={()=>open("history")}><Check/><div><b>{resultNames[result.status]}</b><small>{result.title} · 查看实际效果与剩余要求</small></div></button>}
+              {result && (
+                <button
+                  className={`alert-item ${result.status === "failed" ? "urgent" : "info"}`}
+                  onClick={() => open("history")}
+                >
+                  <Check />
+                  <div>
+                    <b>{resultNames[result.status]}</b>
+                    <small>{result.title} · 查看实际效果与剩余要求</small>
+                  </div>
+                </button>
+              )}
               {planningAlert}
-              {(f.default || s.commands===0) && <button className="alert-item urgent" onClick={()=>open("economy")}><AlertTriangle/><div><b>{f.default?"财政承诺无法履行":"本回合命令已耗尽"}</b><small>{f.default?"检查施工与预算承诺，连续两次违约失败":"查看局势后可结束回合"}</small></div></button>}
+              {(f.default || s.commands === 0) && (
+                <button
+                  className="alert-item urgent"
+                  onClick={() => open("economy")}
+                >
+                  <AlertTriangle />
+                  <div>
+                    <b>{f.default ? "财政承诺无法履行" : "本回合命令已耗尽"}</b>
+                    <small>
+                      {f.default
+                        ? "检查施工与预算承诺，连续两次违约失败"
+                        : "查看局势后可结束回合"}
+                    </small>
+                  </div>
+                </button>
+              )}
               {alerts.length ? alerts : <p>当前没有需审议事务。</p>}
               <details className="secondary-alerts">
                 <summary>政治阻力 / 建设与里程碑</summary>
@@ -2123,26 +3040,33 @@ export default function App() {
               </div>
             </button>
             <div className="region-shortcuts">
-              <Tooltip title={previewAction(g,{
+              <Tooltip
+                title={
+                  previewAction(g, {
                     type: "project",
                     project: "warning",
                     province: selected,
-                  }).title} content={actionExplanation({
-                    type: "project",
-                    project: "warning",
-                    province: selected,
-                  })}><button
-                disabled={!playing}
-                onClick={() =>
-                  choose({
-                    type: "project",
-                    project: "warning",
-                    province: selected,
-                  })
+                  }).title
                 }
+                content={actionExplanation({
+                  type: "project",
+                  project: "warning",
+                  province: selected,
+                })}
               >
-                预警建设
-              </button></Tooltip>
+                <button
+                  disabled={!playing}
+                  onClick={() =>
+                    choose({
+                      type: "project",
+                      project: "warning",
+                      province: selected,
+                    })
+                  }
+                >
+                  预警建设
+                </button>
+              </Tooltip>
               <button
                 disabled={!playing}
                 onClick={() => {
@@ -2168,12 +3092,17 @@ export default function App() {
                 执政报告
               </button>
             ) : (
-              <Tooltip title={previewAction(g,{ type: "end" }).title} content={actionExplanation({ type: "end" })}><button
-                className="v2-primary end-turn"
-                onClick={() => choose({ type: "end" })}
+              <Tooltip
+                title={previewAction(g, { type: "end" }).title}
+                content={actionExplanation({ type: "end" })}
               >
-                结束回合 <ArrowRight size={20} />
-              </button></Tooltip>
+                <button
+                  className="v2-primary end-turn"
+                  onClick={() => choose({ type: "end" })}
+                >
+                  结束回合 <ArrowRight size={20} />
+                </button>
+              </Tooltip>
             )}
           </footer>
         </main>

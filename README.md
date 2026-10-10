@@ -1,8 +1,8 @@
-# 诸界联邦 · 地图指挥台 v0.2.2
+# 诸界联邦 · 地图指挥台 v0.3.0
 
 本地单人 PvE 数字桌游。React + TypeScript + Vite，无后端或在线裁判。通过人事、实际事权、路线和具体资源交换，构建一套能够治理奇幻世界的国家机器。
 
-启动先进入独立主菜单；从「教学战役」进入四阶段实际操作，也可选择固定四回合「南岭—北境紧急状态」，或八回合国家目标模式。「星火计划」「诸界协约」「长夜防线」都需要具体组织与设施，并在第8回合通过终局检验；仅存活不会获得正式胜利。
+启动先进入独立主菜单；从「教学战役」进入四阶段实际操作，也可选择固定四回合「南岭—北境紧急状态」，八回合国家治理模式或十二回合实验战役。正式任期先了解国情，第2～3回合在游戏内立项战略。「星火计划」「诸界协约」「长夜防线」都需要具体组织与设施，并在最后回合通过终局检验；十二回合模式还要完成第10～11回合全国协作演练；仅存活不会获得正式胜利。
 
 ## 运行
 
@@ -21,13 +21,20 @@ npm run preview
 ```bash
 npx playwright install chromium
 npm run test:browser -- http://localhost:5173
+npm run test:v3 -- http://localhost:5173
 ```
 
 覆盖完整教程、存档读回、4种桌面尺寸、125%等效视口、地图/面板/提醒、国家目标入口、四回合UI胜利和终局历史。原生浏览器125%缩放另用 `npm run test:zoom` 验证。使用系统Chromium时可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
 
 首次安装需要网络；游玩不需要账号、密钥或服务器。所有字体使用本机字体，图标随游戏打包。
 
-## v0.2的实际变化
+## v0.3的实际变化
+
+事务执行提供结构化结果、真实扣费与进度、失败诊断、请求去重和解决归档。统一Tooltip支持延迟悬停、键盘、固定、边界调整与滚动。新游戏默认随机种子；正式游戏默认受约束政治开局，实际改变制度、人物岗位、既有能力与地区隐患。八回合模式保留，十二回合战役明确标识实验。
+
+[阶段交付报告](V3_DELIVERY.md)包含P0排查结论、P1已完成内容、测试与尚未完成的P2项目。
+
+## 保留的v0.2规则
 
 - 地方分权、中央垂直、中央—地方委员会，改变可参加机构、批准规则和可执行方案。临时授权当回合到期，部门与国家改革下回合生效。
 - 六名关键人物的才能进入统一资格判定：群众动员、秘密封印、连续灵脉施工、工业标准、军事隔离、江湖协商运输。人才放错岗位不能发动能力。
@@ -74,9 +81,9 @@ npm run release:pack        # Windows-x64、离线HTML、源码zip及SHA256
 npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
 ```
 
-GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.2.2`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
+GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.3.0`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
 
-[下载v0.2离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.2.2-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。原v0.1下载仍保留，新包以v0.2.2命名。
+[下载v0.3离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.3.0-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。旧发布仍保留，新包以v0.3.0命名。
 
 ## 工程结构
 

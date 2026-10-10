@@ -2,7 +2,13 @@ import type { GameState, Issue, ProvinceId } from "../types";
 export type Regime = "vertical" | "devolved" | "joint";
 export type Mode = "tutorial" | "campaign" | "national" | "experimental";
 export type Difficulty = "relaxed" | "standard" | "challenging";
-export type Lifecycle = "unrevealed" | "revealed" | "processing" | "partial" | "resolved" | "deteriorated";
+export type Lifecycle =
+  | "unrevealed"
+  | "revealed"
+  | "processing"
+  | "partial"
+  | "resolved"
+  | "deteriorated";
 export type Goal = "spark" | "accord" | "night";
 export type Capability =
   | "mobilize"
@@ -110,6 +116,10 @@ export interface Machine {
   results: ActionResult[];
   difficulty: Difficulty;
   rulesVersion: string;
+  migratedFrom?: string;
+  politics: "random" | "classic";
+  terminalInspected?: boolean;
+  agendaSeen: string[];
   opening?: { template: Regime; risk: ProvinceId; summary: string[] };
 }
 export interface V2Game {
@@ -119,6 +129,7 @@ export interface V2Game {
 }
 export type Action =
   | { type: "selectGoal"; goal: Goal }
+  | { type: "inspect" }
   | {
       type: "resolve";
       matter: string;
@@ -200,7 +211,8 @@ export interface Plan {
     | "invest"
     | "archive";
 }
-export type ResultStatus = "failed" | "partial" | "resolved" | "changed" | "applied";
+export type ResultStatus =
+  "failed" | "partial" | "resolved" | "changed" | "applied";
 export interface ActionResult {
   id: string;
   revision: number;

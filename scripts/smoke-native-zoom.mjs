@@ -101,6 +101,48 @@ try {
       );
     }
   }
+  // Smallest native-zoom window also exercises an unplanned formal game and long strategy content.
+  await page.locator(".pause-trigger").click();
+  await page.getByRole("button", { name: "返回主菜单", exact: true }).click();
+  await page.getByRole("button", { name: "开始新游戏", exact: true }).click();
+  await page.getByLabel("剧本", { exact: true }).selectOption("national");
+  await page.getByLabel("政治开局", { exact: true }).selectOption("classic");
+  await page.getByRole("button", { name: "开始任期", exact: true }).click();
+  await page.getByRole("button", { name: "独立治理", exact: true }).click();
+  const formal = await page.evaluate(() => ({
+    width: innerWidth,
+    height: innerHeight,
+    doc: [
+      document.documentElement.scrollWidth,
+      document.documentElement.scrollHeight,
+    ],
+    end: document.querySelector(".end-turn").getBoundingClientRect().bottom,
+  }));
+  assert.deepEqual(formal.doc, [formal.width, formal.height]);
+  assert.ok(formal.end <= formal.height);
+  await page
+    .getByRole("navigation", { name: "主要管理功能" })
+    .getByRole("button", { name: "国家目标", exact: true })
+    .click();
+  const planning = await page
+    .getByRole("dialog", { name: "国家目标", exact: true })
+    .boundingBox();
+  assert.ok(planning.y + planning.height <= formal.height);
+  await page
+    .locator(".panel-scroll")
+    .evaluate((n) => (n.scrollTop = n.scrollHeight));
+  await page.locator(".panel-close").click({ trial: true });
+  await page.locator(".strategy-card").last().getByRole("button").hover();
+  const tip = page.getByRole("tooltip");
+  await tip.waitFor();
+  const tipBounds = await tip.boundingBox();
+  assert.ok(
+    tipBounds.y >= 0 &&
+      tipBounds.x >= 0 &&
+      tipBounds.y + tipBounds.height <= formal.height,
+  );
+  await page.keyboard.press("Escape");
+  await page.locator(".panel-close").click();
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({

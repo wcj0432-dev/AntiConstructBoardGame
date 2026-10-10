@@ -146,13 +146,23 @@ try {
   await page.getByRole("button", { name: "教学战役", exact: true }).click();
   await page.getByRole("heading", { name: "01 · 人物不是数值工具" }).waitFor();
   await rail("国家事务").click();
-  const blocked=page.locator(".v2-plan-list button.blocked").first();
-  await blocked.hover(); const blockedTip=page.getByRole("tooltip"); await blockedTip.waitFor();
-  assert.ok((await blockedTip.innerText()).includes("未满足")); assert.ok((await blockedTip.innerText()).includes("解决建议"));
-  await page.getByRole("button",{name:"固定说明",exact:true}).click();
-  const pinned=page.getByRole("dialog",{name:/群众参与/});
-  const tipBox=await pinned.boundingBox(); assert.ok(tipBox.x>=0&&tipBox.y>=0&&tipBox.x+tipBox.width<=1366&&tipBox.y+tipBox.height<=768);
-  await page.keyboard.press("Escape"); await close();
+  const blocked = page.locator(".v2-plan-list button.blocked").first();
+  await blocked.hover();
+  const blockedTip = page.getByRole("tooltip");
+  await blockedTip.waitFor();
+  assert.ok((await blockedTip.innerText()).includes("未满足"));
+  assert.ok((await blockedTip.innerText()).includes("解决建议"));
+  await page.getByRole("button", { name: "固定说明", exact: true }).click();
+  const pinned = page.getByRole("dialog", { name: /群众参与/ });
+  const tipBox = await pinned.boundingBox();
+  assert.ok(
+    tipBox.x >= 0 &&
+      tipBox.y >= 0 &&
+      tipBox.x + tipBox.width <= 1366 &&
+      tipBox.y + tipBox.height <= 768,
+  );
+  await page.keyboard.press("Escape");
+  await close();
   await page.getByRole("button", { name: "前往人事任命" }).click();
   await page.getByRole("button", { name: "预览任命", exact: true }).click();
   await confirm();
@@ -171,7 +181,11 @@ try {
   await rail("国家事务").click();
   await option("公开群众救援");
   await page.locator(".execution-result.partial").waitFor();
-  assert.ok((await page.locator(".execution-result.partial").innerText()).includes("异常源尚未封印"));
+  assert.ok(
+    (await page.locator(".execution-result.partial").innerText()).includes(
+      "异常源尚未封印",
+    ),
+  );
   await page.getByRole("heading", { name: "03 · 看清财政承诺" }).waitFor();
   await rail("经济建设").click();
   await page.getByRole("button", { name: "核对财政预测" }).click();
@@ -202,13 +216,16 @@ try {
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "返回主菜单", exact: true }).click();
   await page.getByRole("button", { name: "开始新游戏", exact: true }).click();
-  await page.getByLabel("剧本").selectOption("national");
+  await page.getByLabel("剧本", { exact: true }).selectOption("national");
+  await page.getByLabel("政治开局").selectOption("classic");
   await page.getByLabel("种子模式").selectOption("specified");
   await page.getByLabel("数字或字符串种子").fill("联邦-v03-验收");
   await page.getByRole("button", { name: "开始任期", exact: true }).click();
   await page.getByRole("button", { name: "独立治理", exact: true }).click();
   await rail("国家目标").click();
-  await page.getByRole("heading", { name: "国家发展规划会议", exact: true }).waitFor();
+  await page
+    .getByRole("heading", { name: "国家发展规划会议", exact: true })
+    .waitFor();
   await close();
   assert.equal(await page.locator(".tutorial-strip").count(), 0);
   console.log("Tutorial/save/new goal passed. Testing viewports...");
@@ -225,8 +242,11 @@ try {
   await page.getByRole("button", { name: "结束回合", exact: true }).click();
   await confirm();
   await rail("国家目标").click();
-  await page.getByRole("button",{name:"提交星火计划立项",exact:true}).click();
-  await confirm(); await close();
+  await page
+    .getByRole("button", { name: "提交星火计划立项", exact: true })
+    .click();
+  await confirm();
+  await close();
   await page.locator(".secondary-alerts summary").click();
   await page
     .locator(".alert-item.info")
@@ -380,7 +400,7 @@ try {
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "返回主菜单", exact: true }).click();
   await page.getByRole("button", { name: "开始新游戏", exact: true }).click();
-  await page.getByLabel("剧本").selectOption("campaign");
+  await page.getByLabel("剧本", { exact: true }).selectOption("campaign");
   await page.getByRole("button", { name: "开始任期", exact: true }).click();
   async function end() {
     await page.getByRole("button", { name: "结束回合", exact: true }).click();
@@ -428,7 +448,7 @@ try {
     }),
   );
 } catch (e) {
-  await page.screenshot({ path: "/tmp/fow-ui-failure.png" }).catch(()=>{});
+  await page.screenshot({ path: "/tmp/fow-ui-failure.png" }).catch(() => {});
   throw e;
 } finally {
   await browser.close();

@@ -1,13 +1,13 @@
 name: Build and publish downloadable game
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       release_tag:
-        description: '要打包并发布的已有版本标签'
+        description: "要打包并发布的已有版本标签"
         required: true
-        default: 'v0.2.2'
+        default: "v0.3.0"
         type: string
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
           ref: ${{ inputs.release_tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - name: Install locked dependencies
         run: npm ci
@@ -32,6 +32,16 @@ jobs:
         run: npm run release:pack
       - name: Run the packaged Windows executable
         run: npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
+      - name: Verify offline HTML through real browser interactions
+        shell: pwsh
+        run: |
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $offlineUrl = node -e "console.log(require('node:url').pathToFileURL(require('node:path').resolve('offline/index.html')).href)"
+          npm run test:browser -- $offlineUrl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:v3 -- $offlineUrl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Store build downloads
         uses: actions/upload-artifact@v4
         with:

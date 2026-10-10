@@ -765,7 +765,7 @@ export function endTurn(s: GameState): GameState {
 export function serialize(s: GameState) {
   return JSON.stringify(s);
 }
-export function deserialize(raw: string): GameState {
+export function deserialize(raw: string, maxTurns = 8): GameState {
   let v: unknown;
   try {
     v = JSON.parse(raw);
@@ -793,7 +793,7 @@ export function deserialize(raw: string): GameState {
     typeof s.seed !== "string" ||
     numeric.some((k) => !Number.isInteger(s[k]) || s[k] < 0) ||
     s.turn < 1 ||
-    s.turn > 8 ||
+    s.turn > maxTurns ||
     !["playing", "won", "lost"].includes(s.status)
   )
     throw new Error("存档版本或资源无效");

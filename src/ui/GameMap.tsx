@@ -1,4 +1,4 @@
-import {Tooltip} from "./Tooltip";
+import { Tooltip } from "./Tooltip";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { getPerson } from "../data";
@@ -223,92 +223,139 @@ export function GameMap({
                         ? "#4d7260"
                         : "#656881";
             return (
-              <Tooltip key={i} title={`${p.name} · ${p.districts[d].name}`} content={<><p>政：{getPerson(g.core.appointments[`gov-${r.pid}`])?.name||"负责人空缺"}；当前体制{g.machine.regime==="vertical"?"中央垂直":g.machine.regime==="joint"?"联合委员会":"地方分权"}。</p><p>建：{g.machine.works.filter(w=>w.province===r.pid).map(w=>`${w.type==="energy"?"能源网":"预警站"} ${w.completed?"已竣工":`${w.progress}/${w.duration}`}`).join("；")||"暂无设施"}</p><p>危机：{matters.map(x=>`${x.title} · 阶段${x.stage} · ${x.containment>0?`遏制${x.containment}回合`:"下次结算恶化"}`).join("；")||"暂无持续危机"}</p><p>库存{p.stock} · 信任{g.machine.trust[r.pid]}/3 · {g.machine.rights[r.pid]?"保留地方收益权":"收益协议尚未建立"}。点击调阅地方；地图上的管控标记不代表异常源已消除。</p></>}><g
-                data-map-region={i}
-                data-province={r.pid}
-                data-district={d}
-                role="button"
-                tabIndex={0}
-                aria-label={`${p.name} ${p.districts[d].name}`}
-                aria-pressed={selected === r.pid && district === d}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onSelect(r.pid, d);
-                  }
-                }}
-                className={selected === r.pid ? "selected-region" : ""}
+              <Tooltip
+                key={i}
+                title={`${p.name} · ${p.districts[d].name}`}
+                content={
+                  <>
+                    <p>
+                      政：
+                      {getPerson(g.core.appointments[`gov-${r.pid}`])?.name ||
+                        "负责人空缺"}
+                      ；当前体制
+                      {g.machine.regime === "vertical"
+                        ? "中央垂直"
+                        : g.machine.regime === "joint"
+                          ? "联合委员会"
+                          : "地方分权"}
+                      。
+                    </p>
+                    <p>
+                      建：
+                      {g.machine.works
+                        .filter((w) => w.province === r.pid)
+                        .map(
+                          (w) =>
+                            `${w.type === "energy" ? "能源网" : "预警站"} ${w.completed ? "已竣工" : `${w.progress}/${w.duration}`}`,
+                        )
+                        .join("；") || "暂无设施"}
+                    </p>
+                    <p>
+                      危机：
+                      {matters
+                        .map(
+                          (x) =>
+                            `${x.title} · 阶段${x.stage} · ${x.containment > 0 ? `遏制${x.containment}回合` : "下次结算恶化"}`,
+                        )
+                        .join("；") || "暂无持续危机"}
+                    </p>
+                    <p>
+                      库存{p.stock} · 信任{g.machine.trust[r.pid]}/3 ·{" "}
+                      {g.machine.rights[r.pid]
+                        ? "保留地方收益权"
+                        : "收益协议尚未建立"}
+                      。点击调阅地方；地图上的管控标记不代表异常源已消除。
+                    </p>
+                  </>
+                }
               >
-                <polygon
-                  points={r.points}
-                  fill={fill}
-                  stroke={selected === r.pid ? "#dfc98d" : "#9da990"}
-                  strokeWidth={selected === r.pid ? 3 : 1.5}
-                />
-                <polygon
-                  points={r.points}
-                  fill="url(#terrain)"
-                  pointerEvents="none"
-                />
-                <text
-                  x={r.x}
-                  y={r.y - 3}
-                  className="district-name"
-                  style={{ fontSize: Math.max(22, 16 / ratio / zoom) }}
+                <g
+                  data-map-region={i}
+                  data-province={r.pid}
+                  data-district={d}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${p.name} ${p.districts[d].name}`}
+                  aria-pressed={selected === r.pid && district === d}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelect(r.pid, d);
+                    }
+                  }}
+                  className={selected === r.pid ? "selected-region" : ""}
                 >
-                  {p.districts[d].name}
-                </text>
-                <text
-                  x={r.x}
-                  y={r.y + 22}
-                  className="district-detail"
-                  style={{ fontSize: Math.max(16, 14 / ratio / zoom) }}
-                >
-                  {mode === "resources"
-                    ? `区产出 ${p.districts[d].output} / 省库存 ${p.stock}`
-                    : mode === "administrative"
-                      ? `${g.machine.overrides[r.pid] ? "特定异常主责" : g.machine.regime === "vertical" ? "中央审批" : g.machine.regime === "joint" ? "联合批准" : "地方自主"}`
-                      : mode === "crisis"
-                        ? `持续事项 ${matters.length} / 异常压力 ${p.pressure.anomaly}`
-                        : getPerson(g.core.appointments[`gov-${r.pid}`])
-                            ?.name || "负责人空缺"}
-                </text>
-                {d === 0 && (
+                  <polygon
+                    points={r.points}
+                    fill={fill}
+                    stroke={selected === r.pid ? "#dfc98d" : "#9da990"}
+                    strokeWidth={selected === r.pid ? 3 : 1.5}
+                  />
+                  <polygon
+                    points={r.points}
+                    fill="url(#terrain)"
+                    pointerEvents="none"
+                  />
                   <text
                     x={r.x}
-                    y={r.y - 65}
-                    className="province-name"
-                    style={{ fontSize: Math.max(18, 16 / ratio / zoom) }}
+                    y={r.y - 3}
+                    className="district-name"
+                    style={{ fontSize: Math.max(22, 16 / ratio / zoom) }}
                   >
-                    {p.name}
+                    {p.districts[d].name}
                   </text>
-                )}
-                {d === 0 && (
-                  <g className="map-marker">
-                    <circle cx={r.x - 65} cy={r.y - 43} r="12" />
-                    <text x={r.x - 65} y={r.y - 38}>
-                      政
+                  <text
+                    x={r.x}
+                    y={r.y + 22}
+                    className="district-detail"
+                    style={{ fontSize: Math.max(16, 14 / ratio / zoom) }}
+                  >
+                    {mode === "resources"
+                      ? `区产出 ${p.districts[d].output} / 省库存 ${p.stock}`
+                      : mode === "administrative"
+                        ? `${g.machine.overrides[r.pid] ? "特定异常主责" : g.machine.regime === "vertical" ? "中央审批" : g.machine.regime === "joint" ? "联合批准" : "地方自主"}`
+                        : mode === "crisis"
+                          ? `持续事项 ${matters.length} / 异常压力 ${p.pressure.anomaly}`
+                          : getPerson(g.core.appointments[`gov-${r.pid}`])
+                              ?.name || "负责人空缺"}
+                  </text>
+                  {d === 0 && (
+                    <text
+                      x={r.x}
+                      y={r.y - 65}
+                      className="province-name"
+                      style={{ fontSize: Math.max(18, 16 / ratio / zoom) }}
+                    >
+                      {p.name}
                     </text>
-                  </g>
-                )}
-                {d === 1 &&
-                  g.machine.works.some((w) => w.province === r.pid) && (
-                    <g className="map-marker works">
-                      <circle cx={r.x + 60} cy={r.y - 43} r="12" />
-                      <text x={r.x + 60} y={r.y - 38}>
-                        建
+                  )}
+                  {d === 0 && (
+                    <g className="map-marker">
+                      <circle cx={r.x - 65} cy={r.y - 43} r="12" />
+                      <text x={r.x - 65} y={r.y - 38}>
+                        政
                       </text>
                     </g>
                   )}
-                {d === 0 && matters.length > 0 && (
-                  <g className="map-marker crisis">
-                    <circle cx={r.x + 65} cy={r.y - 43} r="13" />
-                    <text x={r.x + 65} y={r.y - 38}>
-                      !
-                    </text>
-                  </g>
-                )}
-              </g></Tooltip>
+                  {d === 1 &&
+                    g.machine.works.some((w) => w.province === r.pid) && (
+                      <g className="map-marker works">
+                        <circle cx={r.x + 60} cy={r.y - 43} r="12" />
+                        <text x={r.x + 60} y={r.y - 38}>
+                          建
+                        </text>
+                      </g>
+                    )}
+                  {d === 0 && matters.length > 0 && (
+                    <g className="map-marker crisis">
+                      <circle cx={r.x + 65} cy={r.y - 43} r="13" />
+                      <text x={r.x + 65} y={r.y - 38}>
+                        !
+                      </text>
+                    </g>
+                  )}
+                </g>
+              </Tooltip>
             );
           })}
         </g>
