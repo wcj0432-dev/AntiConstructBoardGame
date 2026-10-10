@@ -1968,3 +1968,6 @@ button svg {
   margin: 0;
   color: #e1e7ce;
 }
+.v2-roster .person-badge b {
+  font-size: var(--body);
+}

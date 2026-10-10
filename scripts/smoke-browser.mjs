@@ -396,8 +396,12 @@ try {
     (await page.locator(".selected-object").innerText()).includes("工业"),
   );
   console.log("Map checks passed. Testing full campaign...");
+  // An unpinned hover/focus tooltip must not steal the game Escape shortcut.
+  await page.locator(".resource-tip").nth(0).getByRole("button").hover();
+  await page.getByRole("tooltip").waitFor();
   // Complete the existing four-turn rules through the new interface.
   await page.keyboard.press("Escape");
+  await page.getByRole("dialog", { name: "暂停菜单", exact: true }).waitFor();
   await page.getByRole("button", { name: "返回主菜单", exact: true }).click();
   await page.getByRole("button", { name: "开始新游戏", exact: true }).click();
   await page.getByLabel("剧本", { exact: true }).selectOption("campaign");

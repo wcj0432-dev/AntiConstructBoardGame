@@ -142,7 +142,7 @@ try {
       tipBounds.y + tipBounds.height <= formal.height,
   );
   await page.keyboard.press("Escape");
-  await page.locator(".panel-close").click();
+  assert.equal(await page.locator(".panel-layer").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({

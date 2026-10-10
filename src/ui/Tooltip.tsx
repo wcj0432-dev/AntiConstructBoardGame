@@ -50,8 +50,11 @@ export function Tooltip({
     };
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopImmediatePropagation();
+        clear();
+        if (pinned) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
         hide();
       }
     };
