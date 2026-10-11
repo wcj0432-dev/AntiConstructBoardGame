@@ -211,7 +211,7 @@ export default function App() {
   const [reportOpen, setReportOpen] = useState(true);
   const [mode, setMode] = useState<Mode>("national");
   const [politics, setPolitics] = useState<"random" | "classic">("random");
-  const [seed, setSeed] = useState("联邦-v03-验收");
+  const [seed, setSeed] = useState("联邦-v04-验收");
   const [seedMode, setSeedMode] = useState("random");
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [reformCategory, setReformCategory] = useState<
@@ -958,7 +958,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.3.1 · 离线单人治理原型 / 原创联邦地图
+              v0.4.0 · 离线单人治理原型 / 原创联邦地图
             </small>
           </section>
           {modal === "settings" && (
