@@ -38,14 +38,22 @@ jobs:
           npx playwright install chromium
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $offlineUrl = node -e "console.log(require('node:url').pathToFileURL(require('node:path').resolve('offline/index.html')).href)"
-          npm run test:browser -- $offlineUrl
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:v3 -- $offlineUrl
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:v4 -- $offlineUrl
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:v5 -- $offlineUrl
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          function Invoke-BrowserSmoke([string] $smokeScript) {
+            & npm run $smokeScript -- $offlineUrl 2>&1 | Tee-Object -Variable smokeLog
+            $smokeStatus = $LASTEXITCODE
+            if ($smokeStatus -ne 0) {
+              # Preserve the real failure in the API-visible check annotation,
+              # including when the separate Actions log service is unavailable.
+              $details = ($smokeLog | Select-Object -Last 80) -join "`n"
+              $details = $details.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+              Write-Output "::error title=$smokeScript failed::$details"
+              exit $smokeStatus
+            }
+          }
+          Invoke-BrowserSmoke 'test:browser'
+          Invoke-BrowserSmoke 'test:v3'
+          Invoke-BrowserSmoke 'test:v4'
+          Invoke-BrowserSmoke 'test:v5'
       - name: Store build downloads
         uses: actions/upload-artifact@v4
         with:
