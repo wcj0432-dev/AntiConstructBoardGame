@@ -4,9 +4,9 @@ export function fiscalForecast(
   maintenance = 0,
   projectCosts = 0,
   income = 5,
+  fixed = 4,
 ) {
-  const fixed = 4,
-    total = fixed + maintenance + projectCosts,
+  const total = fixed + maintenance + projectCosts,
     paid = Math.min(s.treasury, total);
   return {
     current: s.treasury,

@@ -55,9 +55,13 @@ export interface History {
   effects: string[];
   parents: string[];
 }
+export type WorkType =
+  "energy" | "warning" | "farm" | "factory" | "port" | "cooperative" | "rail";
+export type Department = "anomaly" | "evacuation" | "transport";
+export type WorkAssignment = "advisor" | "dedicated";
 export interface Work {
   id: string;
-  type: "energy" | "warning";
+  type: WorkType;
   province: ProvinceId;
   progress: number;
   duration: number;
@@ -65,6 +69,9 @@ export interface Work {
   worker?: string;
   completed: boolean;
   source: string;
+  assignment?: WorkAssignment;
+  to?: ProvinceId;
+  cancelled?: boolean;
 }
 export interface Machine {
   mode: Mode;
@@ -76,6 +83,7 @@ export interface Machine {
     type: "anomaly" | "evacuation" | "transport";
     due: number;
     source: string;
+    scope?: ProvinceId | "nation";
   };
   overrides: Record<string, string>;
   authorization: Record<
@@ -117,10 +125,20 @@ export interface Machine {
   difficulty: Difficulty;
   rulesVersion: string;
   migratedFrom?: string;
+  migrationNotes?: string[];
   politics: "random" | "classic";
   terminalInspected?: boolean;
   agendaSeen: string[];
   opening?: { template: Regime; risk: ProvinceId; summary: string[] };
+  departments: Record<Department, ProvinceId[]>;
+  departmentBudgets: Record<"plan" | "anomaly" | "defense", 0 | 1 | 2>;
+  audits: Partial<
+    Record<ProvinceId, { last: number; rounds: number; bonusUntil: number }>
+  >;
+  discoveries: Record<ProvinceId, string[]>;
+  coordination: Partial<Record<ProvinceId, number>>;
+  prepared?: { regime: Regime; until: number; supporters: string[] };
+  drillsUntil: number;
 }
 export interface V2Game {
   schema: 2;
@@ -145,12 +163,42 @@ export type Action =
       emergency: boolean;
     }
   | { type: "regime"; regime: Regime }
-  | { type: "department"; department: "anomaly" | "evacuation" | "transport" }
+  | {
+      type: "department";
+      department: Department;
+      scope?: ProvinceId | "nation";
+    }
   | { type: "local"; province: ProvinceId; lead: string }
   | { type: "appoint"; office: string; person: string | null }
   | { type: "policy"; issue: Issue; side: number }
   | { type: "mediate"; person: string }
-  | { type: "project"; project: "energy" | "warning"; province: ProvinceId }
+  | {
+      type: "project";
+      project: WorkType;
+      province: ProvinceId;
+      worker?: string;
+      assignment?: WorkAssignment;
+      to?: ProvinceId;
+    }
+  | { type: "workControl"; work: string; operation: "cancel" | "restart" }
+  | { type: "audit"; province: ProvinceId; lead: string }
+  | {
+      type: "budget";
+      department: "plan" | "anomaly" | "defense";
+      level: 0 | 1 | 2;
+    }
+  | {
+      type: "survey";
+      province: ProvinceId;
+      field: "resources" | "routes" | "anomaly";
+    }
+  | {
+      type: "coordinate";
+      province: ProvinceId;
+      kind: "agreement" | "exercise" | "prepare";
+      regime?: Regime;
+    }
+  | { type: "transfer"; from: ProvinceId; to: ProvinceId; amount: number }
   | { type: "pause"; work: string }
   | { type: "investigate"; deck: "ley" | "archive" | "standards" | "civic" }
   | { type: "reconcile"; province: ProvinceId }

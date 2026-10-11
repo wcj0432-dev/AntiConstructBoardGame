@@ -26,7 +26,10 @@ async function shot(name) {
 }
 async function confirm(double = false) {
   const advance = page.getByRole("button", { name: "确认推进", exact: true });
-  if (await advance.count()) { await advance.click(); return; }
+  if (await advance.count()) {
+    await advance.click();
+    return;
+  }
   await page.getByRole("button", { name: "预览后果", exact: true }).click();
   const button = page.getByRole("button", { name: "确认执行", exact: true });
   if (double) await button.dblclick();
@@ -142,6 +145,9 @@ try {
   await shot("planning-turn1");
   await close();
   await rail("政策改革").click();
+  await page
+    .getByRole("button", { name: "改变国家基本管理体制", exact: true })
+    .click();
   await page.getByRole("button").filter({ hasText: "中央垂直领导" }).click();
   await confirm();
   await close();

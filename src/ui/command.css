@@ -1971,8 +1971,148 @@ button svg {
 .v2-roster .person-badge b {
   font-size: var(--body);
 }
-.turn-review { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
-.turn-review section { border: 1px solid #809581; background: #243830; padding: 16px; }
-.turn-review h3 { margin-top: 0; }
-.advance-confirm, .turn-bar .end-turn { background: #b39854; color: #152821; border: 2px solid #ebd28a; }
-@media(max-width:1000px) { .turn-review { grid-template-columns: 1fr; } }
+.turn-review {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.turn-review section {
+  border: 1px solid #809581;
+  background: #243830;
+  padding: 16px;
+}
+.turn-review h3 {
+  margin-top: 0;
+}
+.advance-confirm,
+.turn-bar .end-turn {
+  background: #b39854;
+  color: #152821;
+  border: 2px solid #ebd28a;
+}
+@media (max-width: 1000px) {
+  .turn-review {
+    grid-template-columns: 1fr;
+  }
+}
+.administrative-console h3 {
+  margin-top: 18px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.form-grid select,
+.budget-row select {
+  width: 100%;
+  min-width: 0;
+}
+.person-work-state {
+  padding: 14px;
+  border-left: 4px solid #c6b577;
+  background: #243e38;
+}
+.project-readiness p {
+  padding: 7px 0;
+  margin: 0;
+}
+.work-row {
+  border-top: 1px solid #788d78;
+  padding: 14px 0;
+}
+.work-row progress {
+  width: 100%;
+  height: 14px;
+  accent-color: #d2b571;
+}
+.budget-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 0;
+}
+.organization-root,
+.organization-node {
+  border: 1px solid #849d86;
+  background: #223b33;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.organization-root {
+  text-align: center;
+  border-color: #d1b374;
+}
+.organization-central,
+.organization-regions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.organization-node span {
+  font-size: var(--body);
+  line-height: 1.5;
+}
+.organization-node.affected {
+  border: 2px solid #eed090;
+  box-shadow: inset 0 0 12px #b3a66b33;
+}
+.organization-arrow {
+  padding: 14px;
+  text-align: center;
+  color: #edddb2;
+}
+.reform-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 22px 0;
+}
+.reform-categories button[aria-pressed="true"] {
+  background: #d4ba78;
+  color: #1b3029;
+}
+.reform-map {
+  height: 380px;
+  max-height: 55dvh;
+  min-height: 260px;
+}
+.reform-impact {
+  border: 1px solid #bba877;
+  background: #29392f;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.reform-impact dl > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 14px;
+  border-bottom: 1px solid #637b66;
+  padding: 10px 0;
+}
+.reform-impact dt {
+  color: #e2d397;
+  font-weight: bold;
+}
+.reform-impact dd {
+  margin: 0;
+}
+@media (max-width: 1100px) {
+  .organization-central,
+  .organization-regions {
+    grid-template-columns: 1fr;
+  }
+  .form-grid,
+  .budget-row {
+    grid-template-columns: 1fr;
+  }
+}
+.reform-map {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid #8ca087;
+}

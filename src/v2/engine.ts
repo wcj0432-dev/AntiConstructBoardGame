@@ -10,6 +10,18 @@ import { getOffice, getPerson, issueNames, offices, people } from "../data";
 import { fiscalForecast } from "../finance";
 import type { ProvinceId } from "../types";
 import { gazettes, goals, plansFor, regimes } from "./data";
+import {
+  availableOfficer,
+  hasDepartment,
+  workSpecs,
+  workReadiness,
+  workOperating,
+  projectConditions,
+  incomeSources,
+  isAdministrative,
+  administrativePreview,
+  applyAdministrative,
+} from "./administration";
 import type {
   Action,
   ActionResult,
@@ -21,6 +33,7 @@ import type {
   Matter,
   Mode,
   Plan,
+  WorkType,
   V2Game,
   V2Preview,
 } from "./model";
@@ -30,8 +43,7 @@ const province = (g: V2Game, id: ProvinceId) =>
   g.core.provinces.find((p) => p.id === id)!;
 const personOffice = (g: V2Game, id: string) =>
   Object.entries(g.core.appointments).find(([, p]) => p === id)?.[0];
-const active = (g: V2Game, id: string) =>
-  !!personOffice(g, id) && g.core.grievances[id] < 3 && !g.machine.occupied[id];
+const active = (g: V2Game, id: string) => availableOfficer(g, id);
 function condition(
   label: string,
   met: boolean,
@@ -146,8 +158,14 @@ function createMatter(
   addMatter(g, {
     kind,
     province: pid,
-    title: z?.title || titles[kind],
-    description: z?.text || desc[kind],
+    title:
+      variant === "fiscal"
+        ? "财政稽核后的地方收益争议"
+        : z?.title || titles[kind],
+    description:
+      variant === "fiscal"
+        ? "税款已入库，地方却发现自己的账本被中央盖了七枚公章。公开说明收益分配、保留本地权利或承担压制后果；稽核不是无政治代价的开源。"
+        : z?.text || desc[kind],
     stage:
       kind === "accident" && g.machine.milestones.includes("prevention")
         ? 1
@@ -208,9 +226,15 @@ export function newV2(
       archive: [],
       results: [],
       difficulty: "standard",
-      rulesVersion: "0.3.1",
+      rulesVersion: "0.4.0",
       politics: "classic",
       agendaSeen: [],
+      departments: { anomaly: [], evacuation: [], transport: [] },
+      departmentBudgets: { plan: 1, anomaly: 1, defense: 1 },
+      audits: {},
+      discoveries: { industry: [], south: [], north: [] },
+      coordination: {},
+      drillsUntil: 0,
     },
   };
   sync(g);
@@ -248,10 +272,10 @@ export function participants(g: V2Game, m: Matter) {
     ? g.machine.overrides[m.province]
     : undefined;
   const dept =
-    g.machine.department === "anomaly" &&
+    hasDepartment(g, "anomaly", m.province) &&
     ["accident", "oldgod"].includes(m.kind)
       ? "anomaly"
-      : g.machine.department === "evacuation" && m.kind === "supply"
+      : hasDepartment(g, "evacuation", m.province) && m.kind === "supply"
         ? gov
         : undefined;
   const lead =
@@ -319,7 +343,9 @@ export function capability(
         role(
           "sergei",
           p.offices.filter((o) => getOffice(o).domains.includes("anomaly")),
-        ) && g.machine.knowledge,
+        ) &&
+          g.machine.knowledge &&
+          g.machine.departmentBudgets.anomaly > 0,
         "谢尔盖须在本事务的合法异常职位上，且国家持有档案情报",
       ),
       condition(
@@ -350,7 +376,7 @@ export function capability(
         "地方工程审批",
         g.machine.regime !== "vertical" ||
           !!a ||
-          g.machine.department === "anomaly",
+          hasDepartment(g, "anomaly", m.province),
         "垂直体制建设地方工程需具体授权或全国异常管理改革",
         source,
       ),
@@ -371,7 +397,7 @@ export function capability(
       condition(
         "兼容运输与调配权限",
         g.machine.standards &&
-          (g.machine.department === "transport" ||
+          (hasDepartment(g, "transport") ||
             g.machine.regime === "vertical" ||
             (g.machine.cooperation &&
               pids.every((id) => g.machine.rights[id]))),
@@ -380,7 +406,9 @@ export function capability(
       ),
       condition(
         "工业供应或江湖承诺网络",
-        (active(g, "lin") && personOffice(g, "lin") === "plan") ||
+        (active(g, "lin") &&
+          g.machine.departmentBudgets.plan > 0 &&
+          personOffice(g, "lin") === "plan") ||
           (active(g, "ye") &&
             personOffice(g, "ye")!.startsWith("gov-") &&
             g.machine.cooperation &&
@@ -393,11 +421,10 @@ export function capability(
     return [
       condition(
         "省级快速应急权限",
-        !!g.core.appointments[`gov-${m.province}`] &&
-          g.core.grievances[g.core.appointments[`gov-${m.province}`]!] < 3 &&
+        availableOfficer(g, g.core.appointments[`gov-${m.province}`]) &&
           (g.machine.regime !== "vertical" ||
             a?.lead === `gov-${m.province}` ||
-            g.machine.department === "evacuation"),
+            hasDepartment(g, "evacuation", m.province)),
         "垂直体制地方应急需要具体授权或全国疏散权下放；地方岗位不能空缺或拒绝履职",
         source,
       ),
@@ -425,25 +452,50 @@ export function capability(
   ];
 }
 export function finance(g: V2Game) {
-  const work = g.machine.works.filter(
+  const m = g.machine;
+  const work = m.works.filter(
     (w) =>
+      !w.cancelled &&
       !w.paused &&
       !w.completed &&
-      (!w.worker ||
-        (active(g, w.worker) &&
-          ["plan", "gov-south"].includes(personOffice(g, w.worker)!))),
+      workReadiness(g, w).every((c) => c.met),
   ).length;
-  const maintenance =
-    (g.machine.regime === "joint" ? 1 : 0) +
-    (g.machine.standards ? 1 : 0) +
-    g.machine.budgets.length;
-  return fiscalForecast(
-    g.core,
-    maintenance,
-    work,
-    5 +
-      g.machine.works.filter((w) => w.completed && w.type === "energy").length,
+  const maintenanceSources = [
+    ...(m.regime === "joint" ? [{ label: "联合委员会", amount: 1 }] : []),
+    ...(m.standards ? [{ label: "工业兼容标准", amount: 1 }] : []),
+    ...m.budgets.map((pid) => ({
+      label: `${province(g, pid).name}合作预算`,
+      amount: 1,
+    })),
+    ...(["plan", "anomaly", "defense"] as const)
+      .filter((id) => m.departmentBudgets[id] === 2)
+      .map((id) => ({ label: `${getOffice(id).name}专项预算`, amount: 1 })),
+    ...m.works
+      .filter(
+        (w) => w.completed && !w.cancelled && workSpecs[w.type].maintenance > 0,
+      )
+      .map((w) => ({
+        label: `${province(g, w.province).name}${workSpecs[w.type].name}维护`,
+        amount: workSpecs[w.type].maintenance,
+      })),
+  ];
+  const maintenance = maintenanceSources.reduce(
+    (sum, row) => sum + row.amount,
+    0,
   );
+  const fixed =
+    4 - Object.values(m.departmentBudgets).filter((v) => v === 0).length;
+  return {
+    ...fiscalForecast(
+      g.core,
+      maintenance,
+      work,
+      incomeSources(g).reduce((sum, row) => sum + row.amount, 0),
+      fixed,
+    ),
+    sources: incomeSources(g),
+    maintenanceSources,
+  };
 }
 export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
   const m = g.machine;
@@ -476,7 +528,7 @@ export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
       ),
       condition(
         "南岭能源工程竣工",
-        m.works.some((w) => w.type === "energy" && w.completed),
+        m.works.some((w) => w.type === "energy" && w.completed && !w.cancelled),
         "完成两回合宗门灵脉工程",
       ),
       condition(
@@ -489,7 +541,7 @@ export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
     return [
       condition(
         "跨文明行政制度",
-        m.regime === "joint" || m.department === "evacuation",
+        m.regime === "joint" || hasDepartment(g, "evacuation"),
         "完成联合体制或全国疏散权下放",
       ),
       condition(
@@ -519,7 +571,11 @@ export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
       "全国预警设施",
       pids.every((pid) =>
         m.works.some(
-          (w) => w.province === pid && w.type === "warning" && w.completed,
+          (w) =>
+            w.province === pid &&
+            w.type === "warning" &&
+            w.completed &&
+            !w.cancelled,
         ),
       ),
       "完成三个省份的预警站，每站需要一回合建设",
@@ -646,6 +702,11 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
       );
     const part = participants(g, matter);
     if (p.effect === "isolate") {
+      need(
+        "安全部门保留预算",
+        m.departmentBudgets.defense > 0,
+        "恢复安全部门基本预算才能组织军事隔离",
+      );
       part.offices = [...new Set([...part.offices, "defense"])];
       const commander = s.appointments.defense;
       if (commander) part.actors = [...new Set([...part.actors, commander])];
@@ -672,8 +733,7 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     };
     need(
       "主持职位有人履职",
-      !!s.appointments[part.lead] &&
-        s.grievances[s.appointments[part.lead]!] < 3,
+      availableOfficer(g, s.appointments[part.lead]),
       `${getOffice(part.lead).name}需要能履职的负责人`,
     );
     if (m.mode === "tutorial" && m.tutorial === 1 && matter.kind === "accident")
@@ -690,7 +750,13 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
       );
     if (p.cap) v.conditions.push(...capability(g, p.cap, matter, p.disclosure));
     if (p.effect === "invest")
-      v.conditions.push(...previewAction(g, { type: "project", project: "energy", province: matter.province }).conditions);
+      v.conditions.push(
+        ...previewAction(g, {
+          type: "project",
+          project: "energy",
+          province: matter.province,
+        }).conditions,
+      );
     if (p.scope === "national" && matter.kind !== "final")
       need(
         "跨省正式指挥关系",
@@ -778,7 +844,15 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     v.effects.push(...effectDescriptions(p, matter));
   } else if (action.type === "regime") {
     v.title = `国家制度改革：${regimes[action.regime].name}`;
-    v.costs = { commands: 1, treasury: 1, capital: 2, stock: 0 };
+    v.costs = {
+      commands: 1,
+      treasury: 1,
+      capital:
+        m.prepared?.regime === action.regime && m.prepared.until >= s.turn
+          ? 1
+          : 2,
+      stock: 0,
+    };
     need(
       "唯一制度与过渡期",
       !m.pending && m.regime !== action.regime,
@@ -800,25 +874,46 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
       `受益：${action.regime === "vertical" ? "中央专家与安全集团" : "地方负责人及跨文明组织"}；反对者在过渡完成时积怨 +1：${v.opponents.map((id) => getPerson(id)!.name).join("、")}`,
     );
   } else if (action.type === "department") {
-    v.title = "全国部门改革";
-    v.costs = { commands: 1, treasury: 1, capital: 1, stock: 0 };
+    v.title =
+      action.scope && action.scope !== "nation"
+        ? "地区制度性改革"
+        : "全国部门制度性改革";
+    v.costs = {
+      commands: 1,
+      treasury: action.scope && action.scope !== "nation" ? 0 : 1,
+      capital: 1,
+      stock: 0,
+    };
     need(
       "部门改革未重复",
-      !m.departmentPending && m.department !== action.department,
+      !m.departmentPending &&
+        (action.scope && action.scope !== "nation"
+          ? !hasDepartment(g, action.department, action.scope)
+          : !hasDepartment(g, action.department)),
       "同一时刻只能推进一项部门改革，下一回合生效",
+    );
+    need(
+      "真实地域",
+      !action.scope || action.scope === "nation" || pids.includes(action.scope),
+      "范围必须是全国或真实省份",
     );
     v.effects = [
       action.department === "anomaly"
-        ? "三省异常事务统一归异常局；地方应急仍受基础体制约束"
+        ? "适用地区异常事务统一归异常局；地方应急仍受基础体制约束"
         : action.department === "evacuation"
-          ? "全国省政府获得独立疏散权限，垂直体制也能本地快速应急"
+          ? "适用省政府获得独立疏散权限，垂直体制也能本地快速应急"
           : "建立中央跨省运输权限；仍需要兼容标准及有资格负责人",
-      "部门改革是单槽试点：替换已有部门改革会失去其旧能力",
+      `性质：长期部门/地区制度；范围：${action.scope && action.scope !== "nation" ? province(g, action.scope).name : "全国三省"}；下一回合生效，无期限。其他领域的既有改革继续保留。`,
     ];
   } else if (action.type === "authorize") {
     const matter = m.matters.find((x) => x.id === action.matter);
     v.title = "具体事务临时授权";
-    v.costs = { commands: 1, treasury: 0, capital: 1, stock: 0 };
+    v.costs = {
+      commands: 1,
+      treasury: action.emergency ? 1 : 0,
+      capital: action.emergency ? 2 : 1,
+      stock: 0,
+    };
     need(
       "地区与合法机构",
       !!matter &&
@@ -828,6 +923,14 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
             (!o.province || o.province === matter.province),
         ),
       "只能指定中央部门或本省政府，不能付费获得异省资源权",
+    );
+    need(
+      "授权确有变更",
+      !m.authorization[action.matter] ||
+        m.authorization[action.matter].lead !== action.lead ||
+        m.authorization[action.matter].joint !== action.joint ||
+        m.authorization[action.matter].emergency !== action.emergency,
+      "同一事务已获得这套授权，无需再次支付",
     );
     need(
       "紧急状态资格",
@@ -854,6 +957,11 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
           (!o.province || o.province === action.province),
       ),
       "小范围主责只能授给具有异常权限的中央机构或本省政府",
+    );
+    need(
+      "本省主责确有变更",
+      m.overrides[action.province] !== action.lead,
+      "该长期主责已经生效",
     );
     v.effects = [
       `${province(g, action.province).name}异常主责长期归${getOffice(action.lead)?.name}；不能自动形成跨省指挥关系`,
@@ -919,43 +1027,32 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     v.effects = [
       "积怨 -1，恢复到2时重新允许协办；此前压制群众或解除协议的制度后果不会自动撤销",
     ];
+  } else if (isAdministrative(action)) {
+    Object.assign(v, administrativePreview(g, action));
   } else if (action.type === "project") {
-    v.title =
-      action.project === "energy" ? "开工：宗门灵脉能源工程" : "建设异常预警站";
+    const spec = workSpecs[action.project];
+    v.title = `开工：${spec.name}`;
     v.costs = {
       commands: 1,
-      treasury: action.project === "energy" ? 2 : 1,
+      treasury: spec.cost,
       capital: 0,
-      stock: action.project === "energy" ? 1 : 0,
+      stock: spec.stock,
       province: action.province,
     };
-    need(
-      "无重复工程",
-      !m.works.some(
-        (w) => w.type === action.project && w.province === action.province,
-      ),
-      "同省同类工程不可重复建造",
-    );
-    if (action.project === "energy")
-      v.conditions.push(
-        ...capability(g, "leywork", {
-          id: "project",
-          kind: "opportunity",
-          province: action.province,
-          title: "",
-          description: "",
-          stage: 1,
-          containment: 0,
-          isolated: false,
-          evacuated: false,
-          age: 0,
-        }),
-      );
+    v.conditions.push(...projectConditions(g, action));
+    v.actors =
+      action.project === "warning"
+        ? []
+        : [
+            action.worker ||
+              (action.project === "energy"
+                ? "mo"
+                : s.appointments[`gov-${action.province}`]!),
+          ].filter(Boolean);
     v.effects = [
-      action.project === "energy"
-        ? "工程师连续占用两回合；每回合1财政施工承诺，完工每回合物资 +2、税收 +1，偶数回合异常压力 +1并解锁能源网络"
-        : "下次结算支付1财政施工；完工让本省持续危机每次升级最多增加1危机",
-      "可以暂停施工，暂停会失去1进度；中断原因会记录在因果日志",
+      `工期${spec.duration}回合，每次可施工结算1财政；${spec.benefit}`,
+      `${action.assignment === "dedicated" ? "专职派遣保留名义职位，暂停其行政能力；大型工业/铁路进度额外+1" : "顾问兼任保留行政能力，但即时事务抽调或调离岗位会中断施工"}；同一人物只能承担一个活动工程`,
+      "暂停取消施工承诺并损失1进度；撤销不退还原投资，完成后自动释放人员",
     ];
   } else if (action.type === "pause") {
     const work = m.works.find((w) => w.id === action.work);
@@ -967,6 +1064,8 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
           m.budgets.includes(action.work.split(":")[1] as ProvinceId)),
       "完工项目没有施工承诺可取消",
     );
+    if (work?.paused) v.conditions.push(...workReadiness(g, work));
+    if (work?.cancelled) v.errors.push("已取消的工程请使用恢复已取消工程入口");
     v.effects = [
       "暂停工程取消每回合1财政承诺，并失去1进度；暂停省份预算则降低该省信任1",
     ];
@@ -975,7 +1074,11 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     v.costs.commands = 1;
     need(
       "主管机构有人",
-      !!s.appointments[action.deck === "archive" ? "anomaly" : "plan"],
+      availableOfficer(
+        g,
+        s.appointments[action.deck === "archive" ? "anomaly" : "plan"],
+      ) &&
+        m.departmentBudgets[action.deck === "archive" ? "anomaly" : "plan"] > 0,
       "档案调查由异常局，勘探和标准试点由计划委主持",
     );
     v.effects = [
@@ -1258,7 +1361,15 @@ function enactPlan(
   }
   // Work commitment is incompatible with drawing the assigned engineer into another immediate matter.
   for (const actor of part.actors) {
-    if (m.works.some((w) => w.worker === actor && w.source !== source && !w.completed && !w.paused))
+    if (
+      m.works.some(
+        (w) =>
+          w.worker === actor &&
+          w.source !== source &&
+          !w.completed &&
+          !w.paused,
+      )
+    )
       m.occupied[actor] = source;
   }
   if (m.mode === "tutorial" && m.tutorial === 0 && matter.kind === "warning") {
@@ -1275,18 +1386,28 @@ function enactPlan(
 }
 function startWork(
   g: V2Game,
-  type: "energy" | "warning",
+  type: WorkType,
   pid: ProvinceId,
   source: string,
+  options?: Extract<Action, { type: "project" }>,
 ) {
   g.machine.works.push({
     id: `work-${g.core.nextId++}`,
     type,
     province: pid,
     progress: 0,
-    duration: type === "energy" ? 2 : 1,
+    duration: workSpecs[type].duration,
     paused: false,
-    worker: type === "energy" ? "mo" : undefined,
+    worker:
+      type === "warning"
+        ? undefined
+        : options?.worker ||
+          (type === "energy"
+            ? "mo"
+            : g.core.appointments[`gov-${pid}`] || undefined),
+    assignment: options?.assignment || "advisor",
+    to: options?.to,
+    cancelled: false,
     completed: false,
     source,
   });
@@ -1328,25 +1449,34 @@ function advance(g: V2Game, source: string) {
       );
   }
   for (const w of m.works) {
+    if (w.cancelled) continue;
     if (w.completed) {
-      if (w.type === "energy") {
-        province(g, w.province).stock += 2;
+      if (workOperating(g, w))
+        province(g, w.province).stock += workSpecs[w.type].output;
+      if (w.type === "energy" && workOperating(g, w)) {
         if (s.turn % 2 === 0) province(g, w.province).pressure.anomaly++;
       }
+      if (w.type === "factory" && workOperating(g, w) && s.turn % 2 === 0)
+        province(g, w.province).pressure.production++;
       continue;
     }
     if (w.paused) continue;
-    const workerValid =
-      !w.worker ||
-      (active(g, w.worker) &&
-        ["plan", "gov-south"].includes(personOffice(g, w.worker)!));
+    const workerValid = workReadiness(g, w).every((c) => c.met);
     if (workerValid && !f.default) {
-      w.progress++;
+      w.progress = Math.min(
+        w.duration,
+        w.progress +
+          1 +
+          (m.departmentBudgets.plan === 2 ? 1 : 0) +
+          (w.assignment === "dedicated" && ["factory", "rail"].includes(w.type)
+            ? 1
+            : 0),
+      );
       if (w.progress >= w.duration) {
         w.completed = true;
         record(
           g,
-          `工程竣工：${w.type === "energy" ? "宗门灵脉能源网" : "异常预警站"}`,
+          `工程竣工：${workSpecs[w.type].name}`,
           w.worker ? [w.worker] : [],
           [],
           ["施工人员持续在位、财政承诺得到履行"],
@@ -1397,9 +1527,39 @@ function advance(g: V2Game, source: string) {
     item.lifecycle = "deteriorated";
     const station = m.works.some(
       (w) =>
-        w.type === "warning" && w.province === item.province && w.completed,
+        w.type === "warning" &&
+        w.province === item.province &&
+        w.completed &&
+        !w.cancelled,
     );
-    const severity = item.evacuated || station ? 1 : item.stage >= 3 ? 2 : 1;
+    const severity = Math.max(
+      1,
+      (item.evacuated || station ? 1 : item.stage >= 3 ? 2 : 1) -
+        (m.departmentBudgets.anomaly === 2 ? 1 : 0) -
+        (m.drillsUntil >= s.turn ? 1 : 0) -
+        (m.discoveries[item.province].includes("anomaly") ? 1 : 0),
+    );
+    if (item.stage >= 3)
+      for (const link of m.works.filter(
+        (w) =>
+          w.type === "rail" &&
+          w.completed &&
+          !w.cancelled &&
+          w.to &&
+          [w.province, w.to].includes(item.province),
+      )) {
+        const to = link.province === item.province ? link.to! : link.province;
+        province(g, to).pressure.anomaly++;
+        record(
+          g,
+          "铁路联动预警",
+          [],
+          [],
+          ["连接省存在未隔离的阶段3以上危机"],
+          [`${province(g, to).name}异常压力+1；可先遏制源头或阻断隔离`],
+          [link.source, item.source || source],
+        );
+      }
     s.crisis += severity;
     province(g, item.province).pressure.anomaly++;
     if (item.stage >= 2)
@@ -1467,6 +1627,25 @@ function advance(g: V2Game, source: string) {
   }
   if (m.departmentPending && m.departmentPending.due <= s.turn) {
     m.department = m.departmentPending.type;
+    m.departments[m.department] = [
+      ...new Set([
+        ...m.departments[m.department],
+        ...(m.departmentPending.scope && m.departmentPending.scope !== "nation"
+          ? [m.departmentPending.scope]
+          : pids),
+      ]),
+    ];
+    const changed =
+      m.departmentPending.scope && m.departmentPending.scope !== "nation"
+        ? [m.departmentPending.scope]
+        : pids;
+    if (m.department === "evacuation") {
+      const actor = s.appointments.anomaly;
+      if (actor) s.grievances[actor]++;
+    } else
+      for (const pid of changed)
+        if (m.department === "anomaly" || !m.rights[pid])
+          province(g, pid).pressure.social++;
     m.origins.department = m.departmentPending.source;
     record(
       g,
@@ -1627,9 +1806,16 @@ function applyAction(g: V2Game, action: Action): V2Game {
     }
   } else if (action.type === "regime")
     m.pending = { regime: action.regime, due: s.turn + 1, source };
-  else if (action.type === "department")
-    m.departmentPending = { type: action.department, due: s.turn + 1, source };
-  else if (action.type === "authorize") {
+  else if (action.type === "department") {
+    if (m.department !== "none" && !m.departments[m.department].length)
+      m.departments[m.department] = [...pids];
+    m.departmentPending = {
+      type: action.department,
+      scope: action.scope || "nation",
+      due: s.turn + 1,
+      source,
+    };
+  } else if (action.type === "authorize") {
     const processing = m.matters.find((x) => x.id === action.matter);
     if (processing) processing.lifecycle = "processing";
     m.authorization[action.matter] = {
@@ -1659,9 +1845,27 @@ function applyAction(g: V2Game, action: Action): V2Game {
     s.commands++;
     s.capital++;
     n.core = baseMediate(s, action.person);
-  } else if (action.type === "project")
-    startWork(n, action.project, action.province, source);
-  else if (action.type === "pause") {
+  } else if (action.type === "project") {
+    startWork(n, action.project, action.province, source, action);
+    if (action.project === "energy") {
+      const fulfilled = [...m.matters, ...m.backlog].filter(
+        (x) => x.kind === "opportunity" && x.province === action.province,
+      );
+      for (const item of fulfilled) {
+        item.lifecycle = "resolved";
+        delete m.authorization[item.id];
+        item.steps = [...(item.steps || []), "已从经济建设入口立项能源工程"];
+        m.archive.push(item);
+        s.resolved++;
+      }
+      m.matters = m.matters.filter((x) => !fulfilled.includes(x));
+      m.backlog = m.backlog.filter((x) => !fulfilled.includes(x));
+    }
+  } else if (isAdministrative(action)) {
+    const reveal = applyAdministrative(n, action, source);
+    if (reveal)
+      createMatter(n, reveal.kind, reveal.province, source, reveal.variant);
+  } else if (action.type === "pause") {
     const w = m.works.find((w) => w.id === action.work);
     if (w) {
       w.paused = !w.paused;
@@ -1735,12 +1939,39 @@ ${m.history
   )
   .join(
     "\n",
-  )}\n${changes}\n重大工程：${m.works.map((w) => `${province(g, w.province).name}${w.type === "energy" ? "灵脉能源网" : "预警站"}（${w.completed ? "已竣工" : `${w.progress}/${w.duration}，${w.paused ? "暂停" : "未竣工"}`}）`).join("、") || "未启动重大工程"}\n尚未解决：${m.matters.map((x) => `${x.title}（阶段${x.stage}${x.isolated ? "，隔离保护其他省" : ""}）`).join("、") || "无现存重大危机"}\n长期矛盾：${
+  )}\n${changes}\n重大工程：${m.works.map((w) => `${province(g, w.province).name}${workSpecs[w.type].name}（${w.cancelled ? "已撤销，人员释放" : w.completed ? "已竣工，人员释放" : `${w.progress}/${w.duration}，${w.paused ? "暂停" : "未竣工"}`}）`).join("、") || "未启动重大工程"}\n尚未解决：${m.matters.map((x) => `${x.title}（阶段${x.stage}${x.isolated ? "，隔离保护其他省" : ""}）`).join("、") || "无现存重大危机"}\n长期矛盾：${
     pids
       .filter((p) => m.suppressed[p] || m.trust[p] === 0)
       .map((p) => `${province(g, p).name}群众信任受到损害`)
       .join("、") || "地方仍保有协商空间"
-  }；${m.budgets.length}项预算承诺；兼容标准${m.standards ? "已建立并产生维护义务" : "尚未建立"}。`;
+  }；${m.budgets.length}项预算承诺；兼容标准${m.standards ? "已建立并产生维护义务" : "尚未建立"}。
+部门长期事权：${(["anomaly", "evacuation", "transport"] as const)
+    .map(
+      (id) =>
+        `${id === "anomaly" ? "异常" : id === "evacuation" ? "疏散" : "运输"}覆盖${
+          pids
+            .filter((pid) => hasDepartment(g, id, pid))
+            .map((pid) => province(g, pid).name)
+            .join("、") || "无长期改革"
+        }`,
+    )
+    .join("；")}
+现行预算：${(["plan", "anomaly", "defense"] as const).map((id) => `${getOffice(id).name}${m.departmentBudgets[id]}`).join("、")}
+财政治理：${
+    Object.entries(m.audits)
+      .map(
+        ([pid, a]) =>
+          `${province(g, pid as ProvinceId).name}${a!.rounds}轮稽核，最近第${a!.last}回合`,
+      )
+      .join("；") || "未开展专项稽核"
+  }
+地区调查：${pids.map((pid) => `${province(g, pid).name}${m.discoveries[pid].length}项实际调查/发现记录`).join("；")}
+铁路联系：${
+    m.works
+      .filter((w) => w.type === "rail" && w.completed)
+      .map((w) => `${province(g, w.province).name}—${province(g, w.to!).name}`)
+      .join("；") || "未建成跨省铁路"
+  }`;
 }
 export function serializeV2(g: V2Game) {
   return JSON.stringify(g);
@@ -1757,6 +1988,24 @@ export function deserializeV2(raw: string): V2Game {
     g.machine?.mode === "experimental" ? 12 : 8,
   );
   const m = g.machine;
+  if (m) {
+    m.departments ??= { anomaly: [], evacuation: [], transport: [] };
+    if (
+      m.department !== "none" &&
+      m.departments[m.department] &&
+      !m.departments[m.department].length
+    )
+      m.departments[m.department] = [...pids];
+    m.departmentBudgets ??= { plan: 1, anomaly: 1, defense: 1 };
+    m.audits ??= {};
+    m.discoveries ??= { industry: [], south: [], north: [] };
+    m.coordination ??= {};
+    m.drillsUntil ??= 0;
+    for (const w of m.works || []) {
+      w.assignment ??= "advisor";
+      w.cancelled ??= false;
+    }
+  }
   if (
     !m ||
     !["tutorial", "campaign", "national", "experimental"].includes(m.mode) ||
@@ -1836,7 +2085,7 @@ export function deserializeV2(raw: string): V2Game {
     m.works.some(
       (w) =>
         !pids.includes(w.province) ||
-        !["energy", "warning"].includes(w.type) ||
+        !Object.hasOwn(workSpecs, w.type) ||
         !Number.isInteger(w.progress) ||
         w.progress < 0 ||
         w.progress > w.duration,
@@ -1854,12 +2103,117 @@ export function deserializeV2(raw: string): V2Game {
   m.rulesVersion ??= "0.2";
   m.politics ??= "classic";
   m.agendaSeen ??= [];
-  if (!["0.2", "0.3.0", "0.3.1"].includes(m.rulesVersion))
+  if (!["0.2", "0.3.0", "0.3.1", "0.4.0"].includes(m.rulesVersion))
     throw new Error("存档来自不同规则版本，请使用对应版本读取；原存档未改动");
-  if (m.rulesVersion !== "0.3.1") {
+  if (m.rulesVersion !== "0.4.0") {
     m.migratedFrom = m.rulesVersion;
-    m.rulesVersion = "0.3.1";
+    const assigned = new Set<string>(),
+      facilities = new Map<string, (typeof m.works)[number]>();
+    for (const w of m.works)
+      if (!w.cancelled) {
+        const key = `${w.type}:${w.province}`,
+          best = facilities.get(key);
+        if (
+          !best ||
+          (w.completed && !best.completed) ||
+          (w.completed === best.completed && w.progress > best.progress)
+        )
+          facilities.set(key, w);
+      }
+    for (const w of m.works) {
+      const facility = `${w.type}:${w.province}`;
+      if (facilities.get(facility) !== w && !w.cancelled) {
+        w.cancelled = true;
+        w.paused = true;
+        (m.migrationNotes ??= []).push(
+          `旧版重复工程${w.id}已保留记录并停用，避免重复占用与产出；历史费用和进度保留。`,
+        );
+      }
+      if (w.worker && !w.completed && !w.paused && !w.cancelled) {
+        if (assigned.has(w.worker)) {
+          w.paused = true;
+          (m.migrationNotes ??= []).push(
+            `${getPerson(w.worker)?.name}的额外旧工程${w.id}已暂停，保留进度；暂停另一项目后可恢复。`,
+          );
+        } else assigned.add(w.worker);
+      }
+    }
+    m.rulesVersion = "0.4.0";
   }
+  if (
+    !m.departments ||
+    ["anomaly", "evacuation", "transport"].some(
+      (key) =>
+        !Array.isArray(m.departments[key as keyof typeof m.departments]) ||
+        m.departments[key as keyof typeof m.departments].some(
+          (pid) => !pids.includes(pid),
+        ),
+    ) ||
+    !m.departmentBudgets ||
+    ["plan", "anomaly", "defense"].some(
+      (key) =>
+        ![0, 1, 2].includes(
+          m.departmentBudgets[key as keyof typeof m.departmentBudgets],
+        ),
+    ) ||
+    !m.discoveries ||
+    pids.some(
+      (pid) =>
+        !Array.isArray(m.discoveries[pid]) ||
+        m.discoveries[pid].some(
+          (x) =>
+            ![
+              "resources",
+              "routes",
+              "anomaly",
+              "production-potential",
+              "stable-findings",
+            ].includes(x),
+        ),
+    ) ||
+    !m.audits ||
+    Object.entries(m.audits).some(
+      ([pid, a]) =>
+        !pids.includes(pid as ProvinceId) ||
+        !a ||
+        !Number.isInteger(a.last) ||
+        a.last > g.core.turn ||
+        ![1, 2].includes(a.rounds) ||
+        !Number.isInteger(a.bonusUntil),
+    ) ||
+    !Number.isInteger(m.drillsUntil) ||
+    m.drillsUntil < 0 ||
+    !m.coordination ||
+    Object.entries(m.coordination).some(
+      ([pid, t]) =>
+        !pids.includes(pid as ProvinceId) ||
+        !Number.isInteger(t) ||
+        (t ?? -1) > g.core.turn,
+    ) ||
+    (m.prepared &&
+      (!Object.hasOwn(regimes, m.prepared.regime) ||
+        !Number.isInteger(m.prepared.until) ||
+        !Array.isArray(m.prepared.supporters) ||
+        m.prepared.supporters.some((id) => !getPerson(id)))) ||
+    m.works.some(
+      (w) =>
+        !Number.isInteger(w.duration) ||
+        w.duration < 1 ||
+        !["advisor", "dedicated"].includes(w.assignment!) ||
+        typeof w.cancelled !== "boolean" ||
+        typeof w.paused !== "boolean" ||
+        typeof w.completed !== "boolean" ||
+        (w.worker && !getPerson(w.worker)) ||
+        (w.type === "rail" &&
+          (!w.to || w.to === w.province || !pids.includes(w.to))),
+    ) ||
+    m.works
+      .filter((w) => w.worker && !w.completed && !w.paused && !w.cancelled)
+      .some((w, i, all) =>
+        all.some((other, j) => i !== j && other.worker === w.worker),
+      )
+  )
+    throw new Error("v0.4预算、调查或项目工作分配无效");
   if (g.core.turn > duration(g)) throw new Error("回合超出剧本期限");
   if (
     typeof m.goalPending !== "boolean" ||
@@ -2092,6 +2446,28 @@ export function executeCommand(
     effects.push(
       `部门试点已通过，将在第${n.machine.departmentPending.due}回合生效`,
     );
+  for (const key of ["plan", "anomaly", "defense"] as const)
+    if (g.machine.departmentBudgets[key] !== n.machine.departmentBudgets[key])
+      effects.push(
+        `${getOffice(key).name}预算：${g.machine.departmentBudgets[key]} → ${n.machine.departmentBudgets[key]}`,
+      );
+  for (const pid of pids) {
+    const found = n.machine.discoveries[pid].filter(
+      (x) => !g.machine.discoveries[pid].includes(x),
+    );
+    if (found.length)
+      effects.push(
+        `${province(n, pid).name}新调查记录：${found.map((x) => ({ resources: "资源普查", routes: "运输网络", anomaly: "异常档案", "production-potential": "生产潜力", "stable-findings": "稳定勘察" })[x as "resources"]).join("、")}`,
+      );
+    if (
+      g.machine.audits[pid]?.rounds !== n.machine.audits[pid]?.rounds &&
+      n.machine.audits[pid]
+    )
+      effects.push(
+        `${province(n, pid).name}财政稽核：${n.machine.audits[pid]!.rounds}/2轮，税制整顿期限第${n.machine.audits[pid]!.bonusUntil}回合`,
+      );
+  }
+  if (action.type === "coordinate") effects.push(...v.effects);
   if (action.type === "authorize")
     effects.push(
       `${getOffice(action.lead).name}已获得主持权；${action.joint ? "中央与地方正式协办" : "独立主持"}，权限在本回合结束时到期`,
@@ -2100,11 +2476,15 @@ export function executeCommand(
     const b = g.machine.works.find((x) => x.id === w.id);
     if (!b)
       effects.push(
-        `新增${w.type === "energy" ? "能源工程" : "预警站"}：${province(n, w.province).name}，工期${w.duration}回合`,
+        `新增${workSpecs[w.type].name}：${province(n, w.province).name}，工期${w.duration}回合`,
       );
-    else if (w.progress !== b.progress || w.paused !== b.paused)
+    else if (
+      w.progress !== b.progress ||
+      w.paused !== b.paused ||
+      w.cancelled !== b.cancelled
+    )
       effects.push(
-        `${province(n, w.province).name}${w.type === "energy" ? "能源工程" : "预警站"}：${w.completed ? "竣工" : `${w.progress}/${w.duration}${w.paused ? "，暂停" : ""}`}`,
+        `${province(n, w.province).name}${workSpecs[w.type].name}：${w.cancelled ? "已取消，人员释放" : w.completed ? "竣工，人员释放" : `${w.progress}/${w.duration}${w.paused ? "，暂停" : ""}`}`,
       );
   }
   const progress = before
@@ -2280,8 +2660,11 @@ function randomOpening(g: V2Game) {
     duration: 1,
     paused: false,
     completed: true,
+    assignment: "advisor",
+    cancelled: false,
     source,
   });
+  if (m.department !== "none") m.departments[m.department] = [...pids];
   for (const id of Object.values(s.appointments))
     if (id) m.origins[`person:${id}`] = source;
   // A seeded agenda starts with one relevant administrative dispute, not an unconstrained flood.

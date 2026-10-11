@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { getPerson } from "../data";
 import type { ProvinceId } from "../types";
+import { workSpecs } from "../v2/administration";
 import type { V2Game } from "../v2/model";
 export type MapMode = "political" | "administrative" | "resources" | "crisis";
 const modes: Record<MapMode, string> = {
@@ -243,10 +244,10 @@ export function GameMap({
                     <p>
                       建：
                       {g.machine.works
-                        .filter((w) => w.province === r.pid)
+                        .filter((w) => w.province === r.pid && !w.cancelled)
                         .map(
                           (w) =>
-                            `${w.type === "energy" ? "能源网" : "预警站"} ${w.completed ? "已竣工" : `${w.progress}/${w.duration}`}`,
+                            `${workSpecs[w.type].name} ${w.completed ? "已竣工" : `${w.progress}/${w.duration}`}`,
                         )
                         .join("；") || "暂无设施"}
                     </p>
@@ -368,6 +369,63 @@ export function GameMap({
           opacity=".4"
           pointerEvents="none"
         />
+        {g.machine.works
+          .filter(
+            (w) => w.type === "rail" && w.completed && !w.cancelled && w.to,
+          )
+          .map((w) => {
+            const from = regions.find((r) => r.pid === w.province)!,
+              to = regions.find((r) => r.pid === w.to)!;
+            const blocked = g.machine.matters.some(
+              (x) =>
+                [w.province, w.to].includes(x.province) &&
+                (x.isolated || x.stage >= 3),
+            );
+            return (
+              <Tooltip
+                key={w.id}
+                title="跨省符阵铁路"
+                content={
+                  <p>
+                    {blocked
+                      ? "连接被危机/隔离阻断，先处理源头"
+                      : "竣工连接：保留两端收益权与合作后可在经济面板调运"}
+                    ；失控异常可能沿连接传播。
+                  </p>
+                }
+              >
+                <g
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`铁路连接${w.province}与${w.to}`}
+                  onClick={() => onSelect(w.to!, 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelect(w.to!, 0);
+                    }
+                  }}
+                >
+                  <line
+                    x1={from.x}
+                    y1={from.y + 20}
+                    x2={to.x}
+                    y2={to.y + 20}
+                    stroke={blocked ? "#db8e72" : "#f6d692"}
+                    strokeWidth="6"
+                  />
+                  <line
+                    x1={from.x}
+                    y1={from.y + 20}
+                    x2={to.x}
+                    y2={to.y + 20}
+                    stroke="transparent"
+                    strokeWidth="18"
+                  />
+                </g>
+              </Tooltip>
+            );
+          })}
         <g className="compass" transform="translate(890 455)">
           <path d="M0-34L8 0 0 34-8 0zM-34 0L0-8 34 0 0 8z" fill="#a8b4ac" />
           <text x="0" y="-45">
