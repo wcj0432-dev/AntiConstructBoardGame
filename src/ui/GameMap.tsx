@@ -1,10 +1,18 @@
 import { Tooltip } from "./Tooltip";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { getPerson } from "../data";
 import type { ProvinceId } from "../types";
 import { workSpecs } from "../v2/administration";
-import type { V2Game } from "../v2/model";
+import {
+  accountLabel,
+  fundingLabels,
+  gridOperating,
+  workFunding,
+} from "../v2/fiscal";
+import type { V2Game, Work } from "../v2/model";
+import { officePerson } from "../v2/personnel";
+import { FacilityMarkerV5, MapGeographyV5, V5_REGION_PATHS } from "./art/V5Art";
 export type MapMode = "political" | "administrative" | "resources" | "crisis";
 const modes: Record<MapMode, string> = {
   political: "政治",
@@ -15,37 +23,31 @@ const modes: Record<MapMode, string> = {
 const regions = [
   {
     pid: "industry",
-    points: "160,140 310,100 480,140 465,270 320,290 195,250",
     x: 320,
     y: 195,
   },
   {
     pid: "industry",
-    points: "195,250 320,290 465,270 455,405 305,445 170,360",
     x: 315,
     y: 345,
   },
   {
     pid: "south",
-    points: "170,360 305,445 455,405 460,525 320,580 185,510 120,425",
     x: 290,
     y: 495,
   },
   {
     pid: "south",
-    points: "455,405 570,345 680,410 690,520 580,570 460,525",
     x: 575,
     y: 465,
   },
   {
     pid: "north",
-    points: "480,140 595,70 755,105 845,210 755,290 620,270 465,270",
     x: 645,
     y: 180,
   },
   {
     pid: "north",
-    points: "465,270 620,270 755,290 810,390 680,410 570,345 455,405",
     x: 640,
     y: 335,
   },
@@ -61,6 +63,7 @@ export function GameMap({
   district: number;
   onSelect: (p: ProvinceId, d: number) => void;
 }) {
+  const mapId = `atlas-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [ratio, setRatio] = useState(1);
   const [mode, setMode] = useState<MapMode>("political");
   const [zoom, setZoom] = useState(1);
@@ -84,6 +87,93 @@ export function GameMap({
   }, []);
   function moveZoom(amount: number) {
     setZoom((z) => Math.max(0.8, Math.min(2.4, z + amount)));
+  }
+  function contractSummary(work: Work) {
+    const contract = workFunding(g, work);
+    const owner =
+      contract.owner === "joint"
+        ? "联合共同管理"
+        : accountLabel(g, contract.owner);
+    const beneficiary = contract.beneficiary || work.province;
+    return `${fundingLabels[contract.mode]}；经营权：${owner}；受益地区：${accountLabel(g, beneficiary)}；出资份额：${contract.shares.map((share) => `${accountLabel(g, share.account)} ${share.weight}份`).join("、")}`;
+  }
+  function workState(work: Work) {
+    if (work.type === "grid" && work.completed)
+      return work.network?.fault
+        ? "已竣工 · 故障停机"
+        : gridOperating(g, work)
+          ? "已竣工 · 能源供给中"
+          : "已竣工 · 网络停运";
+    return work.completed
+      ? "已竣工"
+      : work.paused
+        ? `已暂停 · ${work.progress}/${work.duration}`
+        : `施工中 · ${work.progress}/${work.duration}`;
+  }
+  function workMarkers(r: (typeof regions)[number]) {
+    return g.machine.works
+      .filter((work) => work.province === r.pid && !work.cancelled)
+      .map((work, index) => (
+        <Tooltip
+          key={work.id}
+          title={`${workSpecs[work.type].name} · ${workState(work)}`}
+          content={
+            <>
+              <p>{contractSummary(work)}。</p>
+              <p>
+                工程负责人：
+                {getPerson(work.worker)?.name || "无需专职工程师"}；
+                {work.assignment === "dedicated"
+                  ? "专职工程派遣"
+                  : "工程顾问兼任"}
+                。竣工后维护 {workSpecs[work.type].maintenance} 财政/回合。
+              </p>
+              {work.type === "grid" && (
+                <p>
+                  {gridOperating(g, work)
+                    ? "正常供给使中央工业省的常规税源和物资产出各增加2；当地隔离会停止产出，产权收入按合同分配。"
+                    : work.network?.fault
+                      ? "设备故障已切断供给；处理国家事务中的能源故障后恢复。"
+                      : work.completed
+                        ? "网络当前停运；在经济建设中检查经营方同意、供给开关与当地危机。"
+                        : "施工中的连接尚不提供供电与财政收益。"}
+                </p>
+              )}
+            </>
+          }
+        >
+          <g
+            role="button"
+            tabIndex={0}
+            data-map-work={work.id}
+            aria-label={`${workSpecs[work.type].name} · ${workState(work)}`}
+            onClick={() => onSelect(r.pid, 1)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                onSelect(r.pid, 1);
+              }
+            }}
+          >
+            <FacilityMarkerV5
+              type={work.type}
+              status={
+                work.paused ||
+                (work.type === "grid" &&
+                  work.completed &&
+                  !gridOperating(g, work))
+                  ? "paused"
+                  : work.completed
+                    ? "completed"
+                    : "construction"
+              }
+              x={r.x + 55 + (index % 3) * 34}
+              y={r.y - 52 - Math.floor(index / 3) * 35}
+            />
+          </g>
+        </Tooltip>
+      ));
   }
   return (
     <div className="map-stage">
@@ -142,6 +232,11 @@ export function GameMap({
         }}
       >
         <defs>
+          {V5_REGION_PATHS.map((path, index) => (
+            <clipPath id={`${mapId}-district-${index}`} key={index}>
+              <path d={path} />
+            </clipPath>
+          ))}
           <pattern
             id="map-grid"
             width="50"
@@ -198,7 +293,13 @@ export function GameMap({
             const matters = g.machine.matters.filter(
               (m) =>
                 m.province === r.pid &&
-                ["oldgod", "accident", "supply", "distrust"].includes(m.kind),
+                [
+                  "oldgod",
+                  "accident",
+                  "energyFault",
+                  "supply",
+                  "distrust",
+                ].includes(m.kind),
             );
             const intense = matters.some((m) => m.stage >= 3);
             const fill =
@@ -231,7 +332,7 @@ export function GameMap({
                   <>
                     <p>
                       政：
-                      {getPerson(g.core.appointments[`gov-${r.pid}`])?.name ||
+                      {getPerson(officePerson(g, `gov-${r.pid}`))?.name ||
                         "负责人空缺"}
                       ；当前体制
                       {g.machine.regime === "vertical"
@@ -245,10 +346,7 @@ export function GameMap({
                       建：
                       {g.machine.works
                         .filter((w) => w.province === r.pid && !w.cancelled)
-                        .map(
-                          (w) =>
-                            `${workSpecs[w.type].name} ${w.completed ? "已竣工" : `${w.progress}/${w.duration}`}`,
-                        )
+                        .map((w) => `${workSpecs[w.type].name} ${workState(w)}`)
                         .join("；") || "暂无设施"}
                     </p>
                     <p>
@@ -286,17 +384,24 @@ export function GameMap({
                   }}
                   className={selected === r.pid ? "selected-region" : ""}
                 >
-                  <polygon
-                    points={r.points}
+                  <path
+                    className="map-province-shape"
+                    d={V5_REGION_PATHS[i]}
                     fill={fill}
                     stroke={selected === r.pid ? "#dfc98d" : "#9da990"}
                     strokeWidth={selected === r.pid ? 3 : 1.5}
                   />
-                  <polygon
-                    points={r.points}
+                  <path
+                    d={V5_REGION_PATHS[i]}
                     fill="url(#terrain)"
                     pointerEvents="none"
                   />
+                  <g
+                    clipPath={`url(#${mapId}-district-${i})`}
+                    pointerEvents="none"
+                  >
+                    <MapGeographyV5 province={r.pid} />
+                  </g>
                   <text
                     x={r.x}
                     y={r.y - 3}
@@ -317,8 +422,8 @@ export function GameMap({
                         ? `${g.machine.overrides[r.pid] ? "特定异常主责" : g.machine.regime === "vertical" ? "中央审批" : g.machine.regime === "joint" ? "联合批准" : "地方自主"}`
                         : mode === "crisis"
                           ? `持续事项 ${matters.length} / 异常压力 ${p.pressure.anomaly}`
-                          : getPerson(g.core.appointments[`gov-${r.pid}`])
-                              ?.name || "负责人空缺"}
+                          : getPerson(officePerson(g, `gov-${r.pid}`))?.name ||
+                            "负责人空缺"}
                   </text>
                   {d === 0 && (
                     <text
@@ -338,15 +443,6 @@ export function GameMap({
                       </text>
                     </g>
                   )}
-                  {d === 1 &&
-                    g.machine.works.some((w) => w.province === r.pid) && (
-                      <g className="map-marker works">
-                        <circle cx={r.x + 60} cy={r.y - 43} r="12" />
-                        <text x={r.x + 60} y={r.y - 38}>
-                          建
-                        </text>
-                      </g>
-                    )}
                   {d === 0 && matters.length > 0 && (
                     <g className="map-marker crisis">
                       <circle cx={r.x + 65} cy={r.y - 43} r="13" />
@@ -360,6 +456,9 @@ export function GameMap({
             );
           })}
         </g>
+        <g className="map-work-markers">
+          {regions.filter((_, index) => index % 2 === 1).flatMap(workMarkers)}
+        </g>
         <path
           d="M315 190L315 345 290 495 575 465 640 335 645 180"
           fill="none"
@@ -369,6 +468,100 @@ export function GameMap({
           opacity=".4"
           pointerEvents="none"
         />
+        {g.machine.works
+          .filter((work) => work.type === "grid" && !work.cancelled)
+          .map((work) => {
+            const from = regions.find(
+              (region) => region.pid === work.province,
+            )!;
+            const beneficiary = workFunding(g, work).beneficiary || "industry";
+            const to = regions.find((region) => region.pid === beneficiary)!;
+            const operating = gridOperating(g, work);
+            const color = work.network?.fault
+              ? "#ffc0b1"
+              : operating
+                ? "#a2e8da"
+                : work.completed
+                  ? "#c0c7c5"
+                  : "#f4d695";
+            const path = `M${from.x - 40} ${from.y - 35}C${from.x - 60} ${from.y - 170},${to.x - 85} ${to.y + 130},${to.x - 40} ${to.y + 40}`;
+            return (
+              <Tooltip
+                key={work.id}
+                title={`跨省能源网络 · ${workState(work)}`}
+                content={
+                  <>
+                    <p>
+                      {accountLabel(g, work.province)} →{" "}
+                      {accountLabel(g, beneficiary)}；{workState(work)}。
+                    </p>
+                    <p>{contractSummary(work)}。</p>
+                    <p>
+                      {operating
+                        ? "正常供给使工业省每回合实物产出与税源各增加2；当地隔离会停止产出，收益按实际税制和产权合同分配。"
+                        : work.network?.fault
+                          ? "能源故障令供给中断，完成故障事务的检修或分工处理后可恢复。"
+                          : work.completed
+                            ? "已竣工但未供给。先检查停机控制权、经营协议与沿线危机。"
+                            : "线路仍在施工；竣工后才形成实际能源供给。"}
+                    </p>
+                  </>
+                }
+              >
+                <g
+                  className={`map-energy-link ${operating ? "network-active" : work.network?.fault ? "network-fault" : "network-inactive"}`}
+                  role="button"
+                  tabIndex={0}
+                  data-map-energy={work.id}
+                  aria-label={`能源连接${accountLabel(g, work.province)}与${accountLabel(g, beneficiary)} · ${workState(work)}`}
+                  onClick={() => onSelect(beneficiary, 0)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelect(beneficiary, 0);
+                    }
+                  }}
+                >
+                  <path d={path} fill="none" stroke="#1b3036" strokeWidth="8" />
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="4"
+                    strokeDasharray={
+                      operating
+                        ? undefined
+                        : work.network?.fault
+                          ? "3 6"
+                          : "8 6"
+                    }
+                  />
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth="18"
+                  />
+                  <circle
+                    cx={from.x - 40}
+                    cy={from.y - 35}
+                    r="6"
+                    fill={color}
+                    stroke="#1b3036"
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx={to.x - 40}
+                    cy={to.y + 40}
+                    r="6"
+                    fill={color}
+                    stroke="#1b3036"
+                    strokeWidth="2"
+                  />
+                </g>
+              </Tooltip>
+            );
+          })}
         {g.machine.works
           .filter(
             (w) => w.type === "rail" && w.completed && !w.cancelled && w.to,
@@ -386,12 +579,15 @@ export function GameMap({
                 key={w.id}
                 title="跨省符阵铁路"
                 content={
-                  <p>
-                    {blocked
-                      ? "连接被危机/隔离阻断，先处理源头"
-                      : "竣工连接：保留两端收益权与合作后可在经济面板调运"}
-                    ；失控异常可能沿连接传播。
-                  </p>
+                  <>
+                    <p>
+                      {blocked
+                        ? "连接被危机/隔离阻断，先处理源头"
+                        : "竣工连接：保留两端收益权与合作后可在经济面板调运"}
+                      ；失控异常可能沿连接传播。
+                    </p>
+                    <p>{contractSummary(w)}。</p>
+                  </>
                 }
               >
                 <g

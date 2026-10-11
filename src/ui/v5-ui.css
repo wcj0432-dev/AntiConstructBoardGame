@@ -1,0 +1,528 @@
+/* Decision semantics. Colors reinforce text and symbols; they never carry state alone. */
+.semantic-text,
+.semantic-conditions,
+.semantic-cost-summary,
+.semantic-network {
+  font-size: var(--body, 16px);
+  line-height: 1.55;
+  color: #eef1e8;
+  overflow-wrap: anywhere;
+}
+
+.semantic-text > span,
+.semantic-text > button {
+  margin-inline: 0.1em;
+}
+
+.semantic-entity,
+.semantic-cost,
+.semantic-requirement,
+.semantic-condition-token,
+.semantic-effect,
+.semantic-deadline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
+  max-width: 100%;
+  vertical-align: baseline;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.semantic-entity svg,
+.semantic-cost svg,
+.semantic-requirement svg,
+.semantic-condition-token svg,
+.semantic-effect svg,
+.semantic-deadline svg {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  align-self: center;
+  stroke-width: 2.25;
+}
+
+.semantic-entity {
+  color: #cfdfef;
+  border-bottom: 1px dotted #96b6ce;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+button.semantic-entity {
+  min-width: 0;
+  padding: 0 0.12em;
+  border: 0;
+  border-bottom: 1px solid #96b6ce;
+  border-radius: 2px;
+  background: transparent;
+  text-align: start;
+  white-space: normal;
+  cursor: pointer;
+}
+
+button.semantic-entity:hover {
+  color: #fff5cf;
+  background: #2b424c;
+  border-bottom-color: #efd697;
+}
+
+button.semantic-entity:focus-visible {
+  outline: 2px solid #f3dca1;
+  outline-offset: 3px;
+  background: #2b424c;
+}
+
+.semantic-cost {
+  color: #ffdda0;
+  font-variant-numeric: tabular-nums;
+}
+
+.semantic-cost b {
+  font-size: 1.08em;
+}
+
+.semantic-requirement {
+  color: #d9ccff;
+  font-weight: 650;
+  border-bottom: 1px dashed #b8a5dc;
+}
+
+.semantic-status {
+  font-size: var(--label, 14px);
+  font-weight: 700;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding-inline: 0.25em;
+}
+
+.semantic-condition-token.is-met,
+.semantic-requirement.is-met,
+.semantic-conditions .is-met > svg,
+.semantic-conditions .is-met strong,
+.semantic-effect.effect-benefit {
+  color: #bfeacf;
+}
+
+.semantic-condition-token.is-unmet,
+.semantic-requirement.is-unmet,
+.semantic-cost.is-short,
+.semantic-shortage,
+.semantic-conditions .is-unmet > svg,
+.semantic-conditions .is-unmet strong,
+.semantic-effect.effect-cost {
+  color: #ffc4b8;
+}
+
+.semantic-effect {
+  font-weight: 650;
+}
+
+.semantic-effect.effect-neutral {
+  color: #e9e1be;
+}
+
+.semantic-deadline {
+  color: #f9d998;
+  font-weight: 700;
+  border-bottom: 1px dashed currentColor;
+}
+
+.semantic-deadline.is-urgent {
+  color: #ffc4b8;
+}
+
+.semantic-conditions,
+.semantic-cost-summary,
+.semantic-network {
+  margin-block: 12px;
+  padding: 12px;
+  border: 1px solid #4b636b;
+  border-radius: 5px;
+  background: #182b32;
+  min-width: 0;
+}
+
+.semantic-conditions h4,
+.semantic-cost-summary h4,
+.semantic-network h4 {
+  margin: 0 0 10px;
+  color: #f5e6bc;
+  font-size: calc(18px * var(--ui-scale, 1));
+  line-height: 1.35;
+}
+
+.semantic-conditions ul,
+.semantic-cost-summary ul,
+.semantic-relations {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.semantic-conditions li {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  padding-block: 8px;
+  border-top: 1px solid #40565d;
+}
+
+.semantic-conditions li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.semantic-conditions li > svg {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.semantic-conditions li > div {
+  min-width: 0;
+}
+
+.semantic-conditions p {
+  margin: 0;
+}
+
+.semantic-conditions p > strong {
+  margin-right: 0.6em;
+}
+
+.semantic-conditions .condition-reason,
+.semantic-conditions .condition-remedy {
+  margin-top: 4px;
+  color: #e0e7e4;
+}
+
+.semantic-conditions .condition-remedy > b {
+  color: #f4dfad;
+}
+
+.semantic-cost-summary ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(175px, 100%), 1fr));
+  gap: 8px;
+}
+
+.semantic-cost-summary li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
+.semantic-available {
+  color: #d8e1df;
+  font-size: var(--label, 14px);
+  font-variant-numeric: tabular-nums;
+}
+
+.semantic-network-nodes {
+  display: flex;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+}
+
+.semantic-relations li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding-block: 8px;
+  border-top: 1px solid #40565d;
+}
+
+.semantic-relations strong {
+  color: #d3e8d8;
+}
+
+.semantic-relations .blocked strong {
+  color: #ffc4b8;
+}
+
+.semantic-relations .pending strong {
+  color: #f9d998;
+}
+
+.semantic-relations small {
+  display: block;
+  flex-basis: 100%;
+  color: #e0e7e4;
+  font-size: var(--label, 14px);
+}
+
+.relation-arrow {
+  color: #efd697;
+  font-size: 18px;
+}
+
+/* Ledger wrappers own the scroll; a table can never expand the game viewport. */
+.v5-table-region {
+  min-width: 0;
+  min-height: 0;
+  max-height: min(48dvh, 34rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid #4b636b;
+  border-radius: 4px;
+}
+
+.v5-table-region:focus-visible {
+  outline: 2px solid #f3dca1;
+  outline-offset: 2px;
+}
+
+.v5-table-region table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: start;
+  color: #eef1e8;
+  font-size: var(--body, 16px);
+  line-height: 1.45;
+}
+
+.v5-table-region th,
+.v5-table-region td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #40565d;
+  vertical-align: top;
+}
+
+.v5-table-region th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #243b43;
+  color: #f5e6bc;
+  font-weight: 700;
+}
+
+.v5-table-region tbody tr:nth-child(even) {
+  background: #182b32;
+}
+
+.v5-portrait {
+  display: block;
+  flex-shrink: 0;
+  border: 1px solid #b6a785;
+  border-radius: 5px;
+  background: #1a3038;
+  box-shadow: inset 0 0 0 2px #263b3f;
+}
+
+.person-badge svg.v5-portrait {
+  height: 81px;
+}
+
+.state-finance .finance-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: 12px;
+}
+
+.state-finance .finance-summary > strong {
+  font-size: calc(22px * var(--ui-scale, 1));
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.state-finance .v5-table-region td[data-numeric],
+.state-finance .v5-table-region .numeric {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.v5-map-geography,
+.v5-map-landmarks {
+  pointer-events: none;
+}
+
+.federation-map [data-map-region]:hover > .map-province-shape,
+.federation-map [data-map-region]:focus-visible > .map-province-shape {
+  stroke: #fff0b4;
+  stroke-width: 4px;
+}
+
+.federation-map [data-map-work]:focus-visible .v5-facility-marker > circle,
+.federation-map .map-energy-link:focus-visible > path:nth-child(2) {
+  stroke: #fff0b4;
+  stroke-width: 4px;
+}
+
+.personnel-table-scroll {
+  min-width: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.personnel-table th,
+.personnel-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #4b636b;
+  vertical-align: top;
+  text-align: start;
+}
+
+.personnel-table {
+  font-size: var(--body, 16px) !important;
+  line-height: 1.5;
+}
+
+.personnel-table th > button {
+  min-width: 0;
+  padding: 5px 7px;
+  color: #f5e6bc;
+  font-size: var(--body, 16px);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.personnel-table tbody tr {
+  cursor: pointer;
+}
+
+.personnel-table tbody tr:nth-child(even) {
+  background: #182b32;
+}
+
+.personnel-table tbody tr:hover,
+.personnel-table tbody tr:focus-within {
+  background: #2b424c;
+}
+
+.personnel-table tbody tr.selected-person {
+  background: #304b50;
+  box-shadow: inset 3px 0 #efd697;
+}
+
+.personnel-table .personnel-name {
+  padding: 4px;
+  background: transparent;
+  border: 0;
+  text-align: start;
+  white-space: normal;
+}
+
+.personnel-table .person-badge {
+  gap: 10px;
+  min-width: 180px;
+}
+
+.personnel-table p {
+  margin: 5px 0 0;
+}
+
+.personnel-overview .impact-grid > div {
+  min-width: 0;
+}
+
+.personnel-overview > h2 {
+  margin-top: 0;
+  font-size: calc(22px * var(--ui-scale, 1));
+}
+
+.personnel-filters .v2-field,
+.personnel-table-tools .v2-field {
+  margin: 0;
+  gap: 6px;
+}
+
+.personnel-table-tools {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-block: 14px;
+}
+
+.personnel-table-tools > p {
+  flex: 1 1 200px;
+  margin: 0;
+}
+
+.personnel-table-tools .v2-field {
+  flex: 0 1 170px;
+  min-width: 0;
+}
+
+.personnel-table-tools > button {
+  min-height: 43px;
+}
+
+.network-console {
+  min-width: 0;
+  color: #eef1e8;
+  font-size: var(--body, 16px);
+}
+
+.network-console .document-card,
+.network-console .network-card {
+  min-width: 0;
+  margin-block: 12px;
+  padding: 14px;
+  border: 1px solid #526a70;
+  border-radius: 5px;
+  background: #182b32;
+}
+
+.network-console .network-status,
+.network-console .network-facts {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.network-console .network-status strong {
+  color: #efdda8;
+  font-size: calc(18px * var(--ui-scale, 1));
+}
+
+.network-console .network-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.network-console .v5-table-region {
+  margin-block: 12px;
+}
+
+.v5-event-art {
+  display: block;
+  width: 100%;
+  max-height: 140px;
+  margin-block: 10px;
+  border: 1px solid #60767a;
+  border-radius: 4px;
+  background: #172b33;
+}
+
+@media (prefers-contrast: more) {
+  .semantic-entity,
+  .semantic-requirement,
+  .semantic-condition-token,
+  .semantic-deadline {
+    border-bottom-style: solid;
+    border-bottom-width: 2px;
+  }
+
+  .semantic-conditions,
+  .semantic-cost-summary,
+  .semantic-network,
+  .v5-table-region {
+    border-color: #d2ddd9;
+  }
+}

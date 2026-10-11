@@ -9,7 +9,8 @@ export type Lifecycle =
   | "partial"
   | "resolved"
   | "deteriorated";
-export type Goal = "spark" | "accord" | "night";
+export type Goal =
+  "spark" | "accord" | "night" | "traffic" | "learning" | "prosperity";
 export type Capability =
   | "mobilize"
   | "seal"
@@ -26,7 +27,9 @@ export type MatterKind =
   | "oldgod"
   | "gazette"
   | "opportunity"
-  | "final";
+  | "final"
+  | "energyFault"
+  | "fiscalClaim";
 export interface Matter {
   id: string;
   title: string;
@@ -56,7 +59,49 @@ export interface History {
   parents: string[];
 }
 export type WorkType =
-  "energy" | "warning" | "farm" | "factory" | "port" | "cooperative" | "rail";
+  | "energy"
+  | "warning"
+  | "farm"
+  | "factory"
+  | "port"
+  | "cooperative"
+  | "rail"
+  | "grid"
+  | "academy";
+export type TaxSystem = "split" | "central" | "autonomy";
+export type FiscalAccount = "central" | ProvinceId | "cult";
+export type FundingMode = "central" | "local" | "joint" | "multi" | "cult";
+export interface LedgerEntry {
+  id: string;
+  turn: number;
+  from: FiscalAccount | "economy";
+  to: FiscalAccount | "public";
+  amount: number;
+  reason: string;
+  source: string;
+  category:
+    "tax" | "operation" | "investment" | "transfer" | "maintenance" | "audit";
+}
+export interface FiscalState {
+  taxSystem: TaxSystem;
+  locals: Record<ProvinceId, number>;
+  cultTreasury: number;
+  agreements: ProvinceId[];
+  autonomous: Record<ProvinceId, boolean>;
+  localFacilities: Record<ProvinceId, boolean>;
+  ledger: LedgerEntry[];
+  settlements: number;
+  stableTurns: number;
+  localDefaults: Record<ProvinceId, number>;
+  claims: ProvinceId[];
+}
+export interface FundingContract {
+  mode: FundingMode;
+  shares: { account: FiscalAccount; weight: number }[];
+  owner: FiscalAccount | "joint";
+  beneficiary?: ProvinceId;
+  source: string;
+}
 export type Department = "anomaly" | "evacuation" | "transport";
 export type WorkAssignment = "advisor" | "dedicated";
 export interface Work {
@@ -72,6 +117,14 @@ export interface Work {
   assignment?: WorkAssignment;
   to?: ProvinceId;
   cancelled?: boolean;
+  contract?: FundingContract;
+  network?: {
+    active: boolean;
+    fault: boolean;
+    faultAt?: number;
+    faultSeen?: boolean;
+    consentUntil?: number;
+  };
 }
 export interface Machine {
   mode: Mode;
@@ -139,6 +192,8 @@ export interface Machine {
   coordination: Partial<Record<ProvinceId, number>>;
   prepared?: { regime: Regime; until: number; supporters: string[] };
   drillsUntil: number;
+  fiscal?: FiscalState;
+  secondaryAppointments?: Record<string, string | null>;
 }
 export interface V2Game {
   schema: 2;
@@ -179,7 +234,26 @@ export type Action =
       worker?: string;
       assignment?: WorkAssignment;
       to?: ProvinceId;
+      funding?: FundingMode;
+      partner?: ProvinceId;
     }
+  | { type: "concurrent"; office: string; person: string | null }
+  | { type: "personSkill"; person: string; province: ProvinceId }
+  | { type: "fiscalReform"; system: TaxSystem }
+  | {
+      type: "fiscalTransfer";
+      province: ProvinceId;
+      direction: "grant" | "levy";
+      amount: number;
+    }
+  | { type: "fiscalAgreement"; province: ProvinceId }
+  | { type: "localAutonomy"; province: ProvinceId; enabled: boolean }
+  | {
+      type: "network";
+      work: string;
+      operation: "repair" | "close" | "reopen" | "consent";
+    }
+  | { type: "borderSupply"; route: "rail" | "jianghu" | "local" }
   | { type: "workControl"; work: string; operation: "cancel" | "restart" }
   | { type: "audit"; province: ProvinceId; lead: string }
   | {

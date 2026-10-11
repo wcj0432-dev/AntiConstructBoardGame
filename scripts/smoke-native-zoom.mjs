@@ -93,7 +93,7 @@ try {
       const shot = await cdp.send("Page.captureScreenshot", {
         format: "png",
         captureBeyondViewport: false,
-        fromSurface: true,
+        fromSurface: false,
       });
       await writeFile(
         path.join(shots, `native125-${width}x${height}.png`),

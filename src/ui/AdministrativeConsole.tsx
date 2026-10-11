@@ -7,6 +7,7 @@ import type {
   V2Game,
   WorkAssignment,
   WorkType,
+  FundingMode,
 } from "../v2/model";
 import { previewAction } from "../v2/engine";
 import {
@@ -17,6 +18,14 @@ import {
   workSpecs,
 } from "../v2/administration";
 import { Tooltip } from "./Tooltip";
+import {
+  accountLabel,
+  fundingLabels,
+  makeFunding,
+  fundingPayments,
+  workFunding,
+} from "../v2/fiscal";
+import { ConditionsList, CostSummary } from "./SemanticText";
 export function ActionButton({
   game,
   action,
@@ -73,6 +82,8 @@ export function AdministrativeConsole({
     [worker, setWorker] = useState("mo"),
     [assignment, setAssignment] = useState<WorkAssignment>("advisor"),
     [to, setTo] = useState<ProvinceId>("north"),
+    [funding, setFunding] = useState<FundingMode>("central"),
+    [partner, setPartner] = useState<ProvinceId>("industry"),
     [reform, setReform] = useState<Regime>("vertical");
   const [budgets, setBudgets] = useState(game.machine.departmentBudgets);
   const spec = workSpecs[type],
@@ -83,7 +94,9 @@ export function AdministrativeConsole({
     province,
     worker,
     assignment,
-    to: type === "rail" ? to : undefined,
+    to: type === "grid" ? "industry" : type === "rail" ? to : undefined,
+    funding,
+    partner,
   };
   const view = previewAction(game, project),
     person = getPerson(worker),
@@ -141,6 +154,11 @@ export function AdministrativeConsole({
                   anomaly: "异常档案",
                   "production-potential": "生产潜力",
                   "stable-findings": "稳定勘察记录",
+                  equipment: "工业设备标准",
+                  tax: "税务组织登记",
+                  "ley-interface": "灵能技术接口",
+                  "defense-equipment": "边防设备资格",
+                  "public-accounts": "公开财政档案",
                 })[x as "resources"],
             )
             .join("、") || "尚未调查"}
@@ -149,6 +167,22 @@ export function AdministrativeConsole({
       </section>
       <section className="document-card">
         <h3>经济投资与人员分配</h3>
+        <p>资金不等于实物库存；各出资账户必须同意并付自己的承诺。</p>
+        <ConditionsList
+          title="当前融资与开工条件"
+          conditions={view.conditions}
+        />
+        <CostSummary
+          title="本次各方出资"
+          costs={fundingPayments(
+            makeFunding(game, project as Extract<Action, { type: "project" }>),
+            spec.cost,
+          ).map((p) => ({
+            resource: "treasury" as const,
+            amount: p.amount,
+            label: accountLabel(game, p.account),
+          }))}
+        />
         <div className="form-grid">
           <label className="v2-field">
             建设类型
@@ -191,6 +225,36 @@ export function AdministrativeConsole({
               <option value="dedicated">专职派遣 · 暂停行政能力</option>
             </select>
           </label>
+          <label className="v2-field">
+            工程出资方式
+            <select
+              aria-label="工程出资方式"
+              value={funding}
+              onChange={(e) => setFunding(e.target.value as FundingMode)}
+            >
+              {Object.entries(fundingLabels).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {funding === "multi" && (
+            <label className="v2-field">
+              另一出资省
+              <select
+                aria-label="另一出资省"
+                value={partner}
+                onChange={(e) => setPartner(e.target.value as ProvinceId)}
+              >
+                {game.core.provinces.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {type === "rail" && (
             <label className="v2-field">
               铁路目的省
@@ -249,6 +313,10 @@ export function AdministrativeConsole({
         {m.works.length === 0 && <p>暂无已开工项目。</p>}
         {m.works.map((w) => (
           <article key={w.id} className="work-row">
+            <p>
+              出资：{fundingLabels[workFunding(game, w).mode]}
+              ；维护与施工由合同账户承担。
+            </p>
             <h4>
               {game.core.provinces.find((p) => p.id === w.province)!.name} ·{" "}
               {workSpecs[w.type].name}

@@ -5,6 +5,7 @@ import { participants } from "../v2/engine";
 import { regimes } from "../v2/data";
 import { hasDepartment } from "../v2/administration";
 import type { Action, Department, Regime, V2Game } from "../v2/model";
+import { officePerson } from "../v2/personnel";
 import { ActionButton } from "./AdministrativeConsole";
 export function reformImpact(g: V2Game, a: Action) {
   const scope =
@@ -105,9 +106,7 @@ export function OrganizationDiagram({
           .map((o) => (
             <div key={o.id} className="organization-node">
               <b>{o.name}</b>
-              <span>
-                {getPerson(game.core.appointments[o.id])?.name || "空缺"}
-              </span>
+              <span>{getPerson(officePerson(game, o.id))?.name || "空缺"}</span>
               <span>
                 {o.id === "anomaly"
                   ? "异常技术与收容"
@@ -149,7 +148,7 @@ export function OrganizationDiagram({
             >
               <b>{p.name}</b>
               <span>
-                {getPerson(game.core.appointments[`gov-${p.id}`])?.name ||
+                {getPerson(officePerson(game, `gov-${p.id}`))?.name ||
                   "省政府空缺"}
               </span>
               <span>异常主持 → {getOffice(owner).name}</span>

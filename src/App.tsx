@@ -70,7 +70,10 @@ import type {
 import type { Issue, ProvinceId } from "./types";
 import { PanelFrame } from "./ui/PanelFrame";
 import { TurnReview } from "./ui/TurnReview";
-import { AdministrativeConsole } from "./ui/AdministrativeConsole";
+import {
+  AdministrativeConsole,
+  ActionButton,
+} from "./ui/AdministrativeConsole";
 import {
   OrganizationDiagram,
   ReformImpact,
@@ -79,8 +82,19 @@ import {
 import { workSpecs, hasDepartment } from "./v2/administration";
 import { GameMap } from "./ui/GameMap";
 import { Tooltip } from "./ui/Tooltip";
+import { NetworkConsole } from "./ui/NetworkConsole";
 import { PersonBadge, EventArt } from "./ui/Visuals";
+import { PersonnelOverview, AppointmentImpact } from "./ui/PersonnelOverview";
+import { StateFinance } from "./ui/StateFinance";
+import {
+  ConditionsList,
+  CostSummary,
+  SemanticText,
+  type EntityReference,
+} from "./ui/SemanticText";
+import { assignedOffices, assignmentsFor, officePerson } from "./v2/personnel";
 import "./ui/command.css";
+import "./ui/v5-ui.css";
 type Panel =
   | "briefing"
   | "staff"
@@ -89,6 +103,7 @@ type Panel =
   | "help"
   | "central"
   | "economy"
+  | "finance"
   | "goals"
   | "matters"
   | "local"
@@ -108,6 +123,7 @@ const titles: Record<Panel, string> = {
   help: "规则与操作帮助",
   central: "中央政府",
   economy: "经济建设",
+  finance: "国家财政",
   goals: "国家目标",
   matters: "国家事务",
   local: "地方档案",
@@ -312,16 +328,34 @@ export default function App() {
         {view.effects.map((x, i) => (
           <p key={i}>{x}</p>
         ))}
-        <p>
-          <b>代价：</b>
-          {view.costs.commands}命令 / {view.costs.treasury}财政 /{" "}
-          {view.costs.capital}资本 / {view.costs.stock}物资
-        </p>
-        {view.conditions.map((c, i) => (
-          <p key={i} className={c.met ? "met" : "unmet"}>
-            {c.met ? "✓ 已满足" : "✕ 未满足"} · {c.label}：{c.reason}
-          </p>
-        ))}
+        <CostSummary
+          title="行动代价"
+          costs={[
+            {
+              resource: "command",
+              amount: view.costs.commands,
+              available: s.commands,
+            },
+            {
+              resource: "treasury",
+              amount: view.costs.treasury,
+              available: s.treasury,
+            },
+            {
+              resource: "capital",
+              amount: view.costs.capital,
+              available: s.capital,
+            },
+            {
+              resource: "stock",
+              amount: view.costs.stock,
+              available: s.provinces.find(
+                (p) => p.id === (view.costs.province || selected),
+              )?.stock,
+            },
+          ]}
+        />
+        <ConditionsList conditions={view.conditions} title="执行条件" />
         {view.errors.map((x, i) => (
           <p className="unmet" key={i}>
             {x}
@@ -422,7 +456,7 @@ export default function App() {
     setDistrict(0);
     setFocusedMatter(null);
     setOffice(`gov-${pid}`);
-    setPerson(n.core.appointments[`gov-${pid}`] || "xing");
+    setPerson(officePerson(n, `gov-${pid}`) || "xing");
     setAuthorizationMatter("");
     setLead(`gov-${pid}`);
     setJoint(true);
@@ -508,6 +542,44 @@ export default function App() {
       setEmergency(false);
       setAction(null);
       setModal("reform");
+    }
+  }
+  function navigateEntity(entity: EntityReference) {
+    if (entity.kind === "person" && getPerson(entity.id)) {
+      setPerson(entity.id);
+      setOffice(assignedOffices(g, entity.id)[0] || "gov-south");
+      open("staff");
+    } else if (entity.kind === "office") {
+      if (getOffice(entity.id)) {
+        setOffice(entity.id);
+        setPerson(officePerson(g, entity.id) || "xing");
+      }
+      open("central");
+      setTimeout(
+        () =>
+          document
+            .getElementById(`office-${entity.id}`)
+            ?.scrollIntoView({ block: "center" }),
+        50,
+      );
+    } else if (entity.kind === "province") {
+      const region = s.provinces.find((p) => p.id === entity.id);
+      if (region) {
+        setSelected(region.id);
+        setDistrict(0);
+        open("local");
+      }
+    } else if (entity.kind === "matter") {
+      if (m.matters.some((item) => item.id === entity.id)) locate(entity.id);
+      else
+        historySource(m.archive.find((item) => item.id === entity.id)?.source);
+    } else if (entity.kind === "project") {
+      const work = m.works.find((item) => item.id === entity.id);
+      if (work) {
+        setSelected(work.province);
+        setDistrict(0);
+      }
+      open("economy");
     }
   }
   function updateUi(next: typeof ui) {
@@ -653,6 +725,34 @@ export default function App() {
           </button>
         )}
         <div className="v2-plan-list">
+          {item.kind === "energyFault" && (
+            <NetworkConsole
+              game={g}
+              workId={item.variant}
+              onChoose={choose}
+              onEntityClick={navigateEntity}
+              onHistory={historySource}
+            />
+          )}
+          {item.kind === "fiscalClaim" && (
+            <>
+              <p>地方资金短缺或税权变化，需查看真实财政往来并协商处理。</p>
+              <button onClick={() => open("finance")}>
+                调阅国家财政与本省账本
+              </button>
+              <ActionButton
+                game={g}
+                action={{
+                  type: "fiscalTransfer",
+                  province: item.province,
+                  direction: "grant",
+                  amount: 2,
+                }}
+                label="专项援助2资金"
+                onChoose={choose}
+              />
+            </>
+          )}
           {plansFor(item, m.goal).map((plan) => {
             const a: Action = {
                 type: "resolve",
@@ -768,11 +868,7 @@ export default function App() {
             key={p.id}
             onClick={() => {
               setPerson(p.id);
-              setOffice(
-                Object.entries(s.appointments).find(
-                  ([, id]) => id === p.id,
-                )?.[0] || "gov-south",
-              );
+              setOffice(assignedOffices(g, p.id)[0] || "gov-south");
               open("staff");
             }}
           >
@@ -958,7 +1054,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.4.0 · 离线单人治理原型 / 原创联邦地图
+              v0.5.0 · 国家机器与跨省依赖 / 原创联邦地图
             </small>
           </section>
           {modal === "settings" && (
@@ -1002,7 +1098,7 @@ export default function App() {
                     <em> → {f.next}</em>
                   </>
                 }
-                onClick={() => open("economy")}
+                onClick={() => open("finance")}
               >
                 <h3>先支出，后收入</h3>
                 <p>
@@ -1092,7 +1188,7 @@ export default function App() {
                 <p>
                   {m.mode === "national" || m.mode === "experimental"
                     ? m.goalPending
-                      ? "第2回合开放发展规划会议，最迟第3回合结束前立项；可先查看三条战略与当前国情。"
+                      ? "第2回合开放发展规划会议，最迟第3回合结束前立项；可先查看六条战略与当前国情。"
                       : `第${duration(g)}回合还须执行终局，存活本身不足以胜利。`
                     : "实际管理南岭事故和北境危机，并生存至第4回合。"}
                 </p>
@@ -1332,36 +1428,70 @@ export default function App() {
               >
                 {result?.status === "failed" && executionFeedback}
                 <ReformImpact game={g} action={action} />
+                {(action.type === "appoint" ||
+                  action.type === "concurrent") && (
+                  <AppointmentImpact game={g} action={action} />
+                )}
                 <p className="v2-participants">
                   参与人物：
-                  {v.actors.map((id) => getPerson(id)?.name || id).join("、") ||
-                    "国家制度行动"}
+                  {v.actors.length
+                    ? v.actors.map((id, index) => (
+                        <span key={id}>
+                          {index > 0 && "、"}
+                          <SemanticText
+                            tokens={[
+                              {
+                                type: "entity",
+                                entity: {
+                                  kind: "person",
+                                  id,
+                                  label: getPerson(id)?.name || id,
+                                },
+                              },
+                            ]}
+                            onEntityClick={navigateEntity}
+                          />
+                        </span>
+                      ))
+                    : "国家制度行动"}
                   <br />
                   参与机构：
-                  {v.institutions
-                    .map((id) => getOffice(id)?.name || id)
-                    .join("、") || "全国组织"}
+                  {v.institutions.length
+                    ? v.institutions.map((id, index) => (
+                        <span key={id}>
+                          {index > 0 && "、"}
+                          <SemanticText
+                            tokens={[
+                              {
+                                type: "entity",
+                                entity: {
+                                  kind: "office",
+                                  id,
+                                  label: getOffice(id)?.name || id,
+                                },
+                              },
+                            ]}
+                            onEntityClick={navigateEntity}
+                          />
+                        </span>
+                      ))
+                    : "全国组织"}
                 </p>
-                <div className="v2-conditions">
-                  {v.conditions.map((c, i) => (
-                    <div className={c.met ? "met" : "unmet"} key={i}>
-                      {c.met ? (
-                        <Check size={19} />
-                      ) : (
-                        <AlertTriangle size={19} />
-                      )}
-                      <div>
-                        <b>{c.label}</b>
-                        <p>{c.reason}</p>
-                        {c.source && (
-                          <button onClick={() => historySource(c.source)}>
-                            查看限制来源
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                <ConditionsList
+                  className="action-conditions"
+                  conditions={v.conditions}
+                  title="执行条件"
+                />
+                {v.conditions
+                  .filter((condition) => condition.source)
+                  .map((condition, index) => (
+                    <button
+                      key={index}
+                      onClick={() => historySource(condition.source)}
+                    >
+                      查看限制来源 · {condition.label}
+                    </button>
                   ))}
-                </div>
                 {action.type === "resolve" && (
                   <>
                     <label className="v2-checkbox">
@@ -1397,24 +1527,41 @@ export default function App() {
                     </label>
                   </>
                 )}
-                <div className="v2-costs">
-                  <span>
-                    命令<b>−{v.costs.commands}</b>
-                  </span>
-                  <span>
-                    财政<b>−{v.costs.treasury}</b>
-                  </span>
-                  <span>
-                    资本<b>−{v.costs.capital}</b>
-                  </span>
-                  <span>
-                    物资<b>−{v.costs.stock}</b>
-                  </span>
-                </div>
+                <CostSummary
+                  className="action-cost-summary"
+                  costs={[
+                    {
+                      resource: "command",
+                      amount: v.costs.commands,
+                      available: s.commands,
+                    },
+                    {
+                      resource: "treasury",
+                      amount: v.costs.treasury,
+                      available: s.treasury,
+                    },
+                    {
+                      resource: "capital",
+                      amount: v.costs.capital,
+                      available: s.capital,
+                    },
+                    {
+                      resource: "stock",
+                      amount: v.costs.stock,
+                      available: s.provinces.find(
+                        (p) => p.id === (v.costs.province || selected),
+                      )?.stock,
+                    },
+                  ]}
+                />
                 <h3>改变的不只是余额</h3>
                 <ul>
                   {v.effects.map((e, i) => (
-                    <li key={i}>{e}</li>
+                    <li key={i}>
+                      <SemanticText
+                        tokens={[{ type: "effect", text: e, tone: "neutral" }]}
+                      />
+                    </li>
                   ))}
                 </ul>
                 {confirmedPreview && (
@@ -1575,6 +1722,40 @@ export default function App() {
                   ) : undefined
                 }
               >
+                {(modal === "central" ||
+                  modal === "economy" ||
+                  modal === "finance") && (
+                  <div className="panel-tabs" aria-label="国家管理分类">
+                    <button
+                      aria-pressed={modal === "central"}
+                      onClick={() => open("central")}
+                    >
+                      组织与机关
+                    </button>
+                    <button
+                      aria-pressed={modal === "finance"}
+                      onClick={() => open("finance")}
+                    >
+                      国家财政账本
+                    </button>
+                    <button
+                      aria-pressed={modal === "economy"}
+                      onClick={() => open("economy")}
+                    >
+                      工程与主动治理
+                    </button>
+                  </div>
+                )}
+                {modal === "finance" && (
+                  <StateFinance
+                    game={g}
+                    onChoose={choose}
+                    onSelect={(province) => {
+                      setSelected(province);
+                      setDistrict(0);
+                    }}
+                  />
+                )}
                 {(modal === "reform" || modal === "policy") && (
                   <div className="panel-tabs">
                     <button
@@ -1593,9 +1774,18 @@ export default function App() {
                 )}
                 {modal === "staff" && (
                   <>
+                    <PersonnelOverview
+                      game={g}
+                      onChoose={choose}
+                      province={selected}
+                      selectedPerson={person}
+                      onSelectPerson={setPerson}
+                    />
+                    <hr />
+                    <h3>逐席任免 · 快捷名册</h3>
                     <h2>人物的才能需要合适的位置。</h2>
                     <p>
-                      任命/免职1命令，一人一职。合法参与资格与当前制度共同决定特殊能力。
+                      主职任命/免职1命令。一人保留一个主职，可按实际专业与任务条件正式兼任一项空缺职务；合法参与资格与当前制度共同决定特殊能力。
                     </p>
                     <label className="v2-field">
                       职位
@@ -1607,7 +1797,8 @@ export default function App() {
                         {offices.map((o) => (
                           <option key={o.id} value={o.id}>
                             {o.name} ·{" "}
-                            {getPerson(s.appointments[o.id])?.name || "空缺"}
+                            {getPerson(officePerson(g, o.id))?.name || "空缺"}
+                            {m.secondaryAppointments?.[o.id] && "（兼职）"}
                           </option>
                         ))}
                       </select>
@@ -1621,13 +1812,15 @@ export default function App() {
                             <>
                               <p>
                                 当前职位：
-                                {personOfficeLabel(s.appointments, p.id)}
+                                {personOfficeLabel(g, p.id)}
                               </p>
                               <p>
                                 积怨{s.grievances[p.id]}/3 ·{" "}
-                                {s.grievances[p.id] >= 3
-                                  ? "拒绝协办，请政治和解"
-                                  : "可参与正式事务"}
+                                {assignmentsFor(g, p.id).adminAvailable
+                                  ? "人物实际工作能力可用，具体权限与预算按方案判定"
+                                  : assignmentsFor(g, p.id).restrictions.join(
+                                      "；",
+                                    ) || "尚无正式行政权限"}
                               </p>
                               <p>
                                 {coreAbilities[p.id]?.condition || p.ability}
@@ -1698,9 +1891,7 @@ export default function App() {
                             onClick={() => setPerson(p.id)}
                           >
                             <PersonBadge id={p.id} />
-                            <span>
-                              {personOfficeLabel(s.appointments, p.id)}
-                            </span>
+                            <span>{personOfficeLabel(g, p.id)}</span>
                           </button>
                         </Tooltip>
                       ))}
@@ -1735,7 +1926,7 @@ export default function App() {
                             </>
                           ) : (
                             <p>
-                              保留基础专业与立场；本版尚未为该人物扩展独特特殊行动。
+                              独特个人特征、真实行动条件与政治代价见上方全国人员档案。
                             </p>
                           )}
                           <p>
@@ -1926,7 +2117,7 @@ export default function App() {
                 )}
                 {modal === "help" && (
                   <>
-                    <h2>治理手册 · 国家机器 v0.2</h2>
+                    <h2>治理手册 · 国家机器 v0.5</h2>
                     <h3>指挥席操作</h3>
                     <p>
                       点击地图调阅地方，左栏切换管理功能，右侧提醒定位事务。地图支持拖动与滚轮缩放，四种地图模式展示政治、行政、资源和危机。Esc关闭最上层面板，再按Esc进入暂停菜单；保存与读取都在暂停菜单。正文只在面板内部滚动，底部回合按钮持续可见。
@@ -1936,7 +2127,7 @@ export default function App() {
                     </p>
                     <h3>财政与失败</h3>
                     <p>
-                      每回合基础税收5，设施与有限稽核可增加收入；先支付基本预算、组织/设施维护和可施工项目。紧缩预算降低职能，专项预算加速建设但增加支出。连续两次无法履行承诺会失败；全国危机≥12或中央阻塞连续两回合≥4也会失败。全国模式还要完成目标终局，存活本身不是正式胜利。
+                      中央与地方分别记账，当前分税把真实地区税源按份分配；工程开工、施工与维护按投资合同付款。先支付本期运作和承诺，再发放税收，不把物资库存当财政。紧缩预算降低职能，专项预算加速建设但增加支出。连续两次无法履行承诺会失败；全国危机≥12或中央阻塞连续两回合≥4也会失败。全国模式还要完成目标终局，存活本身不是正式胜利。
                     </p>
                     <h3>三种体制如何不同</h3>
                     {Object.values(regimes).map((r) => (
@@ -2138,7 +2329,7 @@ export default function App() {
                     </p>
                     <button onClick={() => open("reform")}>调阅三类改革</button>
                     {offices.map((o) => {
-                      const id = s.appointments[o.id];
+                      const id = officePerson(g, o.id);
                       return (
                         <Tooltip
                           key={o.id}
@@ -2154,9 +2345,13 @@ export default function App() {
                               <p>
                                 当前负责人：{getPerson(id)?.name || "岗位空缺"}
                                 ，
-                                {id && s.grievances[id] >= 3
-                                  ? "已拒绝协办，需政治和解"
-                                  : "仍可实际履职"}
+                                {id && assignmentsFor(g, id).adminAvailable
+                                  ? "人物实际工作能力可用，具体权限与预算按方案判定"
+                                  : id
+                                    ? assignmentsFor(g, id).restrictions.join(
+                                        "；",
+                                      ) || "暂无可投入行政能力"
+                                    : "须先配置主职或正式兼职"}
                               </p>
                               <p>
                                 {o.province
@@ -2166,7 +2361,11 @@ export default function App() {
                             </>
                           }
                         >
-                          <article tabIndex={0} className="document-card">
+                          <article
+                            id={`office-${o.id}`}
+                            tabIndex={0}
+                            className="document-card"
+                          >
                             <h3>{o.name}</h3>
                             <p>
                               {getPerson(id)?.name || "岗位空缺"} · 积怨
@@ -2214,6 +2413,15 @@ export default function App() {
                 )}
                 {modal === "economy" && (
                   <>
+                    <NetworkConsole
+                      game={g}
+                      onChoose={choose}
+                      onEntityClick={navigateEntity}
+                      onHistory={historySource}
+                    />
+                    <button onClick={() => open("finance")}>
+                      调阅中央、地方与工程出资账本
+                    </button>
                     <h3>财政预测 · 先支出，后收入</h3>
                     <div className="finance-summary">
                       <strong>
@@ -2404,7 +2612,7 @@ export default function App() {
                             <h3>国家发展规划会议</h3>
                             <p>
                               {s.turn === 1
-                                ? "第1回合：先了解国情，可预览三条战略。第2回合开放正式立项。"
+                                ? "第1回合：先了解国情，可预览六条战略。第2回合开放正式立项。"
                                 : "会议已开放：最迟第3回合结束前确立主要战略。"}
                             </p>
                             <div className="goal-strategies">
@@ -2654,7 +2862,7 @@ export default function App() {
                     </p>
                     <p>
                       负责人：
-                      {getPerson(s.appointments[`gov-${selected}`])?.name ||
+                      {getPerson(officePerson(g, `gov-${selected}`))?.name ||
                         "空缺"}
                       。收益权{m.rights[selected] ? "已保留" : "未签订"}
                       ；群众组织
@@ -2745,7 +2953,7 @@ export default function App() {
                         onClick={() => {
                           setOffice(`gov-${selected}`);
                           setPerson(
-                            s.appointments[`gov-${selected}`] || "xing",
+                            officePerson(g, `gov-${selected}`) || "xing",
                           );
                           open("staff");
                         }}
@@ -3039,7 +3247,7 @@ export default function App() {
                 disabled={!playing}
                 onClick={() => {
                   setOffice(`gov-${selected}`);
-                  setPerson(s.appointments[`gov-${selected}`] || "xing");
+                  setPerson(officePerson(g, `gov-${selected}`) || "xing");
                   open("staff");
                 }}
               >
@@ -3088,10 +3296,15 @@ export default function App() {
     </div>
   );
 }
-function personOfficeLabel(
-  appointments: Record<string, string | null>,
-  id: string,
-) {
-  const office = Object.entries(appointments).find(([, p]) => p === id)?.[0];
-  return office ? getOffice(office).short : "待任命";
+function personOfficeLabel(game: V2Game, id: string) {
+  const assignment = assignmentsFor(game, id);
+  const main = assignment.mainOffice
+    ? getOffice(assignment.mainOffice)?.short
+    : "待任命";
+  return [
+    main,
+    ...assignment.secondaryOffices.map(
+      (office) => `${getOffice(office)?.short}兼职`,
+    ),
+  ].join(" / ");
 }

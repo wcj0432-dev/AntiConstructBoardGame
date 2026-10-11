@@ -24,10 +24,11 @@ await zip(`${prefix}-Offline.zip`, archive => {
   archive.file(path.join(root, 'PLAYER_GUIDE.md'), { name: '游玩说明.md' });
   archive.file(path.join(root, 'THIRD_PARTY_NOTICES.md'), { name: 'THIRD_PARTY_NOTICES.md' });
   archive.file(path.join(root, 'RULES.md'), { name: 'RULES.md' });
+  archive.file(path.join(root, 'V5_DELIVERY.md'), { name: 'v0.5交付说明.md' });
 });
 await zip(`${prefix}-Source.zip`, archive => {
   for (const name of ['src', 'desktop', 'scripts', 'docs', '.github']) archive.directory(path.join(root, name), `${prefix}-Source/${name}`);
-  for (const name of ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'index.html', 'README.md', 'RULES.md', 'PLAYER_GUIDE.md', 'RELEASE_NOTES.md', 'CHANGELOG.md', 'UI_REFACTOR.md', 'V3_DELIVERY.md', 'V4_DELIVERY.md', 'THIRD_PARTY_NOTICES.md', '.gitignore']) archive.file(path.join(root, name), { name: `${prefix}-Source/${name}` });
+  for (const name of ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'index.html', 'README.md', 'RULES.md', 'PLAYER_GUIDE.md', 'RELEASE_NOTES.md', 'CHANGELOG.md', 'UI_REFACTOR.md', 'V3_DELIVERY.md', 'V4_DELIVERY.md', 'V5_DELIVERY.md', 'THIRD_PARTY_NOTICES.md', '.gitignore']) archive.file(path.join(root, name), { name: `${prefix}-Source/${name}` });
 });
 const dirs = await readdir(path.join(artifacts, 'desktop')).catch(() => []);
 for (const name of dirs) {

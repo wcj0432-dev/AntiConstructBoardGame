@@ -1,8 +1,8 @@
-# 诸界联邦 · 地图指挥台 v0.4.0
+# 诸界联邦 · 国家机器 v0.5.0
 
 本地单人 PvE 数字桌游。React + TypeScript + Vite，无后端或在线裁判。通过人事、实际事权、路线和具体资源交换，构建一套能够治理奇幻世界的国家机器。
 
-启动先进入独立主菜单；从「教学战役」进入四阶段实际操作，也可选择固定四回合「南岭—北境紧急状态」，八回合国家治理模式或十二回合实验战役。正式任期先了解国情，第2～3回合在游戏内立项战略。「星火计划」「诸界协约」「长夜防线」都需要具体组织与设施，并在最后回合通过终局检验；十二回合模式还要完成第10～11回合全国协作演练；仅存活不会获得正式胜利。
+启动先进入独立主菜单；从「教学战役」进入四阶段实际操作，也可选择固定四回合「南岭—北境紧急状态」，八回合国家治理模式或十二回合实验战役。正式任期先了解国情，第2～3回合在游戏内立项战略。六条路线（星火、协约、长夜、交通、教育、繁荣）都需要具体组织与设施，并在最后回合通过终局检验；十二回合模式还要完成第10～11回合全国协作演练；仅存活不会获得正式胜利。
 
 ## 运行
 
@@ -11,7 +11,7 @@ Node.js 22/24，桌面打包使用24.5以上。已验证Node24.19、npm11.9。
 ```bash
 npm ci
 npm run dev                 # 浏览器打开 http://localhost:5173
-npm test                    # 111项规则、兼容与完整战役测试
+npm test                    # 227项财政、人员、跨系统与战役回归
 npm run build               # TypeScript检查及生产构建
 npm run preview
 ```
@@ -23,17 +23,22 @@ npx playwright install chromium
 npm run test:browser -- http://localhost:5173
 npm run test:v3 -- http://localhost:5173
 npm run test:v4 -- http://localhost:5173
+npm run test:v5 -- http://localhost:5173
 ```
 
 覆盖完整教程、存档读回、4种桌面尺寸、125%等效视口、地图/面板/提醒、国家目标入口、四回合UI胜利和终局历史。原生浏览器125%缩放另用 `npm run test:zoom` 验证。使用系统Chromium时可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
 
 首次安装需要网络；游玩不需要账号、密钥或服务器。所有字体使用本机字体，图标随游戏打包。
 
-## v0.4的实际变化
+## v0.5 的实际变化
 
-当前命令与历史结果分开，结束回合使用独立结算预览；新增有限稽核、调查、预算、合作和改革准备。七类工程明确顾问/专职工作，占用、暂停、取消、恢复与竣工释放可读档。三类权力调整以组织结构和地图呈现，部门领域改革可并存并限定省份。铁路提供真实调运与风险传播。
+中央财政、三省货币和实物库存分账；同一地区税源按三种税制分配，拨款/上缴守恒。九类工程可由中央、地方、央地、多省或宗门出资，开工、施工、维护、收益与管理权按合同执行。国家财政视图列出各方承诺与统一账本。
 
-[阶段交付报告](V4_DELIVERY.md)列出复现原因、经济规则、111项测试与浏览器证据、已完成及尚未完成内容。[v0.3报告](V3_DELIVERY.md)保留既有种子与十二回合改进记录。
+全国人员总览统一读取主职、正式兼职、工程顾问/专职及临时占用，可筛选排序并预览调任后果。24人均有实际资格或条件能力，学院与教习可以培养真正继任者。六条国家目标保留共同工程依赖与不同制度条件。
+
+南岭电网→工业生产/税源→设备与运输→北境防线是实际行动链。工程故障、两端异常、产权与在任技术人员改变应急资格；提高中央税份会削弱地方预算并触发财政诉求。语义条件、费用与可点击关系图随实际状态更新。
+
+[完整交付报告](V5_DELIVERY.md)列出诊断、财政结算、24人物与6目标、测试A～J及已知边界。按需求的阶段安排，本版完成第一至第三阶段，保留三省六区；五省扩图、完整长期剧情和高质量角色立绘留待第四阶段。美术为统一原创SVG模板，见[素材说明](docs/ART_V5.md)。
 
 ## 保留的v0.2规则
 
@@ -42,7 +47,7 @@ npm run test:v4 -- http://localhost:5173
 - 路线否决需要更换负责人、改变方案、取得真实妥协或合法紧急强制；资源不再自动消除冲突。
 - 利益交换分为保留收益权、持续部门预算、中央替代供应，产生不同长期后果。
 - 公开事故留下能源配给争议；秘密封印产生地方说明诉求。北境旧神是可撤离、遏制、隔离或封印的持续危机。
-- 三种国家目标、工程进度、五种有机制效果的奇幻公报，以及可追溯到真实决策的历史和执政报告。
+- 六种国家目标、工程进度、五种有机制效果的奇幻公报，以及可追溯到真实决策的历史和执政报告。
 - 财政预测与结算使用同一函数。收入、固定支出、制度维护及可暂停承诺明确分开；先付支出再收税。
 - 主体字号16px，操作按钮16–18px；关键危机和目标集中展示，机构详情可以折叠，保留原来的绿色纸质桌游风格。
 
@@ -82,18 +87,21 @@ npm run release:pack        # Windows-x64、离线HTML、源码zip及SHA256
 npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
 ```
 
-GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再直接打开离线HTML完成三套浏览器交互测试，通过后发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.4.0`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
+GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再直接打开离线HTML完成四套浏览器交互测试，通过后发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.5.0`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
 
-[下载v0.4离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.4.0-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。旧发布仍保留，新包以v0.4.0命名。
+[下载v0.5离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.5.0-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。旧发布仍保留，新包以v0.5.0命名。
 
 ## 工程结构
 
 ```text
-src/data.ts, types.ts       复用12人物、三省六区、职位、政策和基础状态
+src/data.ts, types.ts       24人物、三省六区、职位、政策和基础状态
 src/engine.ts              保留v0.1人事、政策、和解、随机与存档校验
-src/v2/model.ts, data.ts    v0.2组织关系、三体制、目标、公报及方案定义
+src/v2/model.ts, data.ts    v0.2组织关系、三体制、六目标、公报及方案定义
 src/v2/engine.ts            纯函数统一资格、预览、执行、持续结算及因果
-src/finance.ts              共享财政预测函数
+src/v2/fiscal.ts            央地账户、共享结算、税制、融资与账本
+src/v2/personnel.ts         正式职位/兼职/项目/临时任务统一读取
+src/v2/traits.ts            24人物资格、主动特征和传承
+src/v2/networks.ts, border.ts 真实能源、设备、产权与边防链
 src/v2/engine.test.ts       真正行动集合、财政、教程及4/8回合验收
 src/App.tsx, ui/            主菜单、固定视口地图、文书窗口与可解释界面
 src/LegacyApp.tsx           保留旧界面供回归参考，不作为现行模式入口

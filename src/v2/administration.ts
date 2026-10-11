@@ -1,5 +1,7 @@
 import { getOffice, getPerson } from "../data";
 import { random } from "../engine";
+import { assignedOffices, officePerson } from "./personnel";
+import { auditTrait, projectCandidate } from "./traits";
 import type { ProvinceId } from "../types";
 import type {
   Action,
@@ -26,6 +28,30 @@ export const workSpecs: Record<
     benefit: string;
   }
 > = {
+  grid: {
+    name: "跨省灵能电网",
+    cost: 4,
+    stock: 2,
+    duration: 3,
+    income: 1,
+    output: 0,
+    maintenance: 1,
+    skill: 2,
+    benefit:
+      "南岭→工业省真实供能：工业产出与税源+2，经营收益按产权分配；故障沿依赖传播",
+  },
+  academy: {
+    name: "诸界专业学院",
+    cost: 3,
+    stock: 1,
+    duration: 2,
+    income: 0,
+    output: 0,
+    maintenance: 1,
+    skill: 1,
+    benefit:
+      "建立本省专业教学与传承资格，减少对单一人物的依赖；地方权利与师资决定课程",
+  },
   energy: {
     name: "宗门灵脉能源工程",
     cost: 2,
@@ -110,7 +136,7 @@ export const departmentLabels = {
   defense: "国家安全委员会",
 };
 export function officerOffice(g: V2Game, id: string) {
-  return Object.entries(g.core.appointments).find(([, p]) => p === id)?.[0];
+  return assignedOffices(g, id)[0];
 }
 export function assignmentFor(g: V2Game, id: string, except?: string) {
   return g.machine.works.find(
@@ -155,19 +181,22 @@ export function workReadiness(g: V2Game, w: Work): Condition[] {
     ];
   const worker = w.worker || (w.type === "energy" ? "mo" : ""),
     person = getPerson(worker),
-    job = officerOffice(g, worker),
     dedicated = w.assignment === "dedicated";
   return [
     c(
       "项目专业能力",
       !!person &&
-        (w.type !== "energy" || worker === "mo") &&
+        (!["energy", "grid"].includes(w.type) ||
+          projectCandidate(g, worker, w.type, w.province)) &&
         person.skills.production >= workSpecs[w.type].skill,
-      "能源工程须由墨玄主持；其他项目须具备所列生产专业能力",
+      "能源工程须有真实灵能技术资格；继任者需专业传承、正式条件，其他项目仍检验专业能力",
     ),
     c(
       "职位与任务分配",
-      dedicated || (!!job && ["plan", `gov-${w.province}`].includes(job)),
+      dedicated ||
+        assignedOffices(g, worker).some((o) =>
+          ["plan", `gov-${w.province}`].includes(o),
+        ),
       "顾问须在计划委或项目所在省任职；空闲人物可专职派遣，调离顾问岗位会中断工程",
     ),
     c(
@@ -206,7 +235,7 @@ export function projectConditions(
       a.worker ||
       (a.project === "energy"
         ? "mo"
-        : g.core.appointments[`gov-${a.province}`] || undefined),
+        : officePerson(g, `gov-${a.province}`) || undefined),
     assignment: a.assignment || "advisor",
     to: a.to,
   };
@@ -229,6 +258,32 @@ export function projectConditions(
         "地方工程审批",
         m.regime !== "vertical" || hasDepartment(g, "anomaly", a.province),
         "垂直体制地方能源工程需全国/本省异常管理改革的工程审批接口",
+      ),
+    );
+  if (a.project === "grid")
+    out.push(
+      c(
+        "全国能源组织与受益地区",
+        a.province === "south" &&
+          a.to === "industry" &&
+          m.surveyed &&
+          m.standards &&
+          m.cooperation &&
+          m.rights.south &&
+          availableOfficer(g, officePerson(g, "plan")),
+        "南岭勘探、工业标准、合作与收益权、实际计划主管及工业受益省共同决定全国工程资格",
+      ),
+    );
+  if (a.project === "academy")
+    out.push(
+      c(
+        "地方教学权与专业师资",
+        m.rights[a.province] &&
+          m.trust[a.province] >= 2 &&
+          m.cooperation &&
+          !!getPerson(a.worker)?.skills.social &&
+          getPerson(a.worker)!.skills.social >= 2,
+        "学院需地方收益权、信任2、合作和社会专业至少2的实际负责人",
       ),
     );
   if (a.project === "farm")
@@ -387,7 +442,7 @@ export function administrativePreview(
       institutions: [] as string[],
     };
   const officer = (office: string) => {
-    const id = s.appointments[office];
+    const id = officePerson(g, office);
     out.institutions.push(office);
     if (id) out.actors.push(id);
     out.conditions.push(
@@ -434,8 +489,8 @@ export function administrativePreview(
             (s.policies.economy === 0 ? 1 : 0),
         );
     out.effects = [
-      `实际回收漏税${gain}财政；首轮另在本回合及下回合结算各增加1税收`,
-      `主管本回合被稽核占用；地方信任-1、负责人积怨+1，信任降至0会揭示财政利益争议`,
+      `实际回收漏税${gain}财政；首轮至第${s.turn + 1 + (id ? auditTrait(g, id).bonusDuration : 0)}回合结算各增加1收入，仍有两轮上限`,
+      `主管本回合被稽核占用；地方信任-${id ? auditTrait(g, id).trustCost : 1}、负责人积怨+1；${id ? auditTrait(g, id).title : "有限税务能力"}。信任归零或查出派系账外控制会揭示利益争议`,
     ];
   } else if (a.type === "budget") {
     out.title = `调整${departmentLabels[a.department]}预算`;
@@ -508,7 +563,7 @@ export function administrativePreview(
         c(
           "安全部门能力",
           m.departmentBudgets.defense > 0 &&
-            availableOfficer(g, s.appointments.defense),
+            availableOfficer(g, officePerson(g, "defense")),
           "安全部门须保留基本预算及在任负责人",
         ),
       );
@@ -617,13 +672,13 @@ export function applyAdministrative(
   const m = g.machine,
     s = g.core;
   const occupy = (office: string) => {
-    const id = s.appointments[office];
+    const id = officePerson(g, office);
     if (id) m.occupied[id] = source;
   };
   if (a.type === "audit") {
     const old = m.audits[a.province],
       p = s.provinces.find((p) => p.id === a.province)!,
-      id = s.appointments[a.lead]!;
+      id = officePerson(g, a.lead)!;
     s.treasury += old
       ? 1
       : Math.min(
@@ -636,14 +691,19 @@ export function applyAdministrative(
     m.audits[a.province] = {
       last: s.turn,
       rounds: (old?.rounds || 0) + 1,
-      bonusUntil: old ? old.bonusUntil : s.turn + 1,
+      bonusUntil: old
+        ? old.bonusUntil
+        : s.turn + 1 + auditTrait(g, id).bonusDuration,
     };
     occupy(a.lead);
-    m.trust[a.province] = Math.max(0, m.trust[a.province] - 1);
-    const governor = s.appointments[`gov-${a.province}`];
+    m.trust[a.province] = Math.max(
+      0,
+      m.trust[a.province] - auditTrait(g, id).trustCost,
+    );
+    const governor = officePerson(g, `gov-${a.province}`);
     if (governor) s.grievances[governor]++;
     if (
-      m.trust[a.province] === 0 &&
+      (m.trust[a.province] === 0 || auditTrait(g, id).exposesControl) &&
       ![...m.matters, ...m.backlog].some(
         (x) => x.kind === "distrust" && x.province === a.province,
       )
@@ -652,7 +712,7 @@ export function applyAdministrative(
   } else if (a.type === "budget") {
     const old = m.departmentBudgets[a.department];
     m.departmentBudgets[a.department] = a.level;
-    const actor = s.appointments[a.department];
+    const actor = officePerson(g, a.department);
     if (a.level < old && actor) s.grievances[actor]++;
   } else if (a.type === "survey") {
     m.discoveries[a.province].push(a.field);
@@ -680,8 +740,8 @@ export function applyAdministrative(
   } else if (a.type === "coordinate") {
     m.coordination[a.province] = s.turn;
     const actors = [
-      s.appointments.plan,
-      s.appointments[`gov-${a.province}`],
+      officePerson(g, "plan"),
+      officePerson(g, `gov-${a.province}`),
     ].filter((x): x is string => !!x);
     if (a.kind === "agreement") {
       m.rights[a.province] = true;

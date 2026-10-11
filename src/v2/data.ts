@@ -38,6 +38,21 @@ export const goals: Record<
     description: "用预警、秘密知识与跨省协同抵御全国异常灾害。",
     finale: "全国级异常防线总动员",
   },
+  traffic: {
+    name: "万里通途",
+    description: "让铁路、浮空港与跨文明运输在同一套可执行的规则下联通。",
+    finale: "跨文明运输体系联运验收",
+  },
+  learning: {
+    name: "百年树人",
+    description: "把关键人物的知识变成学院、专业训练与可以接班的国家能力。",
+    finale: "全国专业教育与传承体系验收",
+  },
+  prosperity: {
+    name: "富国新政",
+    description: "协调中央税源、地方产业与公共支出，建立持续运转的财政体系。",
+    finale: "全国财政与产业制度审议",
+  },
 };
 export const capNames: Record<Capability, string> = {
   mobilize: "群众动员",
@@ -108,6 +123,7 @@ const plan = (
   disclosure,
 });
 export function plansFor(m: Matter, goal: Goal): Plan[] {
+  if (m.kind === "energyFault" || m.kind === "fiscalClaim") return [];
   if (m.kind === "warning")
     return [
       plan(
@@ -492,5 +508,28 @@ export const strategyDetails: Record<
     resistance:
       "秘密处置留下说明诉求，公开路线影响秘密封印；地方分权须建立跨省协议",
     needs: "谢尔盖与密封档案或具备妥协的联合处置；预警站全部竣工；北境得到管理",
+  },
+  traffic: {
+    direction: "实际连接两省的铁路、沿线营业港口、灵能供电及跨文明联运",
+    beneficiaries: "计划委员会、地方商贸组织、江湖物流与符阵工程人员",
+    resistance:
+      "铁路和港口需要长期维护；地方收益权、运输接口和失控异常都会影响通行",
+    needs:
+      "兼容标准、覆盖沿线的运输权、可用物流专家；真实铁路、港口与灵能电网完成联通",
+  },
+  learning: {
+    direction: "两省学院、两类专业训练、跨组织教学渠道与关键能力继任者",
+    beneficiaries: "地方学院、宗门传承组织、救援社团与技术官僚后备人员",
+    resistance:
+      "专职教学挤占行政和工程工作；保密、宗门权利与地方不信任可能关闭知识交流",
+    needs: "学院与电网真实竣工；完成不同专业传承，训练后的继任者仍能实际履职",
+  },
+  prosperity: {
+    direction: "央地税源分配、两类持续营业的产业、地方偿付与连续稳定结算",
+    beneficiaries: "中央财政、地方政府、生产企业与跨省贸易网络",
+    resistance:
+      "征税制度必须与行政组织配合；维护费、地方违约和失去合作会削弱税基",
+    needs:
+      "可执行的税制与灵能电网，两处真实收入设施；至少三次连续稳定结算及地方支付能力",
   },
 };
