@@ -1,3 +1,4 @@
+import { facilityOperating } from "./operations";
 import { getOffice } from "../data";
 import type { ProvinceId } from "../types";
 import {
@@ -19,6 +20,7 @@ import type {
   V2Game,
   V2Preview,
   Work,
+  Maintenance,
 } from "./model";
 
 export const fiscalProvinces: ProvinceId[] = ["industry", "south", "north"];
@@ -107,7 +109,7 @@ export function addLedger(
     category,
   });
 }
-function setBalance(g: V2Game, a: FiscalAccount, n: number) {
+export function setBalance(g: V2Game, a: FiscalAccount, n: number) {
   if (a === "central") g.core.treasury = n;
   else if (a === "cult") g.machine.fiscal!.cultTreasury = n;
   else g.machine.fiscal!.locals[a] = n;
@@ -168,7 +170,7 @@ export function makeFunding(
           : mode === "central"
             ? "central"
             : "joint",
-    beneficiary: a.project === "grid" ? "industry" : a.to,
+    beneficiary: a.project === "grid" ? (a.to ?? "industry") : a.to,
     source,
   };
 }
@@ -287,21 +289,8 @@ export function debitProjectPartners(
   }
   return contract;
 }
-export function gridOperating(g: V2Game, w: Work) {
-  return (
-    w.type === "grid" &&
-    w.completed &&
-    !w.cancelled &&
-    !!w.network?.active &&
-    !w.network?.fault &&
-    !g.machine.matters.some(
-      (m) =>
-        ["accident", "oldgod"].includes(m.kind) &&
-        [w.province, w.to ?? "industry"].includes(m.province) &&
-        (m.isolated || (m.stage >= 3 && m.containment === 0)),
-    )
-  );
-}
+export const gridOperating = (g: V2Game, w: Work) =>
+  w.type === "grid" && facilityOperating(g, w);
 
 /** A single deterministic payment plan drives both the forecast and settlement. */
 export function nationalForecast(g: V2Game) {
@@ -317,6 +306,11 @@ export function nationalForecast(g: V2Game) {
     centralMaintenance: { label: string; amount: number }[] = [],
     centralSources: { label: string; amount: number }[] = [],
     constructionFunded: string[] = [];
+  const facilities: { work: string; maintenance: Maintenance }[] = [];
+  const operatingGame: V2Game = {
+    ...g,
+    machine: { ...g.machine, works: g.machine.works.map((w) => ({ ...w })) },
+  };
   const localRows = fiscalProvinces.map((pid) => ({
     province: pid,
     current: balances[pid],
@@ -399,26 +393,48 @@ export function nationalForecast(g: V2Game) {
     });
   }
   for (const w of g.machine.works.filter((w) => w.completed && !w.cancelled)) {
-    for (const p of fundingPayments(
-      workFunding(g, w),
-      workSpecs[w.type].maintenance,
-      g.core.turn,
-    )) {
-      if (p.account === "central") {
-        centralObligation += p.amount;
+    const fee = workSpecs[w.type].maintenance;
+    if (!fee) continue;
+    const current = w.maintenanceSponsor
+      ? [{ account: w.maintenanceSponsor, amount: fee }]
+      : fundingPayments(workFunding(g, w), fee, g.core.turn);
+    const owed = new Map<FiscalAccount, number>();
+    for (const row of w.maintenance?.payments ?? [])
+      if (row.arrears) owed.set(row.account, row.arrears);
+    for (const row of current)
+      owed.set(row.account, (owed.get(row.account) ?? 0) + row.amount);
+    const payments = [...owed].map(([account, due]) => {
+      if (account === "central") {
+        centralObligation += due;
         centralMaintenance.push({
-          label: `${workSpecs[w.type].name}维护`,
-          amount: p.amount,
+          label: `${workSpecs[w.type].name}维护（含往期欠款）`,
+          amount: due,
         });
-      } else if (p.account !== "cult") local(p.account).maintenance += p.amount;
-      pay(
-        p.account,
-        p.amount,
+      } else if (account !== "cult") local(account).maintenance += due;
+      const paid = pay(
+        account,
+        due,
         `${workSpecs[w.type].name}设施维护`,
         "maintenance",
         w.source,
       );
-    }
+      return { account, due, paid, arrears: due - paid };
+    });
+    const due = payments.reduce((n, p) => n + p.due, 0),
+      paid = payments.reduce((n, p) => n + p.paid, 0);
+    const maintenance: Maintenance = {
+      turn: g.core.turn,
+      fee,
+      due,
+      paid,
+      arrears: due - paid,
+      payments,
+      lastPaidTurn: due === paid ? g.core.turn : w.maintenance?.lastPaidTurn,
+      source: w.sponsorSource ?? w.source,
+    };
+    facilities.push({ work: w.id, maintenance });
+    operatingGame.machine.works.find((x) => x.id === w.id)!.maintenance =
+      maintenance;
   }
   for (const row of localRows) {
     const crisis = g.machine.matters.some(
@@ -485,8 +501,9 @@ export function nationalForecast(g: V2Game) {
       gross++;
     if (
       !isolated &&
-      p.id === "industry" &&
-      g.machine.works.some((w) => gridOperating(g, w))
+      operatingGame.machine.works.some(
+        (w) => gridOperating(operatingGame, w) && (w.to ?? "industry") === p.id,
+      )
     )
       gross += 2;
     const share = splitTax(p.id, gross),
@@ -504,7 +521,15 @@ export function nationalForecast(g: V2Game) {
   }
   for (const w of g.machine.works) {
     const operating =
-        w.type === "grid" ? gridOperating(g, w) : workOperating(g, w),
+        w.type === "grid"
+          ? gridOperating(
+              operatingGame,
+              operatingGame.machine.works.find((x) => x.id === w.id)!,
+            )
+          : workOperating(
+              operatingGame,
+              operatingGame.machine.works.find((x) => x.id === w.id)!,
+            ),
       gross = operating ? workSpecs[w.type].income : 0;
     if (!gross) continue;
     const contract = workFunding(g, w),
@@ -599,6 +624,7 @@ export function nationalForecast(g: V2Game) {
     locals: localRows,
     totalTax: localRows.reduce((s, r) => s + r.taxGross, 0),
     constructionFunded,
+    facilities,
     entries,
     balances,
   };
@@ -609,6 +635,9 @@ export function settleFiscal(
   source: string,
 ) {
   const f = g.machine.fiscal!;
+  for (const row of plan.facilities)
+    g.machine.works.find((w) => w.id === row.work)!.maintenance =
+      structuredClone(row.maintenance);
   g.core.treasury = plan.next;
   f.cultTreasury = plan.balances.cult;
   for (const p of plan.locals) {
@@ -636,13 +665,20 @@ export function settleFiscal(
     );
   f.settlements++;
   f.stableTurns =
-    plan.default || plan.locals.some((p) => p.default) ? 0 : f.stableTurns + 1;
+    plan.default ||
+    plan.locals.some((p) => p.default) ||
+    plan.facilities.some((x) => x.maintenance.arrears > 0)
+      ? 0
+      : f.stableTurns + 1;
 }
 export type FiscalAction = Extract<
   Action,
   {
     type:
-      "fiscalReform" | "fiscalTransfer" | "fiscalAgreement" | "localAutonomy";
+      | "fiscalReform"
+      | "fiscalTransfer"
+      | "fiscalAgreement"
+      | "localAutonomy";
   }
 >;
 export function isFiscal(a: Action): a is FiscalAction {

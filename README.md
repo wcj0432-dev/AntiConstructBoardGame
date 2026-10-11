@@ -1,8 +1,14 @@
-# 诸界联邦 · 国家机器 v0.5.1
+# 诸界联邦 · 国家机器 v0.6.0
 
 本地单人 PvE 数字桌游。React + TypeScript + Vite，无后端或在线裁判。通过人事、实际事权、路线和具体资源交换，构建一套能够治理奇幻世界的国家机器。
 
 启动先进入独立主菜单；从「教学战役」进入四阶段实际操作，也可选择固定四回合「南岭—北境紧急状态」，八回合国家治理模式或十二回合实验战役。正式任期先了解国情，第2～3回合在游戏内立项战略。六条路线（星火、协约、长夜、交通、教育、繁荣）都需要具体组织与设施，并在最后回合通过终局检验；十二回合模式还要完成第10～11回合全国协作演练；仅存活不会获得正式胜利。
+
+## v0.6 的实际变化
+
+逐设施维护决定真实营业、产出、网络和教学，账户欠款可实际补缴或协商维护接管；共同资格同步用于行动与目标。指定导师培养指定学员，运营学院有真实周期/成本/容量作用，导师离任后受训者可接班。人事首先进入可操作组织图，名册保留为辅助查询。地区行动按真实特征分组，条件提醒定位实际机构/人物/地区，随机开局新增兼职、税制与历史产权差异。
+
+主菜单新增四阶段《南岭工程与人才接班》，五种合同可重玩，场景预算明示。完整模块、规则、迁移、280项新回归证据和已知边界见 [V6_DELIVERY.md](V6_DELIVERY.md)。
 
 ## 运行
 
@@ -11,7 +17,7 @@ Node.js 22/24，桌面打包使用24.5以上。已验证Node24.19、npm11.9。
 ```bash
 npm ci
 npm run dev                 # 浏览器打开 http://localhost:5173
-npm test                    # 227项财政、人员、跨系统与战役回归
+npm test                    # 280项财政、人员、跨系统与战役回归
 npm run build               # TypeScript检查及生产构建
 npm run preview
 ```
@@ -24,13 +30,14 @@ npm run test:browser -- http://localhost:5173
 npm run test:v3 -- http://localhost:5173
 npm run test:v4 -- http://localhost:5173
 npm run test:v5 -- http://localhost:5173
+npm run test:v6 -- http://localhost:5173
 ```
 
 覆盖完整教程、存档读回、4种桌面尺寸、125%等效视口、地图/面板/提醒、国家目标入口、四回合UI胜利和终局历史。原生浏览器125%缩放另用 `npm run test:zoom` 验证。使用系统Chromium时可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
 
 首次安装需要网络；游玩不需要账号、密钥或服务器。所有字体使用本机字体，图标随游戏打包。
 
-## v0.5 的实际变化
+## 继承的 v0.5 系统
 
 中央财政、三省货币和实物库存分账；同一地区税源按三种税制分配，拨款/上缴守恒。九类工程可由中央、地方、央地、多省或宗门出资，开工、施工、维护、收益与管理权按合同执行。国家财政视图列出各方承诺与统一账本。
 
@@ -87,9 +94,9 @@ npm run release:pack        # Windows-x64、离线HTML、源码zip及SHA256
 npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
 ```
 
-GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再直接打开离线HTML完成四套浏览器交互测试，通过后发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.5.1`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
+GitHub Actions `.github/workflows/release.yml` 在版本标签推送时测试、打包，并在Windows runner上检查真实exe的任命、事务、存档和重启读档，再直接打开离线HTML完成五套浏览器交互测试，通过后发布附件。也可手动运行，填写与package.json一致的已有标签（本版 `v0.6.0`）。本地生成文件不表示Release已发布，标签页面也不表示exe已验证。
 
-[下载v0.5离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.5.1-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。旧发布仍保留，新包以v0.5.1命名。
+[下载v0.6离线版](https://github.com/wcj0432-dev/AntiConstructBoardGame/raw/refs/heads/main/downloads/Federation-of-Worlds-v0.6.0-Offline.zip)，完整解压后双击HTML。Windows与源码见[GitHub Releases](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases)。旧发布仍保留，新包以v0.6.0命名。
 
 ## 工程结构
 
@@ -100,6 +107,10 @@ src/v2/model.ts, data.ts    v0.2组织关系、三体制、六目标、公报及
 src/v2/engine.ts            纯函数统一资格、预览、执行、持续结算及因果
 src/v2/fiscal.ts            央地账户、共享结算、税制、融资与账本
 src/v2/personnel.ts         正式职位/兼职/项目/临时任务统一读取
+src/v2/operations.ts       统一实际设施运营
+src/v2/maintenance.ts      逐设施欠付、补缴、责任接管
+src/v2/training.ts         个体师承、有限课程、继任
+src/v2/regions.ts          真实地域特征与发现
 src/v2/traits.ts            24人物资格、主动特征和传承
 src/v2/networks.ts, border.ts 真实能源、设备、产权与边防链
 src/v2/engine.test.ts       真正行动集合、财政、教程及4/8回合验收

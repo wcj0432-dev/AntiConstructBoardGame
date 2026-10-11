@@ -1,9 +1,16 @@
+import { hasCredential } from "./training";
+import { hasFeature } from "./regions";
 import { getOffice, getPerson, people } from "../data";
 import type { ProvinceId } from "../types";
 import type { Capability, Condition, V2Game, Work } from "./model";
 
 export type SpecialistKind =
-  "mediation" | "survey" | "standards" | "cooperation" | "tax" | "logistics";
+  | "mediation"
+  | "survey"
+  | "standards"
+  | "cooperation"
+  | "tax"
+  | "logistics";
 export interface PersonTrait {
   id: string;
   title: string;
@@ -815,21 +822,25 @@ export function projectCandidate(
   if (!p || (g.core.grievances[id] || 0) >= 3 || g.machine.occupied[id])
     return false;
   if (!["energy", "grid"].includes(type)) return true;
-  if (pid !== "south" || !g.machine.surveyed) return false;
+  if (
+    !hasFeature(g, pid, "leyline") ||
+    !(g.machine.surveyed || g.machine.discoveries[pid].includes("resources"))
+  )
+    return false;
   if (id === "mo") return true;
   if (id === "bai")
     return (
       g.machine.cooperation &&
-      g.machine.rights.south &&
-      g.machine.trust.south >= 2
+      g.machine.rights[pid] &&
+      g.machine.trust[pid] >= 2
     );
   if (id === "linruoxu") return g.machine.standards && g.machine.knowledge;
   return (
-    g.machine.milestones.includes("training:leywork") &&
+    hasCredential(g, id, "leywork") &&
     p.skills.production >= 2 &&
     p.skills.anomaly >= 2 &&
     g.machine.cooperation &&
-    g.machine.rights.south
+    g.machine.rights[pid]
   );
 }
 
@@ -848,7 +859,15 @@ export function specialistCapability(
         offices = heldOffices(g, p.id),
         m = g.machine,
         policies = g.core.policies;
-      if (!t || !officeFits(g, p.id, t, pid)) return false;
+      if (
+        !t ||
+        (!officeFits(g, p.id, t, pid) &&
+          !(
+            ["leywork", "seal", "mobilize"].includes(cap) &&
+            hasCredential(g, p.id, cap as "leywork" | "seal" | "mobilize")
+          ))
+      )
+        return false;
       const local = pid || "south";
       const professional = offices.some((o) => {
         const domains = getOffice(o)?.domains || [];
@@ -866,7 +885,7 @@ export function specialistCapability(
       if (cap === "leywork")
         return (
           projectCandidate(g, p.id, "energy", local) &&
-          ["plan", "anomaly", "gov-south"].some((o) => offices.includes(o))
+          ["plan", "anomaly", `gov-${local}`].some((o) => offices.includes(o))
         );
       if (cap === "seal")
         return (
@@ -876,7 +895,7 @@ export function specialistCapability(
           (p.id === "sergei" ||
             (p.id === "qi" &&
               (m.discoveries[local] || []).includes("anomaly")) ||
-            (m.milestones.includes("training:seal") && p.skills.anomaly >= 3))
+            (hasCredential(g, p.id, "seal") && p.skills.anomaly >= 2))
         );
       if (cap === "mobilize")
         return (
@@ -884,8 +903,7 @@ export function specialistCapability(
           !m.suppressed[local] &&
           m.trust[local] > 0 &&
           (["xing", "suyi"].includes(p.id) ||
-            (m.milestones.includes("training:mobilize") &&
-              p.skills.social >= 3))
+            (hasCredential(g, p.id, "mobilize") && p.skills.social >= 2))
         );
       if (cap === "industry")
         return (

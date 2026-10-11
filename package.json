@@ -1,6 +1,6 @@
 {
   "name": "federation-of-worlds",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,8 @@
     "test:zoom": "node scripts/smoke-native-zoom.mjs",
     "test:v3": "node scripts/smoke-v3.mjs",
     "test:v4": "node scripts/smoke-v4.mjs",
-    "test:v5": "node scripts/smoke-v5.mjs"
+    "test:v5": "node scripts/smoke-v5.mjs",
+    "test:v6": "node scripts/smoke-v6.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

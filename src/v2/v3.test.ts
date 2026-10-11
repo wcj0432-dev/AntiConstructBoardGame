@@ -4,6 +4,7 @@ import {
   executeAction,
   executeCommand,
   matterProgress,
+  milestones,
   newV2,
   previewAction,
   serializeV2,
@@ -410,10 +411,21 @@ describe("v0.3 随机模板的真实完整胜利", () => {
         )
           g = go(g, { type: "project", project: "warning", province });
       g = end(g);
+      if (g.core.appointments.plan !== "lin")
+        g = go(g, { type: "appoint", office: "plan", person: "lin" });
+      for (const pid of ["industry", "south", "north"] as const)
+        if (
+          !g.core.appointments[`gov-${pid}`] &&
+          !g.machine.secondaryAppointments?.[`gov-${pid}`]
+        )
+          g = go(g, { type: "appoint", office: `gov-${pid}`, person: "taoqi" });
       g = go(g, { type: "selectGoal", goal: "night" });
+      if (g.core.appointments.anomaly !== "sergei")
+        g = go(g, { type: "appoint", office: "anomaly", person: "sergei" });
       g = resolveKind(g, "accident", "seal");
       g = end(g);
       const distrust = g.machine.matters.find((x) => x.kind === "distrust")!;
+      g = go(g, { type: "budget", department: "defense", level: 0 });
       g = go(g, {
         type: "authorize",
         matter: distrust.id,
@@ -424,11 +436,28 @@ describe("v0.3 随机模板的真实完整胜利", () => {
       g = resolveKind(g, "distrust", "rights");
       g = end(g);
       g = resolveKind(g, "oldgod", "seal");
+      if (g.machine.fiscal!.taxSystem === "autonomy")
+        g = go(g, { type: "fiscalReform", system: "split" });
       while (g.core.turn < 12) {
-        if (g.core.turn === 10) g = go(g, { type: "inspect" });
+        while (g.core.paralysis >= 2) g = go(g, { type: "unblock" });
+        const supply = g.machine.matters.find((m) => m.kind === "supply");
+        if (supply)
+          g = go(g, {
+            type: "resolve",
+            matter: supply.id,
+            option: "transport",
+          });
+        if (
+          g.core.turn >= 10 &&
+          !g.machine.terminalInspected &&
+          !previewAction(g, { type: "inspect" }).errors.length
+        )
+          g = go(g, { type: "inspect" });
         g = end(g);
         expect(g.core.status).toBe("playing");
       }
+      while (g.core.paralysis >= 2) g = go(g, { type: "unblock" });
+      expect(milestones(g).every((c) => c.met)).toBe(true);
       g = resolveKind(g, "final", "activate");
       g = end(g);
       expect(g.core.status).toBe("won");

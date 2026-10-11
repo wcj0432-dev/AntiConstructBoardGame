@@ -1,3 +1,9 @@
+import { cooperationLink } from "./regionalActions";
+import { discoverFeature } from "./regions";
+import { hasCredential } from "./training";
+import { hasFeature } from "./regions";
+import { transportConditions } from "./qualifications";
+import { facilityOperating } from "./operations";
 import { getOffice, getPerson } from "../data";
 import { random } from "../engine";
 import { assignedOffices, officePerson } from "./personnel";
@@ -188,7 +194,9 @@ export function workReadiness(g: V2Game, w: Work): Condition[] {
       !!person &&
         (!["energy", "grid"].includes(w.type) ||
           projectCandidate(g, worker, w.type, w.province)) &&
-        person.skills.production >= workSpecs[w.type].skill,
+        (person.skills.production >= workSpecs[w.type].skill ||
+          (["energy", "grid"].includes(w.type) &&
+            hasCredential(g, worker, "leywork"))),
       "能源工程须有真实灵能技术资格；继任者需专业传承、正式条件，其他项目仍检验专业能力",
     ),
     c(
@@ -251,7 +259,8 @@ export function projectConditions(
     out.push(
       c(
         "灵脉调查与所在地",
-        m.surveyed && a.province === "south",
+        (m.surveyed || m.discoveries[a.province].includes("resources")) &&
+          hasFeature(g, a.province, "leyline"),
         "先勘探南岭灵脉，墨玄提供专业能力",
       ),
       c(
@@ -264,12 +273,13 @@ export function projectConditions(
     out.push(
       c(
         "全国能源组织与受益地区",
-        a.province === "south" &&
-          a.to === "industry" &&
-          m.surveyed &&
+        hasFeature(g, a.province, "leyline") &&
+          !!a.to &&
+          hasFeature(g, a.to, "industrial") &&
+          (m.surveyed || m.discoveries[a.province].includes("resources")) &&
           m.standards &&
           m.cooperation &&
-          m.rights.south &&
+          m.rights[a.province] &&
           availableOfficer(g, officePerson(g, "plan")),
         "南岭勘探、工业标准、合作与收益权、实际计划主管及工业受益省共同决定全国工程资格",
       ),
@@ -290,7 +300,7 @@ export function projectConditions(
     out.push(
       c(
         "农业地区与地方权利",
-        a.province !== "industry" &&
+        hasFeature(g, a.province, "rural") &&
           m.rights[a.province] &&
           m.trust[a.province] >= 2,
         "农业改良在南岭/北境实施，先保留本地收益权并获得信任2",
@@ -300,17 +310,23 @@ export function projectConditions(
     out.push(
       c(
         "工业所在地与兼容标准",
-        a.province === "industry" && m.standards,
+        hasFeature(g, a.province, "industrial") && m.standards,
         "工业改造位于工业省，先建立兼容标准",
       ),
       c(
         "生产潜力已普查",
-        m.discoveries.industry.includes("resources"),
+        m.discoveries[a.province].includes("resources"),
         "先在工业省资源普查，确认生产改造的实际对象",
       ),
     );
   if (a.project === "port")
     out.push(
+      c(
+        "港湾或浮空航线基础",
+        hasFeature(g, a.province, "coastal") ||
+          hasFeature(g, a.province, "aerial"),
+        "本地须有海岸港湾或浮空航线，普通交通调查不创造港口地理",
+      ),
       c(
         "交通调查",
         m.discoveries?.[a.province]?.includes("routes") || false,
@@ -362,25 +378,7 @@ export function projectConditions(
     );
   return out;
 }
-export function workOperating(g: V2Game, w: Work) {
-  const m = g.machine;
-  if (
-    w.cancelled ||
-    !w.completed ||
-    m.matters.some((x) => x.province === w.province && x.isolated)
-  )
-    return false;
-  if (
-    ["farm", "port", "cooperative"].includes(w.type) &&
-    (!m.rights[w.province] ||
-      m.trust[w.province] < 2 ||
-      m.suppressed[w.province])
-  )
-    return false;
-  if (w.type === "cooperative" && g.core.policies.method !== 1) return false;
-  if (w.type === "factory" && !m.standards) return false;
-  return true;
-}
+export const workOperating = facilityOperating;
 export function incomeSources(g: V2Game) {
   const rows = [
     { label: "中央工业省 · 工业与商业基础税", amount: 2 },
@@ -405,7 +403,12 @@ export type AdministrativeAction = Extract<
   Action,
   {
     type:
-      "audit" | "budget" | "survey" | "coordinate" | "transfer" | "workControl";
+      | "audit"
+      | "budget"
+      | "survey"
+      | "coordinate"
+      | "transfer"
+      | "workControl";
   }
 >;
 export function isAdministrative(a: Action): a is AdministrativeAction {
@@ -544,8 +547,12 @@ export function administrativePreview(
     out.conditions.push(
       c(
         "协调冷却",
-        (m.coordination[a.province] ?? -9) + 2 <= s.turn,
-        "同省每两回合最多协调一次",
+        (m.coordination[a.province] ?? -9) +
+          (cooperationLink(g, a.province) ? 1 : 2) <=
+          s.turn,
+        cooperationLink(g, a.province)
+          ? "同一批实际联合工程参与者仍在任，手续间隔缩短为一回合；岗位变化后恢复两回合"
+          : "同省每两回合最多协调一次，真实共同工程经历可在同一双方仍在任时简化手续",
       ),
     );
     if (a.kind === "agreement")
@@ -594,32 +601,7 @@ export function administrativePreview(
         Number.isInteger(a.amount) && a.amount >= 1 && a.amount <= 3,
         "每次调运1～3物资，另消耗源省1物资作为运输损耗",
       ),
-      c(
-        "已完工且畅通的铁路",
-        m.works.some(
-          (w) =>
-            w.type === "rail" &&
-            w.completed &&
-            !w.cancelled &&
-            ((w.province === a.from && w.to === a.to) ||
-              (w.province === a.to && w.to === a.from)),
-        ) &&
-          !m.matters.some(
-            (x) =>
-              [a.from, a.to].includes(x.province) &&
-              (x.isolated || x.stage >= 3),
-          ),
-        "两省须有竣工铁路且没有隔离或阶段3以上危机阻断",
-      ),
-      c(
-        "收益权与调配组织",
-        a.from !== a.to &&
-          m.cooperation &&
-          m.rights[a.from] &&
-          m.rights[a.to] &&
-          m.departmentBudgets.plan > 0,
-        "保留两端收益权、实际合作协议及计划委基本预算",
-      ),
+      ...transportConditions(g, a.from, a.to),
     );
     out.effects = [
       `源省支付${a.amount + 1}物资，目的省获得${a.amount}；全国总物资减少1，不可循环刷取`,
@@ -668,7 +650,8 @@ export function applyAdministrative(
   a: AdministrativeAction,
   source: string,
 ):
-  { kind: Matter["kind"]; province: ProvinceId; variant?: string } | undefined {
+  | { kind: Matter["kind"]; province: ProvinceId; variant?: string }
+  | undefined {
   const m = g.machine,
     s = g.core;
   const occupy = (office: string) => {
@@ -721,11 +704,19 @@ export function applyAdministrative(
       m.knowledge = true;
       m.origins.knowledge = source;
     }
-    if (a.field === "resources" && a.province === "south") {
+    if (a.field === "resources" && hasFeature(g, a.province, "leyline")) {
       m.surveyed = true;
       m.origins.surveyed = source;
     }
     const die = random(s);
+    if (
+      a.field === "resources" &&
+      die >= 0.8 &&
+      !hasFeature(g, a.province, "leyline")
+    ) {
+      discoverFeature(g, a.province, "leyline", source);
+      m.origins[`discovery:${a.province}:leyline`] = source;
+    }
     if (die < 0.45) {
       s.provinces.find((p) => p.id === a.province)!.pressure.anomaly++;
       return {

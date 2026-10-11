@@ -1,3 +1,21 @@
+import { explorationPool } from "./exploration";
+import {
+  demoReservePreview,
+  applyDemoReserve,
+  observeDemoSettlement,
+} from "./demonstration";
+import { hasFeature, discoverFeature } from "./regions";
+import { migrateAndValidateV6 } from "./migrationV6";
+import {
+  trainingPreview,
+  applyTraining,
+  advanceTrainings,
+  trainingNames,
+  teachingCap,
+} from "./training";
+import { plannerReady } from "./qualifications";
+import { initialFeatures } from "./regions";
+import { maintenancePreview, applyMaintenance } from "./maintenance";
 import {
   appoint as baseAppoint,
   deserialize as baseDeserialize,
@@ -269,7 +287,10 @@ export function newV2(
       archive: [],
       results: [],
       difficulty: "standard",
-      rulesVersion: "0.5.0",
+      rulesVersion: "0.6.0",
+      trainings: [],
+      regionFeatures: initialFeatures(),
+      relationships: [],
       fiscal: newFiscal(),
       secondaryAppointments: {},
       politics: "classic",
@@ -418,9 +439,10 @@ export function capability(
             assignedOffices(g, "mo").some((o) =>
               ["plan", "gov-south"].includes(o),
             ))) &&
-          g.machine.surveyed &&
-          m.province === "south",
-        "墨玄必须任计划委或南岭省负责人，灵脉已勘探且位于南岭",
+          (g.machine.surveyed ||
+            g.machine.discoveries[m.province].includes("resources")) &&
+          hasFeature(g, m.province, "leyline"),
+        "需要可履职的灵脉工程专家、当地灵脉特征及调查记录",
         g.machine.origins.surveyed,
       ),
       condition(
@@ -445,6 +467,11 @@ export function capability(
     ];
   if (cap === "transport")
     return [
+      condition(
+        "计划调度负责人实际履职",
+        plannerReady(g),
+        "计划委须有可履职的正式负责人和预算；专职派遣与即时占用不能靠其他物流特长绕过",
+      ),
       condition(
         "兼容运输与调配权限",
         g.machine.standards &&
@@ -529,12 +556,8 @@ export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
     return [
       condition(
         "工业与宗门建设能力",
-        active(g, "lin") &&
-          assignedOffices(g, "lin").includes("plan") &&
-          active(g, "mo") &&
-          assignedOffices(g, "mo").some((o) =>
-            ["plan", "gov-south"].includes(o),
-          ),
+        specialistCapability(g, "industry", "industry").length > 0 &&
+          specialistCapability(g, "leywork", "south").length > 0,
         "需要林铸保有计划职务，墨玄保有灵脉工程职位",
       ),
       condition(
@@ -545,8 +568,7 @@ export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
       condition(
         "南岭能源工程竣工",
         m.works.some(
-          (w) =>
-            ["energy", "grid"].includes(w.type) && w.completed && !w.cancelled,
+          (w) => ["energy", "grid"].includes(w.type) && workOperating(g, w),
         ),
         "完成两回合宗门灵脉工程",
       ),
@@ -649,7 +671,9 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
   const need = (label: string, met: boolean, reason: string, source?: string) =>
     v.conditions.push(condition(label, met, reason, source));
   if (s.status !== "playing") v.errors.push("本局已经结束");
-  if (action.type === "inspect") {
+  if (action.type === "demoReserve") {
+    Object.assign(v, demoReservePreview(g));
+  } else if (action.type === "inspect") {
     v.title = "全国工程与协作演练";
     v.costs.commands = 1;
     v.costs.treasury = 1;
@@ -1063,9 +1087,26 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     )
       .flat()
       .filter((x): x is string => typeof x === "string");
+  } else if (
+    action.type === "maintain" ||
+    action.type === "maintenanceSponsor"
+  ) {
+    Object.assign(v, maintenancePreview(g, action));
+  } else if (
+    action.type === "train" ||
+    action.type === "trainingControl" ||
+    action.type === "legacyTraining"
+  ) {
+    Object.assign(v, trainingPreview(g, action));
   } else if (action.type === "personSkill") {
     const p = specialistPreview(g, action.person, action.province);
     Object.assign(v, p);
+    if (teachingCap(action.person))
+      need(
+        "具体学员与培养过程",
+        false,
+        "请在人事的专业与师承中指定学员及教学方式，教习不再瞬间授予全局资格",
+      );
   } else if (isFiscal(action)) {
     Object.assign(v, fiscalPreview(g, action));
   } else if (isBorder(action)) {
@@ -1124,6 +1165,29 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
     ];
   } else if (action.type === "investigate") {
     v.title = "主动调查";
+    const pid =
+      action.province ??
+      (action.deck === "ley"
+        ? "south"
+        : action.deck === "archive"
+          ? "north"
+          : "industry");
+    need(
+      "当地已知地域机会",
+      action.deck === "ley"
+        ? hasFeature(g, pid, "leyline")
+        : action.deck === "archive"
+          ? hasFeature(g, pid, "eldritch")
+          : action.deck === "standards"
+            ? hasFeature(g, pid, "industrial")
+            : hasFeature(g, pid, "civic"),
+      "先通过本地调查发现对应灵脉、异常遗迹、产业或群众组织特征",
+    );
+    need(
+      "有限的主动调查",
+      !m.origins[`investigate:${pid}:${action.deck}`],
+      "同省同类主动探索只揭牌一次，已有调查保留真实来源与后续条件",
+    );
     v.costs.commands = 1;
     need(
       "主管机构有人",
@@ -1454,6 +1518,15 @@ function startWork(
     progress: 0,
     duration: workSpecs[type].duration,
     paused: false,
+    maintenance: {
+      turn: -1,
+      fee: workSpecs[type].maintenance,
+      due: 0,
+      paid: 0,
+      arrears: 0,
+      payments: [],
+      source,
+    },
     worker:
       type === "warning"
         ? undefined
@@ -1493,6 +1566,18 @@ function advance(g: V2Game, source: string) {
     m = g.machine,
     f = finance(g);
   settleFiscal(g, f, source);
+  observeDemoSettlement(g);
+  advanceTrainings(g, (t) =>
+    record(
+      g,
+      `专业培养完成：${getPerson(t.student)?.name} · ${trainingNames[t.cap]}`,
+      [t.mentor!, t.student!],
+      [`gov-${t.province}`],
+      [t.reason],
+      ["个人继任资质已形成，不再依赖原导师在任"],
+      [t.source],
+    ),
+  );
   s.insolvency = f.default ? s.insolvency + 1 : 0;
   s.capital++;
   for (const p of s.provinces) {
@@ -1501,7 +1586,9 @@ function advance(g: V2Game, source: string) {
       p.stock +=
         p.districts.reduce((a, d) => a + d.output, 0) +
         (m.fiscal?.localFacilities[p.id] ? 1 : 0) +
-        (p.id === "industry" && m.works.some((w) => gridOperating(g, w))
+        (m.works.some(
+          (w) => gridOperating(g, w) && (w.to ?? "industry") === p.id,
+        )
           ? 2
           : 0);
     else
@@ -1547,7 +1634,7 @@ function advance(g: V2Game, source: string) {
         w.completed = true;
         if (w.type === "grid")
           w.network = { active: true, fault: false, faultAt: s.turn + 2 };
-        record(
+        const completion = record(
           g,
           `工程竣工：${workSpecs[w.type].name}`,
           w.worker ? [w.worker] : [],
@@ -1556,6 +1643,22 @@ function advance(g: V2Game, source: string) {
           ["新增真实设施能力，目标里程碑更新"],
           [w.source, source],
         );
+        if (w.contract && w.contract.mode !== "central") {
+          const actors = [
+            w.worker,
+            officePerson(g, "plan"),
+            officePerson(g, `gov-${w.province}`),
+          ].filter((x): x is string => !!x);
+          (m.relationships ??= []).push({
+            id: `relationship-${s.nextId++}`,
+            kind: "cooperation",
+            actors: [...new Set(actors)],
+            institutions: ["plan", `gov-${w.province}`],
+            source: completion,
+            turn: s.turn,
+            province: w.province,
+          });
+        }
       }
     } else {
       w.progress = Math.max(0, w.progress - 1);
@@ -1736,6 +1839,7 @@ function advance(g: V2Game, source: string) {
 
   if (
     s.turn === 2 &&
+    !m.demonstration &&
     !m.matters.some((x) => x.kind === "accident") &&
     !m.milestones.includes("accident-managed")
   )
@@ -1767,12 +1871,18 @@ function advance(g: V2Game, source: string) {
         : "flying",
     );
   }
-  if (s.turn === 4) createMatter(g, "oldgod", "north", m.origins.accident);
+  if (s.turn === 4 && !m.demonstration)
+    createMatter(g, "oldgod", "north", m.origins.accident);
   if (m.mode === "national" && s.turn >= 5 && s.turn < 8) {
     const z = gazettes[s.turn - 4];
     createMatter(g, "gazette", pids[(s.turn - 5) % 3], undefined, z.id);
   }
-  if (m.mode === "experimental" && s.turn >= 5 && s.turn < 12)
+  if (
+    m.mode === "experimental" &&
+    !m.demonstration &&
+    s.turn >= 5 &&
+    s.turn < 12
+  )
     experimentalAgenda(g, source);
   if (
     (m.mode === "national" || m.mode === "experimental") &&
@@ -1898,7 +2008,8 @@ function applyAction(g: V2Game, action: Action): V2Game {
       "operation",
     );
   if (v.costs.province) province(n, v.costs.province).stock -= v.costs.stock;
-  if (action.type === "inspect") m.terminalInspected = true;
+  if (action.type === "demoReserve") applyDemoReserve(n, source);
+  else if (action.type === "inspect") m.terminalInspected = true;
   else if (action.type === "selectGoal") {
     m.goal = action.goal;
     m.goalPending = false;
@@ -1998,6 +2109,17 @@ function applyAction(g: V2Game, action: Action): V2Game {
     m.history
       .find((h) => h.id === source)!
       .effects.push(...applyBorder(n, action, source));
+  } else if (
+    action.type === "train" ||
+    action.type === "trainingControl" ||
+    action.type === "legacyTraining"
+  ) {
+    applyTraining(n, action, source);
+  } else if (
+    action.type === "maintain" ||
+    action.type === "maintenanceSponsor"
+  ) {
+    applyMaintenance(n, action, source);
   } else if (action.type === "network") {
     applyNetwork(n, action, source);
   } else if (action.type === "project") {
@@ -2042,20 +2164,33 @@ function applyAction(g: V2Game, action: Action): V2Game {
       m.trust[pid] = Math.max(0, m.trust[pid] - 1);
     }
   } else if (action.type === "investigate") {
+    const pid =
+      action.province ??
+      (action.deck === "ley"
+        ? "south"
+        : action.deck === "archive"
+          ? "north"
+          : "industry");
+    m.origins[`investigate:${pid}:${action.deck}`] = source;
     if (action.deck === "ley") {
       m.surveyed = true;
       m.origins.surveyed = source;
-      province(n, "south").pressure.anomaly++;
-      createMatter(n, "opportunity", "south", source);
+      if (!m.discoveries[pid].includes("resources"))
+        m.discoveries[pid].push("resources");
+      province(n, pid).pressure.anomaly++;
+      createMatter(n, "opportunity", pid, source);
     } else if (action.deck === "archive") {
       m.knowledge = true;
-      m.trust.north = Math.max(0, m.trust.north - 1);
-      createMatter(n, "gazette", "north", source, "dream");
+      m.trust[pid] = Math.max(0, m.trust[pid] - 1);
+      createMatter(n, "gazette", pid, source, "dream");
     } else if (action.deck === "standards")
-      createMatter(n, "gazette", "industry", source, "flying");
+      createMatter(n, "gazette", pid, source, "flying");
     else {
-      const z = gazettes[Math.floor(random(s) * gazettes.length)];
-      createMatter(n, "gazette", "industry", source, z.id);
+      const pool = explorationPool(n, pid);
+      const picked = pool[Math.floor(random(s) * pool.length)];
+      const z = gazettes.find((z) => z.id === picked)!;
+      discoverFeature(n, pid, "civic", source);
+      createMatter(n, "gazette", pid, source, z.id);
     }
   } else if (action.type === "reconcile") {
     m.suppressed[action.province] = false;
@@ -2116,11 +2251,13 @@ export function report(g: V2Game) {
           .join("；") || "无"
       }\n财政转移累计：${f.ledger.filter((e) => e.category === "transfer").reduce((sum, e) => sum + e.amount, 0)}（账户间流转，不是全国新增财富）。`
     : "";
-  const talentReport = `专业传承：${
-    m.milestones
-      .filter((x) => x.startsWith("training:"))
-      .map((x) => x.slice(9))
-      .join("、") || "尚未建立"
+  const talentReport = `个人专业传承：${
+    (m.trainings ?? [])
+      .map(
+        (t) =>
+          `${getPerson(t.mentor)?.name ?? "旧导师未记录"}→${getPerson(t.student)?.name ?? "待确认学员"}：${trainingNames[t.cap]} ${t.state} ${t.progress}/${t.duration}（来源${t.source}）`,
+      )
+      .join("；") || "尚未培养"
   }；正式兼职：${
     Object.entries(m.secondaryAppointments ?? {})
       .map(
@@ -2134,7 +2271,15 @@ export function report(g: V2Game) {
       .map((x) => province(g, x.province).name + "财政诉求")
       .join("、") || "无现存财政诉求"
   }。`;
-  return `联邦${duration(g)}年执政报告\n${target}\n形成的体制：${regimes[m.regime].name}\n${financeReport}\n${talentReport}\n事故处置路径：${({ public: "公开群众救援", secret: "秘密高级封印", joint: "联合疏散与封印", isolate: "军事隔离" } as Record<string, string>)[m.accidentRoute || ""] || "未作出决定"}
+  return `联邦${duration(g)}年执政报告\n${target}\n形成的体制：${regimes[m.regime].name}\n${financeReport}\n逐设施履约：${m.works
+    .filter((w) => w.completed && !w.cancelled)
+    .map(
+      (w) =>
+        `${workSpecs[w.type].name}：应付${w.maintenance?.due ?? 0} / 实付${w.maintenance?.paid ?? 0} / 欠付${w.maintenance?.arrears ?? 0}，${workOperating(g, w) ? "运营" : "停运"}`,
+    )
+    .join(
+      "；",
+    )}\n${talentReport}\n事故处置路径：${({ public: "公开群众救援", secret: "秘密高级封印", joint: "联合疏散与封印", isolate: "军事隔离" } as Record<string, string>)[m.accidentRoute || ""] || "未作出决定"}
 ${m.history
   .filter((h) => h.actors.length && h.parents.length)
   .slice(0, 4)
@@ -2188,10 +2333,10 @@ export function deserializeV2(raw: string): V2Game {
       "这是v0.1或未知版本存档，不能静默迁移到v0.2。旧存档未改动，请选择新游戏。",
     );
   const g = parsed as V2Game;
-  if (g.machine?.rulesVersion === "0.5.0" && !g.machine.fiscal)
+  if (["0.5.0", "0.6.0"].includes(g.machine?.rulesVersion) && !g.machine.fiscal)
     throw new Error("v0.5存档缺少财政账本，不能按旧档重新开户。");
   if (
-    g.machine?.rulesVersion === "0.5.0" &&
+    ["0.5.0", "0.6.0"].includes(g.machine?.rulesVersion) &&
     g.machine.works?.some((w) => !w.contract)
   )
     throw new Error("v0.5工程缺少融资合同，不能静默改成中央独资。");
@@ -2341,9 +2486,13 @@ export function deserializeV2(raw: string): V2Game {
   m.rulesVersion ??= "0.2";
   m.politics ??= "classic";
   m.agendaSeen ??= [];
-  if (!["0.2", "0.3.0", "0.3.1", "0.4.0", "0.5.0"].includes(m.rulesVersion))
+  if (
+    !["0.2", "0.3.0", "0.3.1", "0.4.0", "0.5.0", "0.6.0"].includes(
+      m.rulesVersion,
+    )
+  )
     throw new Error("存档来自不同规则版本，请使用对应版本读取；原存档未改动");
-  if (m.rulesVersion !== "0.5.0") {
+  if (!["0.5.0", "0.6.0"].includes(m.rulesVersion)) {
     m.migratedFrom = m.rulesVersion;
     const assigned = new Set<string>(),
       facilities = new Map<string, (typeof m.works)[number]>();
@@ -2503,6 +2652,7 @@ export function deserializeV2(raw: string): V2Game {
   )
     throw new Error("事务ID重复或归档状态无效");
   validateFiscal(g);
+  migrateAndValidateV6(g);
   const side = m.secondaryAppointments ?? {};
   if (
     Object.entries(side).some(
@@ -2824,7 +2974,7 @@ export function openingValidity(g: V2Game): Condition[] {
         "gov-industry",
         "gov-south",
         "gov-north",
-      ].every((id) => !!g.core.appointments[id]),
+      ].every((id) => !!officePerson(g, id)),
       "中央与三省不能以空位开局",
     ),
     condition(
@@ -2898,6 +3048,63 @@ function randomOpening(g: V2Game) {
     `${province(g, facility).name}已有异常预警站，能减轻危机升级伤害；其余省份仍需建设。`,
     "所有六名核心人才仍可任命。初始制度不锁死目标，但更换岗位、建立权限和修复合作会消耗真实行动。",
   ];
+  const centralChoices = {
+    plan: ["lin", "wen"],
+    anomaly: ["sergei", "qi"],
+    defense: ["lu", "guhe"],
+  };
+  for (const [office, pool] of Object.entries(centralChoices))
+    s.appointments[office] = pool[Math.floor(random(s) * pool.length)];
+  const sidePid = pids[Math.floor(random(s) * 3)];
+  if (random(s) < 0.5) {
+    s.appointments[`gov-${sidePid}`] = null;
+    m.secondaryAppointments![`gov-${sidePid}`] = s.appointments.plan;
+    summary.push(
+      `计划负责人正式兼任${province(g, sidePid).name}政府；一次专职派遣将同时限制两个实际岗位。`,
+    );
+  }
+  const f = m.fiscal!;
+  f.taxSystem =
+    m.regime === "vertical" && random(s) < 0.5
+      ? "central"
+      : m.regime === "devolved" && random(s) < 0.5
+        ? "autonomy"
+        : "split";
+  if (f.taxSystem === "autonomy") s.policies.authority = 1;
+  summary.push(
+    `初始税制：${taxSystems[f.taxSystem].name}；收入实际进入对应账户，不视为中央可用资金。`,
+  );
+  const inheritedType = m.cooperation
+    ? random(s) < 0.5
+      ? "academy"
+      : "port"
+    : "factory";
+  const inheritedMode = m.cooperation
+    ? (["local", "joint", "cult"] as const)[Math.floor(random(s) * 3)]
+    : "central";
+  m.rights[facility] = true;
+  m.trust[facility] = Math.max(2, m.trust[facility]);
+  f.agreements.push(facility);
+  m.discoveries[facility].push("routes");
+  if (inheritedType === "factory") {
+    discoverFeature(g, facility, "industrial", "opening-pending");
+    m.standards = true;
+    m.discoveries[facility].push("resources");
+  }
+  if (random(s) < 0.5)
+    discoverFeature(g, facility, "coastal", "opening-pending");
+  summary.push(
+    `历史设施：${province(g, facility).name}${workSpecs[inheritedType].name}，${fundingLabels[inheritedMode]}。首次结算起按合同履约，地方/宗门不足时中央不会自动代付。`,
+  );
+  for (const [i, pid] of pids.entries())
+    summary[i + 1] =
+      `${province(g, pid).name}：${getPerson(officePerson(g, `gov-${pid}`))!.name}担任${m.secondaryAppointments?.[`gov-${pid}`] ? "正式兼职" : "负责人"}；${m.rights[pid] ? "既有收益协议有效" : "尚未建立长期收益协议"}`;
+  summary.push(
+    ...Object.keys(centralChoices).map(
+      (office) =>
+        `${getOffice(office).name}：${getPerson(officePerson(g, office))!.name}实际在任；核心专家仍可经正常人事调整任用。`,
+    ),
+  );
   const source = record(
     g,
     "初始国情报告",
@@ -2928,6 +3135,53 @@ function randomOpening(g: V2Game) {
     cancelled: false,
     source,
   });
+  const inheritedContract = makeFunding(
+    g,
+    {
+      type: "project",
+      project: inheritedType,
+      province: facility,
+      funding: inheritedMode,
+    },
+    source,
+  );
+  m.works.push({
+    id: `work-${s.nextId++}`,
+    type: inheritedType,
+    province: facility,
+    progress: workSpecs[inheritedType].duration,
+    duration: workSpecs[inheritedType].duration,
+    paused: false,
+    completed: true,
+    cancelled: false,
+    assignment: "advisor",
+    source,
+    contract: inheritedContract,
+    maintenance: {
+      turn: -1,
+      fee: workSpecs[inheritedType].maintenance,
+      due: 0,
+      paid: 0,
+      arrears: 0,
+      payments: [],
+      source,
+    },
+  });
+  for (const key of Object.keys(m.origins))
+    if (m.origins[key] === "opening-pending") m.origins[key] = source;
+  if (inheritedMode !== "central")
+    m.relationships!.push({
+      id: `relationship-${s.nextId++}`,
+      kind: "cooperation",
+      actors: [
+        officePerson(g, "plan")!,
+        officePerson(g, `gov-${facility}`)!,
+      ].filter((id, i, a) => a.indexOf(id) === i),
+      institutions: ["plan", `gov-${facility}`],
+      source,
+      turn: s.turn,
+      province: facility,
+    });
   if (m.department !== "none") m.departments[m.department] = [...pids];
   for (const id of Object.values(s.appointments))
     if (id) m.origins[`person:${id}`] = source;

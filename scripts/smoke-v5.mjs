@@ -240,6 +240,7 @@ async function authorize(kind, lead) {
 async function appointment(personName, office, secondary = false) {
   await close();
   await rail("人事管理").click();
+  await page.locator(".staff-query > summary").click();
   await page
     .getByRole("button", { name: `查看${personName}资料`, exact: true })
     .click();
@@ -363,6 +364,7 @@ async function realCampaign() {
   await shot("state-finance-opening");
   await close();
   await rail("人事管理").click();
+  await page.locator(".staff-query > summary").click();
   assert.equal(await page.locator(".personnel-table tbody tr").count(), 24);
   await page
     .getByLabel("按派系筛选人员", { exact: true })
@@ -449,6 +451,7 @@ async function realCampaign() {
     .getByRole("button", { name: "调阅墨玄", exact: true })
     .click();
   await page.getByRole("dialog", { name: "人事管理", exact: true }).waitFor();
+  await page.locator(".staff-query > summary").click();
   assert.ok(
     (await page.locator(".personnel-detail").innerText()).includes("专职"),
   );
@@ -558,6 +561,7 @@ async function personnelBranch() {
   console.log("v0.5: genuine opening limited formal side appointment");
   await start("v05-UI真实兼职", "national");
   await rail("人事管理").click();
+  await page.locator(".staff-query > summary").click();
   await page
     .getByRole("button", { name: "查看星野澪资料", exact: true })
     .click();
@@ -571,6 +575,7 @@ async function personnelBranch() {
   assert.equal(game.core.appointments["gov-south"], null);
   assert.equal(game.machine.secondaryAppointments["gov-south"], "lin");
   await rail("人事管理").click();
+  await page.locator(".staff-query > summary").click();
   await page
     .getByLabel("按机构筛选人员", { exact: true })
     .selectOption("gov-south");
@@ -591,6 +596,7 @@ async function personnelBranch() {
   const beforeRejectedSide = await save();
   await close();
   await rail("人事管理").click();
+  await page.locator(".staff-query > summary").click();
   await page.getByRole("button", { name: "查看林铸资料", exact: true }).click();
   await page
     .getByLabel("人员详情任免职位", { exact: true })
@@ -624,6 +630,7 @@ async function personnelBranch() {
   await close();
   assert.equal(JSON.stringify(await save()), original);
   await rail("人事管理").click();
+  await page.locator(".staff-query > summary").click();
   await page.getByRole("button", { name: "查看林铸资料", exact: true }).click();
   await page
     .getByRole("button", { name: "预览取消南岭省政府兼职", exact: true })
@@ -645,6 +652,7 @@ async function desktopLayout() {
     await panelBounds(page, "finance");
     await close();
     await rail("人事管理").click();
+    await page.locator(".staff-query > summary").click();
     await panelBounds(page, "personnel");
     await page
       .locator(".panel-scroll")
@@ -703,7 +711,11 @@ async function native125Layout() {
             ),
           ),
       );
-      assert.equal(frame.ratio, 1, "native frame calibration requires 100% zoom");
+      assert.equal(
+        frame.ratio,
+        1,
+        "native frame calibration requires 100% zoom",
+      );
       assert.deepEqual(frame.outer, [width, height]);
       assert.ok(frame.insets.every((inset) => inset >= 0));
       nativeFrames.push(frame);

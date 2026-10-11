@@ -7,7 +7,7 @@ on:
       release_tag:
         description: "要打包并发布的已有版本标签"
         required: true
-        default: "v0.5.1"
+        default: "v0.6.0"
         type: string
 permissions:
   contents: read
@@ -54,6 +54,7 @@ jobs:
           Invoke-BrowserSmoke 'test:v3'
           Invoke-BrowserSmoke 'test:v4'
           Invoke-BrowserSmoke 'test:v5'
+          Invoke-BrowserSmoke 'test:v6'
       - name: Store build downloads
         uses: actions/upload-artifact@v4
         with:

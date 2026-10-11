@@ -527,12 +527,15 @@ describe("政治后果和主动公报", () => {
     const seen = new Set<string>();
     for (let i = 0; i < 100; i++) {
       const g = newV2("national", "accord", `公报-${i}`);
-      const n = go(g, { type: "investigate", deck: "civic" });
+      const pid = (["industry", "south", "north"] as const)[i % 3];
+      if (pid === "north") g.machine.regionFeatures!.north.push("civic");
+      const n = go(g, { type: "investigate", deck: "civic", province: pid });
       seen.add(n.machine.matters.at(-1)!.variant!);
       expect(
         go(deserializeV2(serializeV2(g)), {
           type: "investigate",
           deck: "civic",
+          province: pid,
         }),
       ).toEqual(n);
     }
@@ -580,7 +583,7 @@ describe("政治后果和主动公报", () => {
     expect(g.core.provinces.find((p) => p.id === "north")!.stock).toBe(stock);
     expect(find(g, "oldgod").isolated).toBe(true);
   });
-  it("叶冬的协商网络可替代离岗计划负责人，但强制路线不能替代网络", () => {
+  it("江湖物流不代替全国计划调度岗位，强制路线仍不能替代协商网络", () => {
     let g = newV2();
     g.machine.standards = true;
     g.machine.cooperation = true;
@@ -591,7 +594,10 @@ describe("政治后果和主动公报", () => {
     const m = find(g, "warning");
     expect(capability(g, "transport", m).every((c) => c.met)).toBe(false);
     g.machine.rights.industry = true;
+    expect(capability(g, "transport", m).every((c) => c.met)).toBe(false);
+    g.core.appointments.plan = "lin";
     expect(capability(g, "transport", m).every((c) => c.met)).toBe(true);
+    g.core.appointments.plan = "wen";
     g = go(g, { type: "policy", issue: "method", side: 0 });
     expect(capability(g, "transport", m).every((c) => c.met)).toBe(false);
   });

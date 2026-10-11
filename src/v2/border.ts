@@ -1,3 +1,4 @@
+import { transportConditions } from "./qualifications";
 import { getPerson } from "../data";
 import type { Condition, V2Game, V2Preview } from "./model";
 import { hasDepartment, workOperating } from "./administration";
@@ -63,8 +64,7 @@ export function borderPreview(
   const rail = m.works.find(
     (w) =>
       w.type === "rail" &&
-      w.completed &&
-      !w.cancelled &&
+      workOperating(g, w) &&
       ((w.province === "industry" && w.to === "north") ||
         (w.province === "north" && w.to === "industry")),
   );
@@ -161,6 +161,7 @@ export function borderPreview(
       institutions.push("plan");
       if (rail) parents.push(rail.source);
       conditions.push(
+        ...transportConditions(g, "industry", "north"),
         c(
           "实际跨省铁路",
           !!rail,

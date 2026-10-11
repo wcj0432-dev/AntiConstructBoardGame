@@ -76,6 +76,23 @@ function learning() {
   complete(g, "energy", "south");
   complete(g, "grid", "south");
   g.machine.milestones.push("training:leywork", "training:mobilize");
+  g.machine.trainings!.push(
+    ...(["leywork", "mobilize"] as const).map((cap, i) => ({
+      id: `qualification-${cap}`,
+      mentor: i === 0 ? "mo" : "taoqi",
+      student: i === 0 ? "yunsong" : "zhou",
+      cap,
+      province: "south" as const,
+      method: "field" as const,
+      start: 0,
+      progress: 3,
+      duration: 3,
+      state: "completed" as const,
+      completedAt: 0,
+      reason: "已完成专业资格夹具，非平衡通关",
+      source: "fixture",
+    })),
+  );
   g.core.policies.disclosure = 1;
   return g;
 }
@@ -175,6 +192,8 @@ describe("v0.5 国家路线的实际系统条件", () => {
     expect(expandedMilestones(g, "learning")[3].met).toBe(false);
     g.machine.occupied = {};
     g.machine.milestones = [];
+    expect(expandedMilestones(g, "learning")[1].met).toBe(true); // 个人已完成课程，不依赖全局标记
+    g.machine.trainings = [];
     const conditions = expandedMilestones(g, "learning");
     expect(conditions[1].met).toBe(false);
     expect(conditions[3].met).toBe(false);
@@ -252,7 +271,7 @@ function realCampaign(goal: Goal) {
     const r = executeCommand(g, a);
     if (r.result.status === "failed")
       throw new Error(
-        `第${g.core.turn}回合：${JSON.stringify(a)}；${r.result.errors.join("；")}`,
+        `第${g.core.turn}回合：${JSON.stringify(a)}；${r.result.errors.join("；")}；财政${g.core.treasury}/${JSON.stringify(g.machine.fiscal!.locals)}；设施${JSON.stringify(g.machine.works.map((w) => ({ id: w.id, type: w.type, maintenance: w.maintenance, network: w.network })))}`,
       );
     g = r.game;
     expect(g.core.status).not.toBe("lost");
@@ -380,9 +399,47 @@ describe("v0.5 原始资源的十二回合交通与教育路线", () => {
     while (c.game.core.turn < 12) {
       c.end();
       c.resolve("oldgod", "contain");
-      if (c.game.core.turn === 10) c.action({ type: "inspect" });
+      if (c.game.machine.goal === "traffic" && c.game.core.turn === 9) {
+        c.action({
+          type: "fiscalTransfer",
+          province: "south",
+          direction: "grant",
+          amount: 2,
+        });
+        const port = c.game.machine.works.find((w) => w.type === "port")!;
+        if (port.maintenance?.arrears)
+          c.action({ type: "maintain", work: port.id });
+      }
+      if (c.game.machine.goal === "traffic" && c.game.core.turn === 11)
+        c.action({
+          type: "fiscalTransfer",
+          province: "south",
+          direction: "grant",
+          amount: 4,
+        });
+      if (c.game.core.turn === 10) {
+        if (c.game.machine.goal === "traffic")
+          for (const w of c.game.machine.works.filter(
+            (w) => (w.maintenance?.arrears ?? 0) > 0,
+          ))
+            c.action({ type: "maintain", work: w.id });
+        if (c.game.machine.goal === "learning")
+          c.action({ type: "appoint", office: "gov-industry", person: "zhou" });
+        c.action({ type: "inspect" });
+      }
     }
-    expect(milestones(c.game).every((condition) => condition.met)).toBe(true);
+    expect(
+      milestones(c.game).filter((c) => !c.met),
+      JSON.stringify({
+        turn: c.game.core.turn,
+        central: c.game.core.treasury,
+        local: c.game.machine.fiscal!.locals,
+        works: c.game.machine.works.map((w) => ({
+          type: w.type,
+          m: w.maintenance,
+        })),
+      }),
+    ).toEqual([]);
     c.resolve("final", "activate");
     c.end();
     expect(c.game.core.status).toBe("won");
@@ -451,7 +508,18 @@ describe("v0.5 原始资源的十二回合交通与教育路线", () => {
       assignment: "dedicated",
       funding: "local",
     });
-    c.action({ type: "personSkill", person: "yunsong", province: "south" });
+    c.action({ type: "appoint", office: "gov-south", person: "mo" });
+    c.action({
+      type: "train",
+      mentor: "mo",
+      student: "yunsong",
+      cap: "leywork",
+      province: "south",
+      method: "academy",
+      facility: c.game.machine.works.find(
+        (w) => w.type === "academy" && w.province === "south",
+      )!.id,
+    });
     c.end();
     c.resolve("oldgod", "contain");
     c.action({ type: "appoint", office: "gov-industry", person: "taoqi" });
@@ -464,7 +532,18 @@ describe("v0.5 原始资源的十二回合交通与教育路线", () => {
     });
     c.end();
     c.resolve("oldgod", "contain");
-    c.action({ type: "personSkill", person: "taoqi", province: "industry" });
+    c.action({ type: "appoint", office: "gov-south", person: "yunsong" });
+    c.action({
+      type: "train",
+      mentor: "taoqi",
+      student: "zhou",
+      cap: "mobilize",
+      province: "industry",
+      method: "academy",
+      facility: c.game.machine.works.find(
+        (w) => w.type === "academy" && w.province === "industry",
+      )!.id,
+    });
     c.action({
       type: "network",
       work: c.game.machine.works.find((work) => work.type === "grid")!.id,
@@ -482,7 +561,27 @@ describe("v0.5 原始资源的十二回合交通与教育路线", () => {
     while (c.game.core.turn < 12) {
       c.end();
       c.resolve("oldgod", "contain");
-      if (c.game.core.turn === 10) c.action({ type: "inspect" });
+      if (c.game.machine.goal === "traffic" && c.game.core.turn === 9) {
+        c.action({
+          type: "fiscalTransfer",
+          province: "south",
+          direction: "grant",
+          amount: 2,
+        });
+        const port = c.game.machine.works.find((w) => w.type === "port")!;
+        if (port.maintenance?.arrears)
+          c.action({ type: "maintain", work: port.id });
+      }
+      if (c.game.core.turn === 10) {
+        if (c.game.machine.goal === "traffic")
+          for (const w of c.game.machine.works.filter(
+            (w) => (w.maintenance?.arrears ?? 0) > 0,
+          ))
+            c.action({ type: "maintain", work: w.id });
+        if (c.game.machine.goal === "learning")
+          c.action({ type: "appoint", office: "gov-industry", person: "zhou" });
+        c.action({ type: "inspect" });
+      }
       if (c.game.core.turn === 11)
         c.action({
           type: "fiscalTransfer",
@@ -508,6 +607,6 @@ describe("v0.5 原始资源的十二回合交通与教育路线", () => {
     ).toBe(true);
     expect(c.game.machine.fiscal!.stableTurns).toBe(12);
     expect(c.game.core.appointments["gov-south"]).toBe("yunsong");
-    expect(c.game.core.appointments["gov-industry"]).toBe("taoqi");
+    expect(c.game.core.appointments["gov-industry"]).toBe("zhou");
   });
 });

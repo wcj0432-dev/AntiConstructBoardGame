@@ -1,3 +1,4 @@
+import { facilityStateNames, facilityStatus } from "../v2/operations";
 import { Tooltip } from "./Tooltip";
 import { useEffect, useId, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
@@ -98,17 +99,7 @@ export function GameMap({
     return `${fundingLabels[contract.mode]}；经营权：${owner}；受益地区：${accountLabel(g, beneficiary)}；出资份额：${contract.shares.map((share) => `${accountLabel(g, share.account)} ${share.weight}份`).join("、")}`;
   }
   function workState(work: Work) {
-    if (work.type === "grid" && work.completed)
-      return work.network?.fault
-        ? "已竣工 · 故障停机"
-        : gridOperating(g, work)
-          ? "已竣工 · 能源供给中"
-          : "已竣工 · 网络停运";
-    return work.completed
-      ? "已竣工"
-      : work.paused
-        ? `已暂停 · ${work.progress}/${work.duration}`
-        : `施工中 · ${work.progress}/${work.duration}`;
+    return `${facilityStateNames[facilityStatus(g, work).state]}${!work.completed ? ` · ${work.progress}/${work.duration}` : ""}`;
   }
   function workMarkers(r: (typeof regions)[number]) {
     return g.machine.works
@@ -160,9 +151,8 @@ export function GameMap({
               type={work.type}
               status={
                 work.paused ||
-                (work.type === "grid" &&
-                  work.completed &&
-                  !gridOperating(g, work))
+                (work.completed &&
+                  facilityStatus(g, work).state !== "operating")
                   ? "paused"
                   : work.completed
                     ? "completed"
@@ -171,6 +161,26 @@ export function GameMap({
               x={r.x + 55 + (index % 3) * 34}
               y={r.y - 52 - Math.floor(index / 3) * 35}
             />
+            {facilityStatus(g, work).state === "maintenance" && (
+              <g aria-label="维护欠付">
+                <circle
+                  cx={r.x + 55 + (index % 3) * 34}
+                  cy={r.y - 65 - Math.floor(index / 3) * 35}
+                  r="8"
+                  fill="#d27e6d"
+                />
+                <text
+                  x={r.x + 55 + (index % 3) * 34}
+                  y={r.y - 62 - Math.floor(index / 3) * 35}
+                  textAnchor="middle"
+                  fill="#161f20"
+                  fontSize="12"
+                  fontWeight="bold"
+                >
+                  !
+                </text>
+              </g>
+            )}
           </g>
         </Tooltip>
       ));

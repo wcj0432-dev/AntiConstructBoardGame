@@ -1,3 +1,5 @@
+import { hasCredential } from "./training";
+import { transportConditions } from "./qualifications";
 import { people } from "../data";
 import type { ProvinceId } from "../types";
 import { hasDepartment, workOperating, workSpecs } from "./administration";
@@ -57,7 +59,12 @@ const inherentSpecialists: Partial<Record<Capability, string[]>> = {
 
 /** The training must actually unlock a successor, rather than counting its teacher's name. */
 function successorAvailable(g: V2Game, cap: Capability) {
-  if (!g.machine.milestones.includes(`training:${cap}`)) return false;
+  if (
+    !(g.machine.trainings ?? []).some(
+      (t) => t.cap === cap && t.state === "completed",
+    )
+  )
+    return false;
   const candidates = people
     .filter((person) => !inherentSpecialists[cap]?.includes(person.id))
     .map((person) => person.id);
@@ -125,6 +132,12 @@ export function expandedMilestones(g: V2Game, goal: Goal): Condition[] {
       condition(
         "可执行的跨省运输规则",
         connected.length >= 2 &&
+          m.works.some(
+            (w) =>
+              w.type === "rail" &&
+              !!w.to &&
+              transportConditions(g, w.province, w.to).every((c) => c.met),
+          ) &&
           m.standards &&
           m.cooperation &&
           g.core.policies.method === 1 &&
@@ -158,7 +171,13 @@ export function expandedMilestones(g: V2Game, goal: Goal): Condition[] {
       ),
     ];
     const trained = trainingCaps.filter((cap) =>
-      m.milestones.includes(`training:${cap}`),
+      (m.trainings ?? []).some(
+        (t) =>
+          t.cap === cap &&
+          t.state === "completed" &&
+          !!t.student &&
+          hasCredential(g, t.student, cap as "leywork" | "mobilize" | "seal"),
+      ),
     );
     return [
       condition(
@@ -198,7 +217,9 @@ export function expandedMilestones(g: V2Game, goal: Goal): Condition[] {
     const incomeFacilities = m.works.filter(
       (work) =>
         workSpecs[work.type].income > 0 &&
-        (work.type === "grid" ? gridOperating(g, work) : workOperating(g, work)),
+        (work.type === "grid"
+          ? gridOperating(g, work)
+          : workOperating(g, work)),
     );
     return [
       condition(

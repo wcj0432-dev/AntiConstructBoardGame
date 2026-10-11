@@ -1,3 +1,4 @@
+import { applyTraining, advanceTrainings } from "./training";
 import { describe, expect, it } from "vitest";
 import { getPerson, people } from "../data";
 import type { ProvinceId } from "../types";
@@ -180,6 +181,22 @@ describe("v0.5 人物内容：24人拥有受条件限制的实际机制", () => 
     expect(projectCandidate(g, "mo", "energy", "south")).toBe(true);
     g.machine.rights.south = true;
     g.machine.milestones.push("training:leywork");
+    expect(projectCandidate(g, "taoqi", "grid", "south")).toBe(false);
+    g.machine.trainings!.push({
+      id: "qualified-fixture",
+      mentor: "mo",
+      student: "taoqi",
+      cap: "leywork",
+      province: "south",
+      method: "field",
+      start: 0,
+      progress: 3,
+      duration: 3,
+      state: "completed",
+      completedAt: 0,
+      reason: "专业资格条件夹具",
+      source: "fixture",
+    });
     expect(projectCandidate(g, "taoqi", "grid", "south")).toBe(true);
     expect(projectCandidate(g, "lin", "grid", "south")).toBe(false);
     expect(projectCandidate(g, "wen", "grid", "south")).toBe(false);
@@ -188,7 +205,23 @@ describe("v0.5 人物内容：24人拥有受条件限制的实际机制", () => 
   });
   it("教习授予继任者行动资格，岗位或政策改变时仍会失效", () => {
     const { g, pid } = context("taoqi", "north");
-    applySpecialistSkill(g, "taoqi", pid, "公开教习");
+    applyTraining(
+      g,
+      {
+        type: "train",
+        mentor: "taoqi",
+        student: "zhou",
+        cap: "mobilize",
+        province: pid,
+        method: "field",
+      },
+      "公开教习",
+    );
+    for (let i = 0; i < 3; i++) {
+      advanceTrainings(g, () => {});
+      g.core.turn++;
+      g.machine.occupied = {};
+    }
     g.core.appointments["gov-north"] = "zhou";
     expect(specialistCapability(g, "mobilize", "north", ["zhou"])).toEqual([
       "zhou",

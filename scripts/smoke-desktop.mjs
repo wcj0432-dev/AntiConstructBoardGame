@@ -63,7 +63,7 @@ try {
   );
   assert.deepEqual(restored, save);
   console.log(
-    "Packaged v0.4 desktop smoke passed: appointment, special ability, save, restart and reload.",
+    "Packaged desktop smoke passed: appointment, special ability, save, restart and reload.",
   );
 } finally {
   if (application) await application.close();

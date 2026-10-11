@@ -10,7 +10,12 @@ export type Lifecycle =
   | "resolved"
   | "deteriorated";
 export type Goal =
-  "spark" | "accord" | "night" | "traffic" | "learning" | "prosperity";
+  | "spark"
+  | "accord"
+  | "night"
+  | "traffic"
+  | "learning"
+  | "prosperity";
 export type Capability =
   | "mobilize"
   | "seal"
@@ -80,7 +85,12 @@ export interface LedgerEntry {
   reason: string;
   source: string;
   category:
-    "tax" | "operation" | "investment" | "transfer" | "maintenance" | "audit";
+    | "tax"
+    | "operation"
+    | "investment"
+    | "transfer"
+    | "maintenance"
+    | "audit";
 }
 export interface FiscalState {
   taxSystem: TaxSystem;
@@ -104,6 +114,47 @@ export interface FundingContract {
 }
 export type Department = "anomaly" | "evacuation" | "transport";
 export type WorkAssignment = "advisor" | "dedicated";
+export interface Maintenance {
+  turn: number;
+  fee: number;
+  due: number;
+  paid: number;
+  arrears: number;
+  payments: {
+    account: FiscalAccount;
+    due: number;
+    paid: number;
+    arrears: number;
+  }[];
+  lastPaidTurn?: number;
+  source: string;
+}
+export type TrainingCap = "leywork" | "mobilize" | "seal";
+export interface Training {
+  id: string;
+  mentor?: string;
+  student?: string;
+  cap: TrainingCap;
+  province: ProvinceId;
+  facility?: string;
+  method: "field" | "academy" | "legacy";
+  start: number;
+  progress: number;
+  duration: number;
+  state: "active" | "paused" | "completed" | "cancelled" | "unassigned";
+  completedAt?: number;
+  reason: string;
+  source: string;
+}
+export type RegionFeature =
+  | "leyline"
+  | "industrial"
+  | "eldritch"
+  | "jianghu"
+  | "rural"
+  | "civic"
+  | "aerial"
+  | "coastal";
 export interface Work {
   id: string;
   type: WorkType;
@@ -118,6 +169,9 @@ export interface Work {
   to?: ProvinceId;
   cancelled?: boolean;
   contract?: FundingContract;
+  maintenance?: Maintenance;
+  maintenanceSponsor?: FiscalAccount;
+  sponsorSource?: string;
   network?: {
     active: boolean;
     fault: boolean;
@@ -194,6 +248,18 @@ export interface Machine {
   drillsUntil: number;
   fiscal?: FiscalState;
   secondaryAppointments?: Record<string, string | null>;
+  demonstration?: { id: "succession"; failed: boolean; reserveSource?: string };
+  trainings?: Training[];
+  regionFeatures?: Record<ProvinceId, RegionFeature[]>;
+  relationships?: {
+    id: string;
+    kind: "cooperation";
+    actors: string[];
+    institutions: string[];
+    source: string;
+    turn: number;
+    province: ProvinceId;
+  }[];
 }
 export interface V2Game {
   schema: 2;
@@ -201,6 +267,7 @@ export interface V2Game {
   machine: Machine;
 }
 export type Action =
+  | { type: "demoReserve" }
   | { type: "selectGoal"; goal: Goal }
   | { type: "inspect" }
   | {
@@ -239,6 +306,24 @@ export type Action =
     }
   | { type: "concurrent"; office: string; person: string | null }
   | { type: "personSkill"; person: string; province: ProvinceId }
+  | {
+      type: "train";
+      mentor: string;
+      student: string;
+      cap: TrainingCap;
+      province: ProvinceId;
+      method: "field" | "academy";
+      facility?: string;
+    }
+  | {
+      type: "trainingControl";
+      training: string;
+      operation: "cancel" | "resume";
+      mentor?: string;
+    }
+  | { type: "legacyTraining"; training: string; student: string }
+  | { type: "maintain"; work: string }
+  | { type: "maintenanceSponsor"; work: string; account: FiscalAccount }
   | { type: "fiscalReform"; system: TaxSystem }
   | {
       type: "fiscalTransfer";
@@ -274,7 +359,11 @@ export type Action =
     }
   | { type: "transfer"; from: ProvinceId; to: ProvinceId; amount: number }
   | { type: "pause"; work: string }
-  | { type: "investigate"; deck: "ley" | "archive" | "standards" | "civic" }
+  | {
+      type: "investigate";
+      deck: "ley" | "archive" | "standards" | "civic";
+      province?: ProvinceId;
+    }
   | { type: "reconcile"; province: ProvinceId }
   | { type: "unblock" }
   | { type: "forecast" }
@@ -334,7 +423,11 @@ export interface Plan {
     | "archive";
 }
 export type ResultStatus =
-  "failed" | "partial" | "resolved" | "changed" | "applied";
+  | "failed"
+  | "partial"
+  | "resolved"
+  | "changed"
+  | "applied";
 export interface ActionResult {
   id: string;
   revision: number;

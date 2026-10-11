@@ -1,0 +1,304 @@
+{
+  "fixtures": "none; disclosed independent demonstration scenario, actual UI commands",
+  "desktop": [
+    {
+      "label": "1920x1080",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "doc": [
+        1920,
+        1080
+      ],
+      "ratio": 1,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        1520,
+        920
+      ],
+      "font": 16
+    },
+    {
+      "label": "1600x900",
+      "viewport": [
+        1600,
+        900
+      ],
+      "doc": [
+        1600,
+        900
+      ],
+      "ratio": 1,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        1238,
+        740
+      ],
+      "font": 16
+    },
+    {
+      "label": "1366x768",
+      "viewport": [
+        1366,
+        768
+      ],
+      "doc": [
+        1366,
+        768
+      ],
+      "ratio": 1,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        1004,
+        616
+      ],
+      "font": 16
+    },
+    {
+      "label": "1280x720",
+      "viewport": [
+        1280,
+        720
+      ],
+      "doc": [
+        1280,
+        720
+      ],
+      "ratio": 1,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        918,
+        568
+      ],
+      "font": 16
+    }
+  ],
+  "native125": [
+    {
+      "label": "native125-1920x1080",
+      "viewport": [
+        1536,
+        794
+      ],
+      "doc": [
+        1536,
+        794
+      ],
+      "ratio": 1.25,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        1174,
+        634.4000244140625
+      ],
+      "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1920,
+        993
+      ],
+      "pixels": [
+        1920,
+        993
+      ]
+    },
+    {
+      "label": "native125-1600x900",
+      "viewport": [
+        1280,
+        650
+      ],
+      "doc": [
+        1280,
+        650
+      ],
+      "ratio": 1.25,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        918,
+        498.3999938964844
+      ],
+      "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1600,
+        813
+      ],
+      "pixels": [
+        1600,
+        813
+      ]
+    },
+    {
+      "label": "native125-1366x768",
+      "viewport": [
+        1093,
+        545
+      ],
+      "doc": [
+        1093,
+        545
+      ],
+      "ratio": 1.25,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        956.7999877929688,
+        363.8000183105469
+      ],
+      "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1366,
+        681
+      ],
+      "pixels": [
+        1366,
+        681
+      ]
+    },
+    {
+      "label": "native125-1280x720",
+      "viewport": [
+        1024,
+        506
+      ],
+      "doc": [
+        1024,
+        506
+      ],
+      "ratio": 1.25,
+      "endInside": true,
+      "endHit": true,
+      "resourcesInside": true,
+      "functionsInside": true,
+      "map": [
+        888,
+        325.3999938964844
+      ],
+      "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1280,
+        633
+      ],
+      "pixels": [
+        1280,
+        633
+      ]
+    }
+  ],
+  "demonstration": {
+    "turn": 12,
+    "status": "won",
+    "contract": {
+      "mode": "local",
+      "shares": [
+        {
+          "account": "south",
+          "weight": 1
+        }
+      ],
+      "owner": "south",
+      "beneficiary": "industry",
+      "source": "decision-9"
+    },
+    "student": "taoqi",
+    "ledger": 165
+  },
+  "nativeChromeAt100": [
+    {
+      "outer": [
+        1920,
+        1080
+      ],
+      "content": [
+        1920,
+        993
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1600,
+        900
+      ],
+      "content": [
+        1600,
+        813
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1366,
+        768
+      ],
+      "content": [
+        1366,
+        681
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1280,
+        720
+      ],
+      "content": [
+        1280,
+        633
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    }
+  ],
+  "errors": []
+}

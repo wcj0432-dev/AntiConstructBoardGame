@@ -1,3 +1,4 @@
+import { accountLabel } from "../v2/fiscal";
 import { workSpecs } from "../v2/administration";
 import { PanelFrame } from "./PanelFrame";
 import { finance, duration } from "../v2/engine";
@@ -45,7 +46,7 @@ export function TurnReview({
         <section>
           <h3>财政与施工承诺</h3>
           <p>
-            先支付 {f.total}：固定 {f.fixed} / 维护 {f.maintenance} / 施工{" "}
+            中央先支付 {f.total}：固定 {f.fixed} / 维护 {f.maintenance} / 施工{" "}
             {f.projectCosts}；再收入 {f.income}。
           </p>
           <p>
@@ -54,6 +55,28 @@ export function TurnReview({
               ? "无法履行本期承诺，连续两次违约会失败。"
               : "本期承诺可履行。"}
           </p>
+        </section>
+        <section>
+          <h3>逐设施付款与停运预测</h3>
+          {f.facilities.map((row) => {
+            const w = m.works.find((w) => w.id === row.work)!;
+            return (
+              <p
+                key={w.id}
+                className={row.maintenance.arrears ? "unmet" : "met"}
+              >
+                {workSpecs[w.type].name}：应付{row.maintenance.due} / 预计实付
+                {row.maintenance.paid} / 欠付{row.maintenance.arrears}；
+                {row.maintenance.payments
+                  .map((p) => `${accountLabel(game, p.account)}承担${p.due}`)
+                  .join("，")}
+                。
+                {row.maintenance.arrears > 0
+                  ? "本设施将停止经营、生产、网络与教学。"
+                  : "付款后仍检查故障与权限。"}
+              </p>
+            );
+          })}
         </section>
         <section>
           <h3>重要危机</h3>

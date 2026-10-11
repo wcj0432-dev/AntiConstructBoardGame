@@ -1,3 +1,11 @@
+import { conditionEvents } from "./v2/conditionEvents";
+import { startSuccessionDemo, demoPhase } from "./v2/demonstration";
+import { SuccessionDemo } from "./ui/SuccessionDemo";
+import { OrganizationChart } from "./ui/OrganizationChart";
+import { TrainingConsole } from "./ui/TrainingConsole";
+import { FacilityOperations } from "./ui/FacilityOperations";
+import { RegionalActions } from "./ui/RegionalActions";
+import "./ui/v6-ui.css";
 import { useEffect, useState, useRef, type ReactNode } from "react";
 import {
   ArrowRight,
@@ -96,6 +104,7 @@ import { assignedOffices, assignmentsFor, officePerson } from "./v2/personnel";
 import "./ui/command.css";
 import "./ui/v5-ui.css";
 type Panel =
+  | "scenario"
   | "briefing"
   | "staff"
   | "reform"
@@ -116,6 +125,7 @@ const difficultyNames = {
   challenging: "紧缩",
 };
 const titles: Record<Panel, string> = {
+  scenario: "南岭工程与人才接班",
   briefing: "初始国情报告",
   staff: "人事管理",
   reform: "政策改革",
@@ -499,6 +509,18 @@ export default function App() {
     setOffice("gov-south");
     setPerson("xing");
     setGuideChoice(t !== "tutorial" && !hasGuideChoice());
+  }
+  function beginDemo() {
+    const n = startSuccessionDemo();
+    stateRef.current = n;
+    setG(n);
+    resetView(n);
+    setResult(null);
+    setAction(null);
+    setGuideChoice(false);
+    setScreen("game");
+    setModal("scenario");
+    setReportOpen(true);
   }
   function chooseGuide(hints: boolean) {
     updateUi({ ...ui, hints });
@@ -961,6 +983,10 @@ export default function App() {
                   <BookOpen />
                   教学战役
                 </button>
+                <button onClick={beginDemo}>
+                  <Zap />
+                  南岭工程与人才接班
+                </button>
                 <button onClick={load}>
                   <Download />
                   读取存档
@@ -1054,7 +1080,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.5.1 · 国家机器与跨省依赖 / 原创联邦地图
+              v0.6.0 · 制度履约与人才接班 / 原创联邦地图
             </small>
           </section>
           {modal === "settings" && (
@@ -1512,7 +1538,9 @@ export default function App() {
                           choose({
                             ...action,
                             exchange: e.target.value as
-                              "ownership" | "budget" | "central",
+                              | "ownership"
+                              | "budget"
+                              | "central",
                           })
                         }
                       >
@@ -1746,15 +1774,21 @@ export default function App() {
                     </button>
                   </div>
                 )}
+                {modal === "scenario" && (
+                  <SuccessionDemo game={g} onChoose={choose} onOpen={open} />
+                )}
                 {modal === "finance" && (
-                  <StateFinance
-                    game={g}
-                    onChoose={choose}
-                    onSelect={(province) => {
-                      setSelected(province);
-                      setDistrict(0);
-                    }}
-                  />
+                  <>
+                    <FacilityOperations game={g} onChoose={choose} />
+                    <StateFinance
+                      game={g}
+                      onChoose={choose}
+                      onSelect={(province) => {
+                        setSelected(province);
+                        setDistrict(0);
+                      }}
+                    />
+                  </>
                 )}
                 {(modal === "reform" || modal === "policy") && (
                   <div className="panel-tabs">
@@ -1774,13 +1808,29 @@ export default function App() {
                 )}
                 {modal === "staff" && (
                   <>
-                    <PersonnelOverview
+                    <OrganizationChart
                       game={g}
+                      office={office}
+                      onOffice={setOffice}
+                      onPerson={setPerson}
                       onChoose={choose}
-                      province={selected}
-                      selectedPerson={person}
-                      onSelectPerson={setPerson}
                     />
+                    <TrainingConsole
+                      key={person}
+                      game={g}
+                      person={person}
+                      onChoose={choose}
+                    />
+                    <details className="staff-query">
+                      <summary>全国人员查询与空闲人才</summary>
+                      <PersonnelOverview
+                        game={g}
+                        onChoose={choose}
+                        province={selected}
+                        selectedPerson={person}
+                        onSelectPerson={setPerson}
+                      />
+                    </details>
                     <hr />
                     <h3>逐席任免 · 快捷名册</h3>
                     <h2>人物的才能需要合适的位置。</h2>
@@ -2117,7 +2167,7 @@ export default function App() {
                 )}
                 {modal === "help" && (
                   <>
-                    <h2>治理手册 · 国家机器 v0.5</h2>
+                    <h2>治理手册 · 国家机器 v0.6</h2>
                     <h3>指挥席操作</h3>
                     <p>
                       点击地图调阅地方，左栏切换管理功能，右侧提醒定位事务。地图支持拖动与滚轮缩放，四种地图模式展示政治、行政、资源和危机。Esc关闭最上层面板，再按Esc进入暂停菜单；保存与读取都在暂停菜单。正文只在面板内部滚动，底部回合按钮持续可见。
@@ -2410,6 +2460,9 @@ export default function App() {
                       </Tooltip>
                     ))}
                   </>
+                )}
+                {modal === "economy" && (
+                  <FacilityOperations game={g} onChoose={choose} />
                 )}
                 {modal === "economy" && (
                   <>
@@ -2850,6 +2903,13 @@ export default function App() {
                   </>
                 )}
                 {modal === "local" && (
+                  <RegionalActions
+                    game={g}
+                    province={selected}
+                    onChoose={choose}
+                  />
+                )}
+                {modal === "local" && (
                   <>
                     <h3>
                       {local.name} · {local.districts[district].name}
@@ -3146,6 +3206,42 @@ export default function App() {
               </button>
             </header>
             <div className="alerts-scroll">
+              {m.demonstration && (
+                <button
+                  className="alert-item info"
+                  onClick={() => open("scenario")}
+                >
+                  <BookOpen />
+                  <div>
+                    <b>接班场景 · 第{demoPhase(g)}/4阶段</b>
+                    <small>合同、课程、欠付与全国目标</small>
+                  </div>
+                </button>
+              )}
+              {conditionEvents(g).map((event) => (
+                <button
+                  key={event.id}
+                  className={`alert-item ${event.urgent ? "urgent" : "normal"}`}
+                  onClick={() => {
+                    setSelected(event.province);
+                    if (event.person) {
+                      setPerson(event.person);
+                      setOffice(
+                        assignedOffices(g, event.person)[0] ||
+                          `gov-${event.province}`,
+                      );
+                    }
+                    open(event.panel);
+                    setAlertsOpen(false);
+                  }}
+                >
+                  <AlertTriangle />
+                  <div>
+                    <b>{event.title}</b>
+                    <small>{event.description}</small>
+                  </div>
+                </button>
+              ))}
               {result && (
                 <button
                   className={`alert-item ${result.status === "failed" ? "urgent" : "info"}`}

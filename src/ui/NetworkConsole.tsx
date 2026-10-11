@@ -1,3 +1,4 @@
+import { facilityStatus } from "../v2/operations";
 import type { Action, V2Game } from "../v2/model";
 import { accountLabel, fundingLabels, workFunding } from "../v2/fiscal";
 import { networkRelations } from "../v2/networks";
@@ -56,11 +57,17 @@ export function NetworkConsole({
       )}
       {works.map((w) => {
         const relation = networkRelations(game, w),
-          contract = workFunding(game, w);
+          contract = workFunding(game, w),
+          sourceProvince = game.core.provinces.find(
+            (p) => p.id === w.province,
+          )!,
+          beneficiary = game.core.provinces.find(
+            (p) => p.id === relation.beneficiary,
+          )!;
         return (
           <article className="document-card" key={w.id} data-network-id={w.id}>
             <h4>
-              南岭 → 中央工业省 ·{" "}
+              {sourceProvince.name} → {beneficiary.name} ·{" "}
               {w.completed ? "已竣工" : `施工 ${w.progress}/${w.duration}`}
             </h4>
             <SemanticText
@@ -71,7 +78,7 @@ export function NetworkConsole({
                   met: relation.operating,
                   reason: relation.operating
                     ? "工业省产出与常规税源+2"
-                    : "施工、停机、故障或源头危机关闭额外产出与税源",
+                    : facilityStatus(game, w).reason,
                 },
                 " ",
                 {
@@ -96,8 +103,16 @@ export function NetworkConsole({
             <RelatedNetwork
               title="真实供能与组织关系"
               nodes={[
-                { kind: "province", id: "south", label: "南岭修仙省" },
-                { kind: "province", id: "industry", label: "中央工业省" },
+                {
+                  kind: "province",
+                  id: w.province,
+                  label: sourceProvince.name,
+                },
+                {
+                  kind: "province",
+                  id: relation.beneficiary,
+                  label: beneficiary.name,
+                },
                 { kind: "office", id: "plan", label: "中央计划委员会" },
                 ...(w.worker
                   ? [

@@ -1,3 +1,4 @@
+import { facilityStatus, facilityStateNames } from "../v2/operations";
 import { useState } from "react";
 import { getPerson } from "../data";
 import type { ProvinceId } from "../types";
@@ -396,15 +397,17 @@ export function StateFinance({
                           {work.cancelled
                             ? "已取消"
                             : work.completed
-                              ? "已竣工"
+                              ? facilityStateNames[
+                                  facilityStatus(game, work).state
+                                ]
                               : work.paused
                                 ? "暂停施工"
                                 : `${work.progress}/${work.duration} 施工中`}
                         </p>
                         {work.network && (
                           <p>
-                            {work.network.fault
-                              ? "能源故障"
+                            {facilityStatus(game, work).state !== "operating"
+                              ? facilityStatus(game, work).reason
                               : work.network.active
                                 ? "能源联系运行"
                                 : "能源联系关闭"}

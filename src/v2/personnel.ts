@@ -43,9 +43,13 @@ export type PersonnelWorkState =
   | "advisor"
   | "dedicated"
   | "temporary"
-  | "restricted";
+  | "restricted"
+  | "training"
+  | "teaching";
 
 export const personnelStateNames: Record<PersonnelWorkState, string> = {
+  training: "指定学员培养中",
+  teaching: "承担导师课程",
   available: "可投入任务",
   concurrent: "正式兼职",
   advisor: "工程顾问兼任",
@@ -117,6 +121,15 @@ export function assignmentsFor(g: V2Game, person: string): PersonAssignments {
     restrictions.push("专职工程保留正式职位，但暂不提供行政行动能力");
   if (activeProject && !dedicated)
     restrictions.push("工程顾问仍能履行行政职责；行政抽调会影响施工");
+  const courses = (g.machine.trainings ?? []).filter(
+    (t) =>
+      ["active", "paused"].includes(t.state) &&
+      (t.mentor === person || t.student === person),
+  );
+  if (courses.length)
+    restrictions.push(
+      "正在承担具体培养课程；专职抽调或其他即时任务会暂停教学并保留进度",
+    );
   return {
     mainOffice,
     secondaryOffices,
@@ -139,9 +152,13 @@ export function assignmentsFor(g: V2Game, person: string): PersonAssignments {
           ? "dedicated"
           : activeProject
             ? "advisor"
-            : secondaryOffices.length
-              ? "concurrent"
-              : "available",
+            : courses.some((t) => t.student === person)
+              ? "training"
+              : courses.length
+                ? "teaching"
+                : secondaryOffices.length
+                  ? "concurrent"
+                  : "available",
   };
 }
 
