@@ -689,6 +689,8 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
         "强制执行必须在阶段≥2的事务取得实际紧急授权",
       );
     if (p.cap) v.conditions.push(...capability(g, p.cap, matter, p.disclosure));
+    if (p.effect === "invest")
+      v.conditions.push(...previewAction(g, { type: "project", project: "energy", province: matter.province }).conditions);
     if (p.scope === "national" && matter.kind !== "final")
       need(
         "跨省正式指挥关系",
@@ -1256,7 +1258,7 @@ function enactPlan(
   }
   // Work commitment is incompatible with drawing the assigned engineer into another immediate matter.
   for (const actor of part.actors) {
-    if (m.works.some((w) => w.worker === actor && !w.completed && !w.paused))
+    if (m.works.some((w) => w.worker === actor && w.source !== source && !w.completed && !w.paused))
       m.occupied[actor] = source;
   }
   if (m.mode === "tutorial" && m.tutorial === 0 && matter.kind === "warning") {

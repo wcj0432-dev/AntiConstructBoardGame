@@ -25,6 +25,8 @@ async function shot(name) {
   if (shots) await page.screenshot({ path: `${shots}/${name}.png` });
 }
 async function confirm(double = false) {
+  const advance = page.getByRole("button", { name: "确认推进", exact: true });
+  if (await advance.count()) { await advance.click(); return; }
   await page.getByRole("button", { name: "预览后果", exact: true }).click();
   const button = page.getByRole("button", { name: "确认执行", exact: true });
   if (double) await button.dblclick();
@@ -144,7 +146,7 @@ try {
   await confirm();
   await close();
   await matter("南岭灵脉电站故障预警", "记录异常频谱", true);
-  await page.locator(".execution-result.resolved").waitFor();
+  assert.equal(await page.locator(".execution-result").count(), 0);
   await shot("event-resolved");
   let g = await save();
   assert.equal(g.core.commands, 3);

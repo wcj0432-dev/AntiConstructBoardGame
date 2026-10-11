@@ -21,6 +21,8 @@ const rail = (name) =>
     .getByRole("navigation", { name: "主要管理功能" })
     .getByRole("button", { name, exact: true });
 async function confirm() {
+  const advance = page.getByRole("button", { name: "确认推进", exact: true });
+  if (await advance.count()) { await advance.click(); return; }
   await page.getByRole("button", { name: "预览后果", exact: true }).click();
   await page.getByRole("button", { name: "确认执行", exact: true }).click();
 }
@@ -168,7 +170,8 @@ try {
   await confirm();
   await rail("国家事务").click();
   await option("群众参与预防巡检");
-  await page.locator(".execution-result.resolved").waitFor();
+  assert.equal(await page.locator(".execution-result").count(), 0);
+  await page.locator(".command-notice").filter({hasText:"完全解决"}).waitFor();
   await page.getByRole("heading", { name: "02 · 先确定谁能参与" }).waitFor();
   await page
     .getByRole("button", { name: "调整本事务指挥关系 / 临时授权" })
@@ -180,9 +183,10 @@ try {
   await confirm();
   await rail("国家事务").click();
   await option("公开群众救援");
-  await page.locator(".execution-result.partial").waitFor();
+  assert.equal(await page.locator(".execution-result").count(), 0);
+  await page.locator(".command-notice").filter({hasText:"部分完成"}).waitFor();
   assert.ok(
-    (await page.locator(".execution-result.partial").innerText()).includes(
+    (await page.locator(".matter-progress").first().innerText()).includes(
       "异常源尚未封印",
     ),
   );

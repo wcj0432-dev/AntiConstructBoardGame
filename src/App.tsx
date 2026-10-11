@@ -70,6 +70,7 @@ import type {
 } from "./v2/model";
 import type { Issue, ProvinceId } from "./types";
 import { PanelFrame } from "./ui/PanelFrame";
+import { TurnReview } from "./ui/TurnReview";
 import { GameMap } from "./ui/GameMap";
 import { Tooltip } from "./ui/Tooltip";
 import { PersonBadge, EventArt } from "./ui/Visuals";
@@ -231,6 +232,8 @@ export default function App() {
     target = milestones(g);
   function open(p: Panel) {
     setAction(null);
+    commandRef.current = null;
+    setConfirmedPreview(false);
     setModal(p);
     if (p === "matters") setFocusedMatter(null);
     if (
@@ -246,6 +249,7 @@ export default function App() {
   function choose(a: Action) {
     if (!action) setBackPanel(modal);
     setAction(a);
+    setResult(null);
     commandRef.current = {
       id: `ui-${g.machine.revision}-${serialRef.current++}`,
       revision: g.machine.revision,
@@ -255,6 +259,8 @@ export default function App() {
   }
   function closeAction() {
     setAction(null);
+    commandRef.current = null;
+    setConfirmedPreview(false);
     setModal(backPanel);
   }
   function perform() {
@@ -267,6 +273,9 @@ export default function App() {
     setResult(outcome.result);
     if (outcome.result.status !== "failed") {
       setAction(null);
+      setConfirmedPreview(false);
+      if (focusedMatter && !outcome.game.machine.matters.some(x => x.id === focusedMatter)) setFocusedMatter(null);
+      if (!outcome.game.machine.matters.some(x => x.id === authorizationMatter)) setAuthorizationMatter("");
       setModal(action.type === "end" ? null : backPanel);
     }
     setNotice(
@@ -378,7 +387,6 @@ export default function App() {
       setModal(null);
       setScreen("game");
       setGuideChoice(false);
-      setResult(n.machine.results.at(-1) || null);
       setNotice("完整组织状态已恢复。");
     } catch (e) {
       setNotice((e as Error).message);
@@ -1247,7 +1255,8 @@ export default function App() {
                 </p>
               </PanelFrame>
             )}
-            {action && v && (
+            {action?.type === "end" && v && <TurnReview game={g} preview={v} onClose={closeAction} onConfirm={perform} />}
+            {action && action.type !== "end" && v && (
               <PanelFrame
                 title={v.title}
                 onClose={closeAction}
@@ -1274,23 +1283,7 @@ export default function App() {
                   </>
                 }
               >
-                {executionFeedback}
-                {action.type === "end" &&
-                  m.matters.some(
-                    (x) =>
-                      ["oldgod", "accident", "distrust", "supply"].includes(
-                        x.kind,
-                      ) &&
-                      !x.isolated &&
-                      x.containment === 0,
-                  ) && (
-                    <div className="action-warning">
-                      <AlertTriangle />
-                      <p>
-                        仍有未遏制的持续局势，结算会恶化。可以继续推进，也可先返回审议。
-                      </p>
-                    </div>
-                  )}
+                {result?.status === "failed" && executionFeedback}
                 <p className="v2-participants">
                   参与人物：
                   {v.actors.map((id) => getPerson(id)?.name || id).join("、") ||
@@ -2592,7 +2585,6 @@ export default function App() {
                 )}
                 {modal === "matters" && (
                   <>
-                    {executionFeedback}
                     {focusedMatter && (
                       <button onClick={() => setFocusedMatter(null)}>
                         查看全部事务
@@ -3087,7 +3079,7 @@ export default function App() {
               </button>
             </div>
             <span className="turn-label">
-              联邦历 {1950 + s.turn} · 第{s.turn}回合
+              联邦历 {1950 + s.turn} · 第{s.turn}回合 · 剩余{s.commands}命令
             </span>
             {!playing ? (
               <button
@@ -3106,6 +3098,7 @@ export default function App() {
               >
                 <button
                   className="v2-primary end-turn"
+                  aria-label="结束回合"
                   onClick={() => choose({ type: "end" })}
                 >
                   结束回合 <ArrowRight size={20} />

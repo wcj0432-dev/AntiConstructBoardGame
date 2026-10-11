@@ -1971,3 +1971,8 @@ button svg {
 .v2-roster .person-badge b {
   font-size: var(--body);
 }
+.turn-review { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.turn-review section { border: 1px solid #809581; background: #243830; padding: 16px; }
+.turn-review h3 { margin-top: 0; }
+.advance-confirm, .turn-bar .end-turn { background: #b39854; color: #152821; border: 2px solid #ebd28a; }
+@media(max-width:1000px) { .turn-review { grid-template-columns: 1fr; } }
