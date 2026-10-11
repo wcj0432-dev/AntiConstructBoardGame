@@ -1,2 +1,3 @@
 beba1c45b9859ccfe78aa88e559a2232bfb4271b475e8591cbcc5620b1c78240  Federation-of-Worlds-v0.1.0-Offline.zip
 bf54917aa124476e70735e4a6716e22b9a39071b040a201f3ab4ccbd9131ff7a  Federation-of-Worlds-v0.5.0-Offline.zip
+f8215d1221376f901d97f544d908991b251086e01cc3d3894b9d59c5d295f72b  Federation-of-Worlds-v0.5.1-Offline.zip

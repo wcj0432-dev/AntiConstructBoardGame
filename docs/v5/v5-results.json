@@ -107,6 +107,14 @@
         634.4000244140625
       ],
       "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1920,
+        993
+      ],
       "pixels": [
         1920,
         993
@@ -132,6 +140,14 @@
         498.3999938964844
       ],
       "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1600,
+        813
+      ],
       "pixels": [
         1600,
         813
@@ -157,6 +173,14 @@
         363.8000183105469
       ],
       "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1366,
+        681
+      ],
       "pixels": [
         1366,
         681
@@ -182,6 +206,14 @@
         325.3999938964844
       ],
       "font": 16,
+      "chromeInsets": [
+        0,
+        87
+      ],
+      "contentPixels": [
+        1280,
+        633
+      ],
       "pixels": [
         1280,
         633
@@ -198,5 +230,67 @@
   },
   "taxReform": "real starting resources; central cash cost, local political cost and tax distribution verified",
   "personnel": "all24, combined filters, numerical sort, real vacancy + one side limit, unchanged rejected request, reload + cancellation",
+  "nativeChromeAt100": [
+    {
+      "outer": [
+        1920,
+        1080
+      ],
+      "content": [
+        1920,
+        993
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1600,
+        900
+      ],
+      "content": [
+        1600,
+        813
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1366,
+        768
+      ],
+      "content": [
+        1366,
+        681
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1280,
+        720
+      ],
+      "content": [
+        1280,
+        633
+      ],
+      "insets": [
+        0,
+        87
+      ],
+      "ratio": 1
+    }
+  ],
   "errors": []
 }

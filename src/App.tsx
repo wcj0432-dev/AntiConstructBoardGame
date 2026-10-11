@@ -1054,7 +1054,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.5.0 · 国家机器与跨省依赖 / 原创联邦地图
+              v0.5.1 · 国家机器与跨省依赖 / 原创联邦地图
             </small>
           </section>
           {modal === "settings" && (

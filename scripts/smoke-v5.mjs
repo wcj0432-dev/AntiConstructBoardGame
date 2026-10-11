@@ -673,6 +673,42 @@ async function native125Layout() {
     target.setDefaultTimeout(15000);
     target.on("pageerror", (error) => errors.push(error.message));
     await target.goto("chrome://settings/appearance");
+    const cdp = await context.newCDPSession(target),
+      { windowId } = await cdp.send("Browser.getWindowForTarget");
+    // Window bounds include native borders and the browser toolbar. Measure
+    // their actual size at 100%, before page zoom changes CSS pixel dimensions.
+    // Windows has horizontal frame insets that Linux's headless window lacks.
+    const nativeFrames = [];
+    for (const [width, height] of sizes) {
+      await cdp.send("Browser.setWindowBounds", {
+        windowId,
+        bounds: { width, height },
+      });
+      await target.waitForFunction(
+        ([w, h]) => outerWidth === w && outerHeight === h,
+        [width, height],
+      );
+      const frame = await target.evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() =>
+                resolve({
+                  outer: [outerWidth, outerHeight],
+                  content: [innerWidth, innerHeight],
+                  insets: [outerWidth - innerWidth, outerHeight - innerHeight],
+                  ratio: devicePixelRatio,
+                }),
+              ),
+            ),
+          ),
+      );
+      assert.equal(frame.ratio, 1, "native frame calibration requires 100% zoom");
+      assert.deepEqual(frame.outer, [width, height]);
+      assert.ok(frame.insets.every((inset) => inset >= 0));
+      nativeFrames.push(frame);
+    }
+    results.nativeChromeAt100 = nativeFrames;
     await target.locator("#zoomLevel").selectOption("1.25");
     await target.goto(base);
     await target
@@ -686,9 +722,8 @@ async function native125Layout() {
     const guide = target.getByRole("button", { name: "独立治理", exact: true });
     if (await guide.count()) await guide.click();
     await close(target);
-    const cdp = await context.newCDPSession(target),
-      { windowId } = await cdp.send("Browser.getWindowForTarget");
-    for (const [width, height] of sizes) {
+    for (const frame of nativeFrames) {
+      const [width, height] = frame.outer;
       await cdp.send("Browser.setWindowBounds", {
         windowId,
         bounds: { width, height },
@@ -699,7 +734,13 @@ async function native125Layout() {
       );
       const metrics = await viewMetrics(target, `native125-${width}x${height}`);
       assert.equal(metrics.ratio, 1.25);
-      assert.equal(metrics.viewport[0], Math.round(width / 1.25));
+      assert.deepEqual(
+        metrics.viewport,
+        frame.content.map((dimension) => Math.round(dimension / 1.25)),
+        "125% CSS viewport must match the measured native content area",
+      );
+      metrics.chromeInsets = frame.insets;
+      metrics.contentPixels = frame.content;
       results.native125.push(metrics);
       await rail("人事管理", target).click();
       await panelBounds(target, "native125 personnel");
@@ -744,6 +785,11 @@ async function native125Layout() {
             Math.abs(value - metrics.viewport[index] * metrics.ratio) <= 1,
         ),
         "native screenshot must include the complete physical viewport",
+      );
+      assert.deepEqual(
+        pixels,
+        frame.content,
+        "compositor capture must match the content area measured at 100%",
       );
       metrics.pixels = pixels;
       await writeFile(
