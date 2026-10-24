@@ -1239,7 +1239,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.7.0 · 首席秘书与国家发展规划
+              v0.7.1 · 首席秘书与国家发展规划
             </small>
           </section>
           {modal === "special" && (

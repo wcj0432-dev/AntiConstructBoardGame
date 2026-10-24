@@ -70,7 +70,7 @@ export const guideTopics: Record<
   },
   goals: {
     title: "国家发展规划",
-    body: "第1回合先认识国情，第2～3回合召开会议。八条国家战略各有两条互斥分支，制度选择影响实际融资、权限和终局。您仍可建设其他领域，分支不会凭空送出设施。我负责说明取舍，最后由您决定。",
+    body: "八或十二回合任期中，第1回合先认识国情，第2～3回合召开会议。八条国家战略各有两条互斥分支，制度选择影响实际融资、权限和终局。您仍可建设其他领域，分支不会凭空送出设施。我负责说明取舍，最后由您决定。",
     panel: "goals",
   },
   crisis: {
@@ -125,7 +125,8 @@ export function guidanceTopic(
             ? "economy"
             : panel === "finance"
               ? "finance"
-              : panel === "goals"
+              : panel === "goals" &&
+                  ["national", "experimental"].includes(g.machine.mode)
                 ? "goals"
                 : g.machine.fiscal!.settlements > 0
                   ? "settlement"
@@ -373,8 +374,9 @@ export function advisorTurnReport(g: V2Game) {
 }
 export function advisorOpening(g: V2Game) {
   return [
-    g.machine.opening?.summary.join(" ") ??
-      "本届接手地方分权的经典联邦；主要国家战略尚待会议决定。",
+    g.machine.opening
+      ? `初始政治档案：${g.machine.opening.summary.join(" ")}`
+      : `本届接手地方分权的经典联邦；${g.machine.goalPending ? "主要国家战略尚待会议决定。" : ["campaign", "tutorial"].includes(g.machine.mode) ? "当前为四回合紧急状态，不召开国家发展规划会议。" : `当前已立项${goals[g.machine.goal].name}。`}`,
     `实际计划主管：${getPerson(officePerson(g, "plan"))?.name ?? "空缺"}；中央余额${g.core.treasury}，地方资金另记。`,
     ...g.machine.works
       .filter((w) => !w.cancelled)

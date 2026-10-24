@@ -124,6 +124,15 @@ describe("v0.7 正式任期秘书与事实一致性", () => {
     expect(n.machine.revision).toBe(g.machine.revision);
     expect(n.machine.history).toEqual(g.machine.history);
     expect(g.machine.advisor!.seen).toEqual([]);
+    const short = markAdvisorRead(newV2("campaign"), "welcome");
+    expect(guidanceTopic(short, "goals", "full")).not.toBe("goals");
+    expect(advisorOpening(short).join()).toContain("四回合紧急状态");
+    const planned = run(run(g, { type: "end" }), {
+      type: "selectGoal",
+      goal: "spark",
+    });
+    expect(advisorOpening(planned).join()).toContain("当前已立项星火计划");
+    expect(advisorOpening(planned).join()).not.toContain("尚待会议");
     expect(deserializeV2(serializeV2(n))).toEqual(n);
   });
   it.each(["manual", "off"] as const)(
