@@ -38,6 +38,10 @@ await zip(`${prefix}-Offline.zip`, (archive) => {
   archive.file(path.join(root, "V7_DELIVERY.md"), {
     name: "V7_DELIVERY.md",
   });
+  archive.file(path.join(root, "V8_DELIVERY.md"), { name: "V8_DELIVERY.md" });
+  archive.file(path.join(root, "docs/V8_CAMPAIGN_MATRIX.json"), {
+    name: "docs/V8_CAMPAIGN_MATRIX.json",
+  });
   for (const doc of ["ART_AUDIO_V7.md", "V7_EXPANSION_DESIGN.md"])
     archive.file(path.join(root, "docs", doc), { name: `docs/${doc}` });
 });
@@ -62,6 +66,8 @@ await zip(`${prefix}-Source.zip`, (archive) => {
     "V6_DELIVERY.md",
     "V7_DELIVERY.md",
     "V7_PROGRESS.md",
+    "V8_DELIVERY.md",
+    "V8_PROGRESS.md",
     "THIRD_PARTY_NOTICES.md",
     ".gitignore",
   ])

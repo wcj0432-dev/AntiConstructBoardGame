@@ -7,27 +7,35 @@ import {
   previewAction,
   finance,
 } from "../src/v2/engine";
-import type { Action, Goal } from "../src/v2/model";
+import type { Action, Goal, Difficulty } from "../src/v2/model";
 import type { ProvinceId } from "../src/types";
 export function runV7Campaign(
   goal: "codex" | "comms",
   branch: "central" | "plural",
   seed = `v07-${goal}-${branch}`,
+  options: { difficulty: Difficulty; politics: "classic" | "random" } = {
+    difficulty: "standard",
+    politics: "classic",
+  },
 ) {
   let g = startCampaign({
     mode: "experimental",
     seed,
-    difficulty: "standard",
-    politics: "classic",
+    ...options,
   });
   const opening = serializeV2(g),
+    settlements: ReturnType<typeof finance>[] = [],
     transcript: {
       turn: number;
       action: Action;
       cash: number;
+      commands: number;
+      crisis: number;
+      paralysis: number;
       local: Record<ProvinceId, number>;
     }[] = [];
   const action = (a: Action) => {
+    if (a.type === "end") settlements.push(finance(g));
     const turn = g.core.turn,
       r = executeCommand(g, a);
     if (r.result.status === "failed")
@@ -39,6 +47,9 @@ export function runV7Campaign(
       turn,
       action: a,
       cash: g.core.treasury,
+      commands: g.core.commands,
+      crisis: g.core.crisis,
+      paralysis: g.core.paralysis,
       local: { ...g.machine.fiscal!.locals },
     });
   };
@@ -208,6 +219,8 @@ export function runV7Campaign(
     game: g,
     opening: JSON.parse(opening),
     transcript,
+    trace: transcript,
+    settlements,
     reloads,
     checks: milestones(g),
   };

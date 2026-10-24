@@ -179,6 +179,7 @@ export interface Work {
   };
 }
 export interface Machine {
+  storylines?: { work: string; decisions: StoryDecision[] }[];
   advisor?: { seen: string[]; cooldowns: Record<string, number> };
   strategy?: {
     branch?: "central" | "plural";
@@ -284,6 +285,18 @@ export interface V2Game {
   machine: Machine;
 }
 export type Action =
+  | ({ type: "storyDecision"; work: string } & (
+      | { chapter: "charter"; choice: "central" | "local" }
+      | {
+          chapter: "teaching";
+          choice: "field" | "academy";
+          mentor: string;
+          student: string;
+          cap: TrainingCap;
+          facility?: string;
+        }
+      | { chapter: "tax"; choice: "central" | "autonomy" }
+    ))
   | { type: "strategyBranch"; branch: "central" | "plural" }
   | { type: "lawRegister"; province: ProvinceId; work: string }
   | { type: "dispatch"; matter: string }
@@ -389,6 +402,14 @@ export type Action =
   | { type: "forecast" }
   | { type: "skip" }
   | { type: "end" };
+export interface StoryDecision {
+  chapter: "charter" | "teaching" | "tax";
+  choice: string;
+  turn: number;
+  source: string;
+  operation?: string;
+  training?: string;
+}
 export interface Condition {
   label: string;
   met: boolean;

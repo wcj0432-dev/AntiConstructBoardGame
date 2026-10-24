@@ -3,6 +3,7 @@ import { getPerson } from "../data";
 import { facilityOperating } from "./operations";
 import { assignmentsFor, officePerson } from "./personnel";
 import { workFunding } from "./fiscal";
+import { specialistCapability } from "./traits";
 export interface PoliticalStory {
   id: string;
   title: string;
@@ -92,7 +93,8 @@ export function politicalStories(g: V2Game): PoliticalStory[] {
       successor =
         graduate &&
         !!course.student &&
-        assignmentsFor(g, course.student).adminAvailable;
+        specialistCapability(g, course.cap, course.province, [course.student])
+          .length > 0;
     out.push({
       id: "academy-succession",
       title: "国家学院的继任问题",

@@ -8,8 +8,10 @@ import { workReadiness, workSpecs } from "./administration";
 import { goals } from "./data";
 import { strategyEpilogue } from "./nationalStrategy";
 import type { Action, V2Game } from "./model";
+import { storyFacts, chapterNames } from "./contractStory";
 export type AdvisorMode = "full" | "important" | "manual" | "off";
 export type AdvisorPanel =
+  | "secretary"
   | "finance"
   | "staff"
   | "economy"
@@ -289,6 +291,23 @@ export function advisorIssues(g: V2Game): AdvisorIssue[] {
         directions: ["查看国家目标与演练入口", "继续维持实际人员、合同和运营"],
         priority: 65,
         panel: "goals",
+      });
+  }
+  for (const story of m.storylines ?? []) {
+    const facts = storyFacts(g, story.work);
+    if (facts.decisions.length < 3)
+      issues.push({
+        id: `story:${story.work}`,
+        title: `契约议程 · ${chapterNames[facts.decisions.length]}`,
+        why:
+          facts.issues.join("；") ||
+          "先前签字已记录，下一章按当前真实条件办理。",
+        consequence: "维护、人才和全国税制的长期选择；可延后，不阻止回合推进。",
+        directions: ["打开首席秘书的政治故事页查看条件与选择"],
+        priority: 55,
+        panel: "secretary",
+        province: facts.w?.province,
+        source: facts.decisions.at(-1)?.source,
       });
   }
   return issues

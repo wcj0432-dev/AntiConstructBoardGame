@@ -63,6 +63,14 @@ for (const output of paths) {
     path.join(root, "V7_DELIVERY.md"),
     path.join(output, "V7_DELIVERY.md"),
   );
+  await cp(
+    path.join(root, "V8_DELIVERY.md"),
+    path.join(output, "V8_DELIVERY.md"),
+  );
+  await cp(
+    path.join(root, "docs/V8_CAMPAIGN_MATRIX.json"),
+    path.join(output, "V8_CAMPAIGN_MATRIX.json"),
+  );
   await mkdir(path.join(output, "docs"), { recursive: true });
   for (const doc of ["ART_AUDIO_V7.md", "V7_EXPANSION_DESIGN.md"])
     await cp(path.join(root, "docs", doc), path.join(output, "docs", doc));

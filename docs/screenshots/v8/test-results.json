@@ -1,0 +1,205 @@
+{
+  "source": "All story and supporting campaign actions through the actual UI, standard random opening v08-story-496. Native zoom restores the same actual saved game.",
+  "desktop": [
+    {
+      "label": "1920x1080",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "doc": [
+        1920,
+        1080
+      ],
+      "ratio": 1,
+      "hit": true,
+      "font": 16
+    },
+    {
+      "label": "1600x900",
+      "viewport": [
+        1600,
+        900
+      ],
+      "doc": [
+        1600,
+        900
+      ],
+      "ratio": 1,
+      "hit": true,
+      "font": 16
+    },
+    {
+      "label": "1366x768",
+      "viewport": [
+        1366,
+        768
+      ],
+      "doc": [
+        1366,
+        768
+      ],
+      "ratio": 1,
+      "hit": true,
+      "font": 16
+    },
+    {
+      "label": "1280x720",
+      "viewport": [
+        1280,
+        720
+      ],
+      "doc": [
+        1280,
+        720
+      ],
+      "ratio": 1,
+      "hit": true,
+      "font": 16
+    }
+  ],
+  "native125": [
+    {
+      "label": "1920x1080",
+      "viewport": [
+        1536,
+        794
+      ],
+      "doc": [
+        1536,
+        794
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "font": 16,
+      "pixels": [
+        1920,
+        993
+      ]
+    },
+    {
+      "label": "1600x900",
+      "viewport": [
+        1280,
+        650
+      ],
+      "doc": [
+        1280,
+        650
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "font": 16,
+      "pixels": [
+        1600,
+        813
+      ]
+    },
+    {
+      "label": "1366x768",
+      "viewport": [
+        1093,
+        545
+      ],
+      "doc": [
+        1093,
+        545
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "font": 16,
+      "pixels": [
+        1366,
+        681
+      ]
+    },
+    {
+      "label": "1280x720",
+      "viewport": [
+        1024,
+        506
+      ],
+      "doc": [
+        1024,
+        506
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "font": 16,
+      "pixels": [
+        1280,
+        633
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "turn": 1,
+      "type": "storyDecision",
+      "chapter": "charter"
+    },
+    {
+      "turn": 1,
+      "type": "resolve"
+    },
+    {
+      "turn": 1,
+      "type": "resolve"
+    },
+    {
+      "turn": 1,
+      "type": "investigate"
+    },
+    {
+      "turn": 2,
+      "type": "end"
+    },
+    {
+      "turn": 2,
+      "type": "selectGoal"
+    },
+    {
+      "turn": 2,
+      "type": "authorize"
+    },
+    {
+      "turn": 2,
+      "type": "resolve"
+    },
+    {
+      "turn": 2,
+      "type": "reconcile"
+    },
+    {
+      "turn": 2,
+      "type": "storyDecision",
+      "chapter": "teaching"
+    },
+    {
+      "turn": 3,
+      "type": "end"
+    },
+    {
+      "turn": 3,
+      "type": "authorize"
+    },
+    {
+      "turn": 3,
+      "type": "resolve"
+    },
+    {
+      "turn": 3,
+      "type": "fiscalTransfer"
+    },
+    {
+      "turn": 4,
+      "type": "end"
+    },
+    {
+      "turn": 4,
+      "type": "storyDecision",
+      "chapter": "tax"
+    }
+  ],
+  "errors": []
+}

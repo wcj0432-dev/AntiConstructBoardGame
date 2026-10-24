@@ -1,4 +1,5 @@
 import { politicalStories } from "../v2/politicalStories";
+import { ContractStory } from "./ContractStory";
 import { useEffect, useState, useRef } from "react";
 import {
   advisorAction,
@@ -139,8 +140,9 @@ export function SecretaryConsole({
   game,
   animate,
   onNavigate,
-  onChoose: _onChoose,
+  onChoose,
   onRead,
+  focusStories = false,
 }: {
   game: V2Game;
   animate: boolean;
@@ -152,9 +154,13 @@ export function SecretaryConsole({
   ) => void;
   onChoose: (a: Action) => void;
   onRead: (topic: string) => void;
+  focusStories?: boolean;
 }) {
-  const [tab, setTab] = useState("brief"),
+  const [tab, setTab] = useState(focusStories ? "stories" : "brief"),
     [topic, setTopic] = useState("welcome");
+  useEffect(() => {
+    if (focusStories) setTab("stories");
+  }, [focusStories]);
   const issues = advisorIssues(game),
     r = advisorTurnReport(game);
   return (
@@ -294,6 +300,7 @@ export function SecretaryConsole({
       )}
       {tab === "stories" && (
         <>
+          <ContractStory game={game} onChoose={onChoose} />
           <p>章节随真实合同、教学和共同工作演变，不另行发放剧情奖励。</p>
           {politicalStories(game).length === 0 && (
             <p>尚无足够的合同或共同经历形成长期章节。</p>

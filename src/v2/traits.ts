@@ -535,7 +535,7 @@ export function applySpecialistSkill(
   };
   const trust = (n: number) => {
     const old = m.trust[pid];
-    m.trust[pid] = Math.min(4, old + n);
+    m.trust[pid] = Math.min(3, old + n);
     effects.push(`${p.name}信任 ${old}→${m.trust[pid]}`);
   };
   const cooperation = () => {

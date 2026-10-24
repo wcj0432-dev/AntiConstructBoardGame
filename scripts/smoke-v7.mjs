@@ -239,7 +239,7 @@ try {
   await close();
   const saved = await save();
   const savedObject = JSON.parse(saved);
-  assert.equal(savedObject.machine.rulesVersion, "0.7.0");
+  assert.equal(savedObject.machine.rulesVersion, "0.8.0");
   assert.equal(savedObject.machine.strategy.branch, "plural");
   assert.equal(savedObject.core.commands, 4);
   await page.getByRole("button", { name: "暂停菜单", exact: true }).click();

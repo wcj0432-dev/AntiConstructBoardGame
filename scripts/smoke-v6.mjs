@@ -69,7 +69,7 @@ async function save() {
     saveKey,
   );
   await close();
-  assert.equal(g.machine.rulesVersion, "0.7.0");
+  assert.equal(g.machine.rulesVersion, "0.8.0");
   return g;
 }
 async function scene() {

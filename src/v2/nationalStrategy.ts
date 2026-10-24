@@ -340,7 +340,11 @@ export function strategicMilestones(g: V2Game, goal: Goal): Condition[] {
       b === "central"
         ? rails.length > 0 && rails.every(centralUpkeep) && officer(g, "plan")
         : rails.length > 0 &&
-          specialistCapability(g, "transport", "north").length > 0 &&
+          rails.some((w) =>
+            [w.province, w.to!].some(
+              (pid) => specialistCapability(g, "transport", pid).length > 0,
+            ),
+          ) &&
           [...new Set(rails.flatMap((w) => [w.province, w.to!]))].every(
             (pid) => !!m.fiscal?.agreements.includes(pid),
           );

@@ -7,6 +7,16 @@ import {
   strategyEpilogue,
 } from "./nationalStrategy";
 import { migrateAndValidateV7 } from "./migrationV7";
+import { migrateAndValidateV8 } from "./migrationV8";
+import {
+  appendStoryDecision,
+  chapterIds,
+  chapterNames,
+  storyConditions,
+  storyEffects,
+  storyOperation,
+  storyTitle,
+} from "./contractStory";
 import { explorationPool } from "./exploration";
 import {
   demoReservePreview,
@@ -296,7 +306,8 @@ export function newV2(
       archive: [],
       results: [],
       difficulty: "standard",
-      rulesVersion: "0.7.0",
+      rulesVersion: "0.8.0",
+      storylines: [],
       advisor: { seen: [], cooldowns: {} },
       strategy: { legalRecords: [], dispatches: [] },
       trainings: [],
@@ -686,6 +697,35 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
   const need = (label: string, met: boolean, reason: string, source?: string) =>
     v.conditions.push(condition(label, met, reason, source));
   if (s.status !== "playing") v.errors.push("本局已经结束");
+  if (action.type === "storyDecision") {
+    const operation = storyOperation(g, action);
+    if (operation) Object.assign(v, previewAction(g, operation));
+    v.action = action;
+    v.title = `${storyTitle} · ${chapterNames[chapterIds.indexOf(action.chapter)]}`;
+    v.conditions.push(...storyConditions(g, action));
+    if (!operation && action.chapter === "tax")
+      v.conditions.push(
+        ...strategyActionConditions(g, {
+          type: "fiscalReform",
+          system: action.choice,
+        }),
+      );
+    v.effects.push(...storyEffects(action, !operation));
+    v.parents.push(
+      ...(m.storylines
+        ?.find((x) => x.work === action.work)
+        ?.decisions.map((d) => d.source) ?? []),
+    );
+    v.errors = [
+      ...new Set([
+        ...v.errors,
+        ...v.conditions
+          .filter((c) => !c.met)
+          .map((c) => `${c.label}：${c.reason}`),
+      ]),
+    ];
+    return v;
+  }
   if (isStrategyAction(action)) {
     Object.assign(v, strategyPreview(g, action));
   } else if (action.type === "demoReserve") {
@@ -1988,6 +2028,24 @@ function advance(g: V2Game, source: string) {
 function applyAction(g: V2Game, action: Action): V2Game {
   const v = previewAction(g, action);
   if (v.errors.length) throw new Error(v.errors.join("；"));
+  if (action.type === "storyDecision") {
+    const operation = storyOperation(g, action);
+    const n = operation ? applyAction(g, operation) : structuredClone(g);
+    const operationSource = operation
+      ? n.machine.history[0]?.id
+      : n.machine.origins.taxSystem;
+    const source = record(
+      n,
+      v.title,
+      v.actors,
+      v.institutions,
+      v.conditions.map((c) => c.reason),
+      v.effects,
+      [...v.parents, ...(operationSource ? [operationSource] : [])],
+    );
+    appendStoryDecision(n, action, source, operationSource);
+    return n;
+  }
   const n = structuredClone(g),
     m = n.machine,
     s = n.core;
@@ -2354,12 +2412,12 @@ export function deserializeV2(raw: string): V2Game {
     );
   const g = parsed as V2Game;
   if (
-    ["0.5.0", "0.6.0", "0.7.0"].includes(g.machine?.rulesVersion) &&
+    ["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(g.machine?.rulesVersion) &&
     !g.machine.fiscal
   )
     throw new Error("v0.5存档缺少财政账本，不能按旧档重新开户。");
   if (
-    ["0.5.0", "0.6.0", "0.7.0"].includes(g.machine?.rulesVersion) &&
+    ["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(g.machine?.rulesVersion) &&
     g.machine.works?.some((w) => !w.contract)
   )
     throw new Error("v0.5工程缺少融资合同，不能静默改成中央独资。");
@@ -2510,12 +2568,19 @@ export function deserializeV2(raw: string): V2Game {
   m.politics ??= "classic";
   m.agendaSeen ??= [];
   if (
-    !["0.2", "0.3.0", "0.3.1", "0.4.0", "0.5.0", "0.6.0", "0.7.0"].includes(
-      m.rulesVersion,
-    )
+    ![
+      "0.2",
+      "0.3.0",
+      "0.3.1",
+      "0.4.0",
+      "0.5.0",
+      "0.6.0",
+      "0.7.0",
+      "0.8.0",
+    ].includes(m.rulesVersion)
   )
     throw new Error("存档来自不同规则版本，请使用对应版本读取；原存档未改动");
-  if (!["0.5.0", "0.6.0", "0.7.0"].includes(m.rulesVersion)) {
+  if (!["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(m.rulesVersion)) {
     m.migratedFrom = m.rulesVersion;
     const assigned = new Set<string>(),
       facilities = new Map<string, (typeof m.works)[number]>();
@@ -2677,6 +2742,7 @@ export function deserializeV2(raw: string): V2Game {
   validateFiscal(g);
   migrateAndValidateV6(g);
   migrateAndValidateV7(g);
+  migrateAndValidateV8(g);
   const side = m.secondaryAppointments ?? {};
   if (
     Object.entries(side).some(

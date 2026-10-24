@@ -1239,7 +1239,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.7.1 · 首席秘书与国家发展规划
+              v0.8.0 · 契约、传承与税源
             </small>
           </section>
           {modal === "special" && (
@@ -1992,6 +1992,7 @@ export default function App() {
                 {modal === "secretary" && (
                   <SecretaryConsole
                     game={g}
+                    focusStories={advisorFocus === "secretary"}
                     animate={ui.animate}
                     onNavigate={advisorNavigate}
                     onChoose={choose}
@@ -2415,7 +2416,7 @@ export default function App() {
                 )}
                 {modal === "help" && (
                   <>
-                    <h2>治理手册 · 国家机器 v0.7</h2>
+                    <h2>治理手册 · 国家机器 v0.8</h2>
                     <h3>指挥席操作</h3>
                     <p>
                       点击地图调阅地方，左栏切换管理功能，右侧提醒定位事务。地图支持拖动与滚轮缩放，四种地图模式展示政治、行政、资源和危机。Esc关闭最上层面板，再按Esc进入暂停菜单；保存与读取都在暂停菜单。正文只在面板内部滚动，底部回合按钮持续可见。

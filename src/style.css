@@ -2152,3 +2152,11 @@ h1 span {
   width: 5px;
   height: 5px;
 }
+
+.contract-story-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+.contract-story .document-card { margin-top: 12px; }
+.contract-story select { min-width: 0; max-width: 100%; font-size: 16px; }
