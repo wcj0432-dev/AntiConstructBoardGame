@@ -201,5 +201,51 @@
       "chapter": "tax"
     }
   ],
+  "nativeChromeAt100": [
+    {
+      "outer": [
+        1920,
+        1080
+      ],
+      "content": [
+        1920,
+        993
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1600,
+        900
+      ],
+      "content": [
+        1600,
+        813
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1366,
+        768
+      ],
+      "content": [
+        1366,
+        681
+      ],
+      "ratio": 1
+    },
+    {
+      "outer": [
+        1280,
+        720
+      ],
+      "content": [
+        1280,
+        633
+      ],
+      "ratio": 1
+    }
+  ],
   "errors": []
 }

@@ -1239,7 +1239,7 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.8.0 · 契约、传承与税源
+              v0.8.1 · 契约、传承与税源
             </small>
           </section>
           {modal === "special" && (

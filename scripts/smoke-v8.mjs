@@ -325,14 +325,26 @@ async function native(saved) {
         ([w, h]) => outerWidth === w && outerHeight === h,
         [w, h],
       );
-      frames.push(
-        await p.evaluate(() => ({
-          content: [innerWidth, innerHeight],
-          ratio: devicePixelRatio,
-        })),
+      // On Windows outer bounds can settle before the renderer's content area.
+      // Match the existing v7 calibration: let both layout frames complete.
+      const frame = await p.evaluate(
+        () =>
+          new Promise((resolve) => {
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() =>
+                resolve({
+                  outer: [outerWidth, outerHeight],
+                  content: [innerWidth, innerHeight],
+                  ratio: devicePixelRatio,
+                }),
+              ),
+            );
+          }),
       );
+      frames.push(frame);
       assert.equal(frames.at(-1).ratio, 1);
     }
+    results.nativeChromeAt100 = frames;
     await p.locator("#zoomLevel").selectOption("1.25");
     await c.addInitScript((s) => {
       try {
@@ -356,13 +368,18 @@ async function native(saved) {
         windowId,
         bounds: { width: w, height: h },
       });
+      const frame = frames[sizes.findIndex((size) => size[0] === w)];
       await p.waitForFunction(
-        ([w, h]) => outerWidth === w && outerHeight === h,
-        [w, h],
+        ({ w, h, content }) =>
+          outerWidth === w &&
+          outerHeight === h &&
+          devicePixelRatio === 1.25 &&
+          innerWidth === Math.round(content[0] / 1.25) &&
+          innerHeight === Math.round(content[1] / 1.25),
+        { w, h, content: frame.content },
       );
       results.native125.push(await viewport(p, `${w}x${h}`));
       assert.equal(results.native125.at(-1).ratio, 1.25);
-      const frame = frames[sizes.findIndex((size) => size[0] === w)];
       assert.deepEqual(
         results.native125.at(-1).viewport,
         frame.content.map((n) => Math.round(n / 1.25)),

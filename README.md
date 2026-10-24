@@ -1,4 +1,4 @@
-# 诸界联邦 · 国家机器 v0.8.0
+# 诸界联邦 · 国家机器 v0.8.1
 
 本地单人PvE国家治理策略游戏。React + TypeScript + Vite，无后端、账号或在线AI。通过实际人事、事权、融资合同、财政、工程、维护与具名师承治理三省六区。
 
@@ -16,7 +16,7 @@
 
 ## 下载
 
-[Windows / 离线HTML / 源码 / SHA256](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.0)
+[Windows / 离线HTML / 源码 / SHA256](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.1)
 
 Windows包完整解压后运行`FederationOfWorlds.exe`，不能只复制exe；离线包解压后双击`诸界联邦.html`。无需Node.js或网络，Windows包尚无发行者签名。旧版本发布仍保留。详见[游玩说明](PLAYER_GUIDE.md)。
 
