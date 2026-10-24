@@ -148,6 +148,9 @@ try {
   await page.evaluate(() => localStorage.removeItem("federation-worlds-v2"));
   await page.reload();
   // Separate tutorial entry uses the same game shell and unchanged actions.
+  await page
+    .getByRole("button", { name: "特别剧本 / 规则演示", exact: true })
+    .click();
   await page.getByRole("button", { name: "教学战役", exact: true }).click();
   await page.getByRole("heading", { name: "01 · 人物不是数值工具" }).waitFor();
   await rail("国家事务").click();
@@ -255,6 +258,7 @@ try {
   await page.getByRole("button", { name: "结束回合", exact: true }).click();
   await confirm();
   await rail("国家目标").click();
+  await page.locator(".planning-route-picker summary").click();
   await page
     .getByRole("button", { name: "提交星火计划立项", exact: true })
     .click();

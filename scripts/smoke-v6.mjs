@@ -69,7 +69,7 @@ async function save() {
     saveKey,
   );
   await close();
-  assert.equal(g.machine.rulesVersion, "0.6.0");
+  assert.equal(g.machine.rulesVersion, "0.7.0");
   return g;
 }
 async function scene() {
@@ -90,6 +90,9 @@ async function start() {
   await page.goto(base);
   await page.evaluate((k) => localStorage.removeItem(k), saveKey);
   await page.reload();
+  await page
+    .getByRole("button", { name: "特别剧本 / 规则演示", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "南岭工程与人才接班", exact: true })
     .click();
@@ -248,6 +251,9 @@ async function native125Layout() {
     results.nativeChromeAt100 = nativeFrames;
     await target.locator("#zoomLevel").selectOption("1.25");
     await target.goto(base);
+    await target
+      .getByRole("button", { name: "特别剧本 / 规则演示", exact: true })
+      .click();
     await target
       .getByRole("button", { name: "南岭工程与人才接班", exact: true })
       .click();

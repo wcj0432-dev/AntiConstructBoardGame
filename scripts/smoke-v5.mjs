@@ -391,6 +391,7 @@ async function realCampaign() {
   await policy("method", "协商");
   await turn();
   await rail("国家目标").click();
+  await page.locator(".planning-route-picker summary").click();
   await page.getByRole("button", { name: /提交富国新政立项/ }).click();
   await confirm();
   await region("south");
@@ -481,6 +482,7 @@ async function realCampaign() {
     if (game.core.turn >= 10 && !game.machine.terminalInspected) {
       await close();
       await rail("国家目标").click();
+      await page.locator('[data-strategy-node="final"]').click();
       await page
         .getByRole("button", { name: "预览全国协作演练", exact: true })
         .click();

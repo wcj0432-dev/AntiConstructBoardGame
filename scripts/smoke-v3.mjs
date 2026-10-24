@@ -129,6 +129,7 @@ try {
   await page
     .getByRole("heading", { name: "国家发展规划会议", exact: true })
     .waitFor();
+  await page.locator(".planning-route-picker summary").click();
   await page
     .getByRole("button", { name: "预览长夜防线立项", exact: true })
     .click();
@@ -174,6 +175,7 @@ try {
   }
   await turn();
   await rail("国家目标").click();
+  await page.locator(".planning-route-picker summary").click();
   await page
     .getByRole("button", { name: "提交长夜防线立项", exact: true })
     .click();
@@ -203,6 +205,7 @@ try {
   await close();
   for (let current = 4; current < 10; current++) await turn();
   await rail("国家目标").click();
+  await page.locator('[data-strategy-node="final"]').click();
   await page
     .getByRole("button", { name: "预览全国协作演练", exact: true })
     .click();

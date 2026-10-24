@@ -69,3 +69,8 @@ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
 WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+
+## v0.7 original art and procedural audio
+
+The secretary three-expression sheet and four-person portrait sheet were generated for this project with OpenAI image tools, without third-party game art inputs. They are AI-generated original assets, not claims of hand-drawn work or exclusive copyright. Use is subject to applicable service terms. The atlas relief code, five procedural score sequences and eleven synthesized cue categories are authored in this project; no external music recordings or runtime audio service are used. Existing remaining portraits and event drawings are original SVG templates. See docs/ART_AUDIO_V7.md for the completed/fallback asset inventory.

@@ -15,7 +15,9 @@ export type Goal =
   | "night"
   | "traffic"
   | "learning"
-  | "prosperity";
+  | "prosperity"
+  | "codex"
+  | "comms";
 export type Capability =
   | "mobilize"
   | "seal"
@@ -72,7 +74,8 @@ export type WorkType =
   | "cooperative"
   | "rail"
   | "grid"
-  | "academy";
+  | "academy"
+  | "relay";
 export type TaxSystem = "split" | "central" | "autonomy";
 export type FiscalAccount = "central" | ProvinceId | "cult";
 export type FundingMode = "central" | "local" | "joint" | "multi" | "cult";
@@ -85,12 +88,7 @@ export interface LedgerEntry {
   reason: string;
   source: string;
   category:
-    | "tax"
-    | "operation"
-    | "investment"
-    | "transfer"
-    | "maintenance"
-    | "audit";
+    "tax" | "operation" | "investment" | "transfer" | "maintenance" | "audit";
 }
 export interface FiscalState {
   taxSystem: TaxSystem;
@@ -181,6 +179,25 @@ export interface Work {
   };
 }
 export interface Machine {
+  advisor?: { seen: string[]; cooldowns: Record<string, number> };
+  strategy?: {
+    branch?: "central" | "plural";
+    source?: string;
+    chosenAt?: number;
+    legalRecords: {
+      province: ProvinceId;
+      work: string;
+      signature: string;
+      source: string;
+      turn: number;
+    }[];
+    dispatches: {
+      matter: string;
+      province: ProvinceId;
+      source: string;
+      turn: number;
+    }[];
+  };
   mode: Mode;
   goal: Goal;
   regime: Regime;
@@ -267,6 +284,9 @@ export interface V2Game {
   machine: Machine;
 }
 export type Action =
+  | { type: "strategyBranch"; branch: "central" | "plural" }
+  | { type: "lawRegister"; province: ProvinceId; work: string }
+  | { type: "dispatch"; matter: string }
   | { type: "demoReserve" }
   | { type: "selectGoal"; goal: Goal }
   | { type: "inspect" }
@@ -423,11 +443,7 @@ export interface Plan {
     | "archive";
 }
 export type ResultStatus =
-  | "failed"
-  | "partial"
-  | "resolved"
-  | "changed"
-  | "applied";
+  "failed" | "partial" | "resolved" | "changed" | "applied";
 export interface ActionResult {
   id: string;
   revision: number;

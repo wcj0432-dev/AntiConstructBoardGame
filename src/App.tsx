@@ -1,3 +1,23 @@
+import {
+  SecretaryAdvice,
+  SecretaryConsole,
+  SecretaryCue,
+  SecretaryPortrait,
+  SecretarySettings,
+} from "./ui/Secretary";
+import { StrategyTree } from "./ui/StrategyTree";
+import {
+  advisorIssues,
+  guidanceTopic,
+  guideTopics,
+  markAdvisorRead,
+  advisorEpilogue,
+  type AdvisorMode,
+  type AdvisorPanel,
+} from "./v2/advisor";
+import { GameAudio } from "./ui/audio";
+import { AudioSettings } from "./ui/AudioSettings";
+import "./ui/v7-ui.css";
 import { conditionEvents } from "./v2/conditionEvents";
 import { startSuccessionDemo, demoPhase } from "./v2/demonstration";
 import { SuccessionDemo } from "./ui/SuccessionDemo";
@@ -33,14 +53,7 @@ import {
   Play,
   ChevronRight,
 } from "lucide-react";
-import {
-  coreAbilities,
-  goals,
-  strategyDetails,
-  plansFor,
-  regimes,
-  capNames,
-} from "./v2/data";
+import { coreAbilities, goals, plansFor, regimes, capNames } from "./v2/data";
 import {
   capability,
   deserializeV2,
@@ -71,7 +84,6 @@ import type {
   Action,
   ActionResult,
   Difficulty,
-  Goal,
   Mode,
   V2Game,
 } from "./v2/model";
@@ -104,6 +116,8 @@ import { assignedOffices, assignmentsFor, officePerson } from "./v2/personnel";
 import "./ui/command.css";
 import "./ui/v5-ui.css";
 type Panel =
+  | "secretary"
+  | "special"
   | "scenario"
   | "briefing"
   | "staff"
@@ -125,6 +139,8 @@ const difficultyNames = {
   challenging: "紧缩",
 };
 const titles: Record<Panel, string> = {
+  secretary: "首席秘书 · 沈岚",
+  special: "特别剧本 / 规则演示",
   scenario: "南岭工程与人才接班",
   briefing: "初始国情报告",
   staff: "人事管理",
@@ -195,9 +211,22 @@ function readSettings() {
     return {
       scale: [100, 110, 125, 150].includes(p.scale) ? p.scale : 100,
       hints: p.hints !== false,
+      advisorMode: (["full", "important", "manual", "off"].includes(
+        p.advisorMode,
+      )
+        ? p.advisorMode
+        : p.hints === false
+          ? "manual"
+          : "full") as AdvisorMode,
+      animate: p.animate !== false,
     };
   } catch {
-    return { scale: 100, hints: true };
+    return {
+      scale: 100,
+      hints: true,
+      advisorMode: "full" as AdvisorMode,
+      animate: true,
+    };
   }
 }
 function ResourceTip({
@@ -227,6 +256,11 @@ export default function App() {
   const [screen, setScreen] = useState<"menu" | "setup" | "game">("menu");
   const [saved, setSaved] = useState<V2Game | null>(savedGame);
   const [ui, setUi] = useState(readSettings);
+  const [audio] = useState(() => new GameAudio());
+  const [audioSettings, setAudioSettings] = useState(audio.settings);
+  const [advisorTopic, setAdvisorTopic] = useState<string | null>(null);
+  const [achievement, setAchievement] = useState<string | null>(null);
+  const [advisorFocus, setAdvisorFocus] = useState<AdvisorPanel | null>(null);
   const [selected, setSelected] = useState<ProvinceId>("south");
   const [district, setDistrict] = useState(0);
   const [action, setAction] = useState<Action | null>(null);
@@ -267,7 +301,30 @@ export default function App() {
     v = action ? previewAction(g, action) : null,
     local = s.provinces.find((p) => p.id === selected)!,
     target = milestones(g);
+  function readTopic(id: string) {
+    const n = markAdvisorRead(stateRef.current, id);
+    stateRef.current = n;
+    setG(n);
+    setAdvisorTopic(null);
+  }
+  function advisorNavigate(
+    panel: AdvisorPanel,
+    province?: ProvinceId,
+    matter?: string,
+    person?: string,
+  ) {
+    if (province) setSelected(province);
+    if (person) {
+      setPerson(person);
+      setOrganizationView(true);
+    }
+    open(panel);
+    if (matter) setFocusedMatter(matter);
+    setAdvisorFocus(panel);
+  }
   function open(p: Panel) {
+    audio.effect("panel");
+    if (advisorFocus === p) setAdvisorFocus(null);
     setAction(null);
     commandRef.current = null;
     setConfirmedPreview(false);
@@ -284,6 +341,7 @@ export default function App() {
     }
   }
   function choose(a: Action) {
+    audio.effect("document");
     if (!action) setBackPanel(modal);
     setAction(a);
     setResult(null);
@@ -308,6 +366,38 @@ export default function App() {
     stateRef.current = outcome.game;
     setG(outcome.game);
     setResult(outcome.result);
+    const newlyFinished = outcome.game.machine.works.filter(
+      (w) =>
+        w.completed &&
+        !g.machine.works.find((old) => old.id === w.id)?.completed,
+    );
+    if (newlyFinished.length)
+      setAchievement(
+        `工程完成：${newlyFinished.map((w) => workSpecs[w.type].name).join("、")}`,
+      );
+    else if (
+      outcome.result.status !== "failed" &&
+      ["regime", "strategyBranch", "department"].includes(action.type)
+    )
+      setAchievement(`政治决定：${outcome.result.title}`);
+    const cue =
+      outcome.result.status === "failed"
+        ? "blocked"
+        : action.type === "end"
+          ? "turn"
+          : action.type === "appoint" || action.type === "concurrent"
+            ? "appoint"
+            : action.type === "regime" ||
+                action.type === "policy" ||
+                action.type === "strategyBranch"
+              ? "reform"
+              : "command";
+    audio.effect(cue);
+    if (
+      outcome.game.machine.works.filter((w) => w.completed).length >
+      g.machine.works.filter((w) => w.completed).length
+    )
+      setTimeout(() => audio.effect("complete"), 220);
     if (outcome.result.status !== "failed") {
       settledAtRef.current = Date.now();
       setAction(null);
@@ -460,6 +550,9 @@ export default function App() {
     }
   }
   function resetView(n: V2Game) {
+    setAdvisorTopic(null);
+    setAdvisorFocus(null);
+    setAchievement(null);
     commandRef.current = null;
     const pid = n.machine.matters[0]?.province || "south";
     setSelected(pid);
@@ -523,7 +616,7 @@ export default function App() {
     setReportOpen(true);
   }
   function chooseGuide(hints: boolean) {
-    updateUi({ ...ui, hints });
+    updateUi({ ...ui, hints, advisorMode: hints ? "full" : "manual" });
     try {
       localStorage.setItem("federation-guide-choice", "1");
     } catch {
@@ -624,6 +717,10 @@ export default function App() {
         chooseGuide(ui.hints);
         return;
       }
+      if (advisorTopic && !modal) {
+        readTopic(advisorTopic);
+        return;
+      }
       if (modal) {
         setModal(null);
         return;
@@ -648,6 +745,53 @@ export default function App() {
     const timer = setTimeout(() => setNotice(""), 6000);
     return () => clearTimeout(timer);
   }, [notice]);
+  useEffect(() => {
+    if (screen !== "game" || !playing || guideChoice || modal === "secretary")
+      return;
+    if (advisorTopic && !g.machine.advisor?.seen.includes(advisorTopic)) return;
+    const topic = guidanceTopic(g, modal ?? undefined, ui.advisorMode);
+    if (topic) setAdvisorTopic(topic);
+  }, [g, screen, modal, ui.advisorMode, playing, guideChoice, advisorTopic]);
+  useEffect(() => {
+    const activate = (e: MouseEvent) => {
+      void audio.unlock();
+      if ((e.target as Element)?.closest?.("button")) audio.effect("click");
+    };
+    document.addEventListener("click", activate, true);
+    return () => {
+      document.removeEventListener("click", activate, true);
+    };
+  }, [audio]);
+  useEffect(() => {
+    const theme =
+      screen !== "game"
+        ? "menu"
+        : !playing
+          ? "ending"
+          : g.machine.matters.some(
+                (x) => x.stage >= 3 && x.containment === 0 && !x.isolated,
+              ) || s.crisis >= 7
+            ? "crisis"
+            : g.machine.works.some(
+                  (w) => !w.completed && !w.cancelled && !w.paused,
+                )
+              ? "construction"
+              : "governance";
+    audio.requestTheme(theme, screen !== "game" || !playing);
+    if (theme === "crisis") audio.effect("crisis");
+    if (s.status === "won") audio.effect("victory");
+  }, [screen, playing, g.machine.revision, audio, s.status]);
+  useEffect(() => () => audio.destroy(), [audio]);
+  useEffect(() => {
+    if (!achievement) return;
+    const timer = setTimeout(() => setAchievement(null), 8000);
+    return () => clearTimeout(timer);
+  }, [achievement]);
+  useEffect(() => {
+    if (!advisorFocus) return;
+    const timer = setTimeout(() => setAdvisorFocus(null), 6500);
+    return () => clearTimeout(timer);
+  }, [advisorFocus]);
   const settings = (
     <>
       <p>
@@ -674,6 +818,25 @@ export default function App() {
         />
         正式游戏开启辅助提示
       </label>
+      <SecretarySettings
+        mode={ui.advisorMode}
+        animate={ui.animate}
+        onMode={(advisorMode) => {
+          updateUi({ ...ui, advisorMode });
+          setAdvisorTopic(null);
+        }}
+        onAnimate={(animate) => updateUi({ ...ui, animate })}
+      />
+      <AudioSettings
+        value={audioSettings}
+        onChange={(value) => {
+          setAudioSettings(value);
+          audio.update(value);
+        }}
+        onTest={() => {
+          void audio.unlock().then(() => audio.effect("command"));
+        }}
+      />
       <p>
         Esc关闭当前面板，地图界面再按Esc打开暂停菜单。点击地图查看地区；拖动地图平移、滚轮缩放。提示可关闭，规则帮助随时可查。
       </p>
@@ -979,13 +1142,9 @@ export default function App() {
                   <Flag />
                   开始新游戏
                 </button>
-                <button onClick={() => begin("tutorial")}>
+                <button onClick={() => setModal("special")}>
                   <BookOpen />
-                  教学战役
-                </button>
-                <button onClick={beginDemo}>
-                  <Zap />
-                  南岭工程与人才接班
+                  特别剧本 / 规则演示
                 </button>
                 <button onClick={load}>
                   <Download />
@@ -1080,9 +1239,18 @@ export default function App() {
               </>
             )}
             <small className="menu-version">
-              v0.6.0 · 制度履约与人才接班 / 原创联邦地图
+              v0.7.0 · 首席秘书与国家发展规划
             </small>
           </section>
+          {modal === "special" && (
+            <PanelFrame title={titles.special} onClose={() => setModal(null)}>
+              <p>
+                正式游戏由秘书提供渐进引导；以下保留原规则练习与接班验证剧本。
+              </p>
+              <button onClick={() => begin("tutorial")}>教学战役</button>
+              <button onClick={beginDemo}>南岭工程与人才接班</button>
+            </PanelFrame>
+          )}
           {modal === "settings" && (
             <PanelFrame title="设置" onClose={() => setModal(null)} modal>
               {settings}
@@ -1214,7 +1382,7 @@ export default function App() {
                 <p>
                   {m.mode === "national" || m.mode === "experimental"
                     ? m.goalPending
-                      ? "第2回合开放发展规划会议，最迟第3回合结束前立项；可先查看六条战略与当前国情。"
+                      ? "第2回合开放发展规划会议，最迟第3回合结束前立项；可先查看八条战略与当前国情。"
                       : `第${duration(g)}回合还须执行终局，存活本身不足以胜利。`
                     : "实际管理南岭事故和北境危机，并生存至第4回合。"}
                 </p>
@@ -1240,7 +1408,7 @@ export default function App() {
               ] as const
             ).map(({ id, name, icon: Icon }) => (
               <button
-                className={`${modal === id ? "active" : ""} ${m.mode === "tutorial" && m.tutorial < 4 && lessons[m.tutorial].panel === id ? "tutorial-highlight" : ""}`}
+                className={`${advisorFocus === id ? "advisor-highlight" : ""} ${modal === id ? "active" : ""} ${m.mode === "tutorial" && m.tutorial < 4 && lessons[m.tutorial].panel === id ? "tutorial-highlight" : ""}`}
                 key={id}
                 title={name}
                 aria-label={name}
@@ -1320,20 +1488,65 @@ export default function App() {
                 </Tooltip>
               </aside>
             )}
-            {m.mode !== "tutorial" && ui.hints && !modal && !action && (
-              <aside className="beginner-hint">
-                <BookOpen size={20} />
-                <p>
-                  地图查看地区，左栏调阅国家管理。右侧提醒可直接定位事务；结束回合前先看财政预测。
-                </p>
+            {achievement && !modal && !action && (
+              <aside className="national-achievement" role="status">
+                <SecretaryPortrait small expression="celebrate" />
+                <div>
+                  <strong>{achievement}</strong>
+                  <p>已记入本届真实因果档案。</p>
+                  <p className="secretary-aside">
+                    人物感想：
+                    {achievement.startsWith("工程")
+                      ? "“图纸可以归档了，维护合同还得留在桌上。”"
+                      : "“文件生效之后，还要有人把它执行下去。”"}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setAchievement(null);
+                      open("history");
+                    }}
+                  >
+                    调阅记录
+                  </button>
+                </div>
                 <button
-                  aria-label="关闭辅助提示"
-                  onClick={() => updateUi({ ...ui, hints: false })}
+                  aria-label="收起成果通告"
+                  onClick={() => setAchievement(null)}
                 >
-                  <X size={18} />
+                  ×
                 </button>
               </aside>
             )}
+            <button
+              className="secretary-dock"
+              aria-label="首席秘书"
+              onClick={() => {
+                if (advisorTopic) readTopic(advisorTopic);
+                open("secretary");
+              }}
+            >
+              <SecretaryPortrait small />
+              <span>
+                首席秘书 · 沈岚
+                <br />
+                <strong>{advisorIssues(g).length}项值得关注</strong>
+              </span>
+            </button>
+            {advisorTopic &&
+              ui.advisorMode !== "manual" &&
+              ui.advisorMode !== "off" &&
+              !modal &&
+              !action &&
+              !guideChoice &&
+              playing && (
+                <SecretaryCue
+                  topic={advisorTopic}
+                  animate={ui.animate}
+                  onRead={() => readTopic(advisorTopic)}
+                  onOpen={() => open("secretary")}
+                  onNavigate={advisorNavigate}
+                />
+              )}
 
             {guideChoice && (
               <PanelFrame
@@ -1361,7 +1574,7 @@ export default function App() {
                 }
               >
                 <p>
-                  正式任期使用同一指挥台，不强制进行教程。辅助提示可随时在设置关闭；主菜单的教学战役会用真实操作带你认识系统。
+                  正式任期使用同一指挥台，不强制进行教程。辅助提示可随时在设置关闭；首席秘书会根据当前操作提供独立主题；旧练习保留在特别剧本中。
                 </p>
               </PanelFrame>
             )}
@@ -1395,6 +1608,17 @@ export default function App() {
                   </>
                 }
               >
+                <div className="secretary-final">
+                  <SecretaryPortrait
+                    small
+                    expression={s.status === "won" ? "celebrate" : "wry"}
+                  />
+                  <div>
+                    {advisorEpilogue(g).map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                </div>
                 {s.status === "won" && (
                   <section className="victory-summary">
                     <Target size={42} />
@@ -1453,6 +1677,12 @@ export default function App() {
                 }
               >
                 {result?.status === "failed" && executionFeedback}
+                <SecretaryAdvice
+                  key={JSON.stringify(action)}
+                  game={g}
+                  action={action}
+                  onChoose={choose}
+                />
                 <ReformImpact game={g} action={action} />
                 {(action.type === "appoint" ||
                   action.type === "concurrent") && (
@@ -1538,9 +1768,7 @@ export default function App() {
                           choose({
                             ...action,
                             exchange: e.target.value as
-                              | "ownership"
-                              | "budget"
-                              | "central",
+                              "ownership" | "budget" | "central",
                           })
                         }
                       >
@@ -1750,6 +1978,26 @@ export default function App() {
                   ) : undefined
                 }
               >
+                {advisorTopic &&
+                  modal !== "secretary" &&
+                  ui.advisorMode === "full" && (
+                    <aside className="secretary-inline">
+                      <b>沈岚 · {guideTopics[advisorTopic].title}</b>
+                      <p>{guideTopics[advisorTopic].body}</p>
+                      <button onClick={() => readTopic(advisorTopic)}>
+                        已阅 / 跳过
+                      </button>
+                    </aside>
+                  )}
+                {modal === "secretary" && (
+                  <SecretaryConsole
+                    game={g}
+                    animate={ui.animate}
+                    onNavigate={advisorNavigate}
+                    onChoose={choose}
+                    onRead={readTopic}
+                  />
+                )}
                 {(modal === "central" ||
                   modal === "economy" ||
                   modal === "finance") && (
@@ -2167,7 +2415,7 @@ export default function App() {
                 )}
                 {modal === "help" && (
                   <>
-                    <h2>治理手册 · 国家机器 v0.6</h2>
+                    <h2>治理手册 · 国家机器 v0.7</h2>
                     <h3>指挥席操作</h3>
                     <p>
                       点击地图调阅地方，左栏切换管理功能，右侧提醒定位事务。地图支持拖动与滚轮缩放，四种地图模式展示政治、行政、资源和危机。Esc关闭最上层面板，再按Esc进入暂停菜单；保存与读取都在暂停菜单。正文只在面板内部滚动，底部回合按钮持续可见。
@@ -2656,164 +2904,24 @@ export default function App() {
                     </div>
                   </>
                 )}
-                {modal === "goals" && (
-                  <>
-                    {m.mode === "national" || m.mode === "experimental" ? (
-                      <>
-                        {m.goalPending ? (
-                          <>
-                            <h3>国家发展规划会议</h3>
-                            <p>
-                              {s.turn === 1
-                                ? "第1回合：先了解国情，可预览六条战略。第2回合开放正式立项。"
-                                : "会议已开放：最迟第3回合结束前确立主要战略。"}
-                            </p>
-                            <div className="goal-strategies">
-                              {Object.entries(goals).map(([id, x]) => {
-                                const goal = id as Goal,
-                                  d = strategyDetails[goal];
-                                return (
-                                  <article className="strategy-card" key={goal}>
-                                    <h3>
-                                      <Target /> {x.name}
-                                    </h3>
-                                    <p>{x.description}</p>
-                                    <p>
-                                      <b>建设方向：</b>
-                                      {d.direction}
-                                    </p>
-                                    <p>
-                                      <b>组织能力：</b>
-                                      {d.needs}
-                                    </p>
-                                    <p>
-                                      <b>受益者：</b>
-                                      {d.beneficiaries}
-                                    </p>
-                                    <p>
-                                      <b>政治阻力：</b>
-                                      {d.resistance}
-                                    </p>
-                                    <details>
-                                      <summary>当前国情适配与里程碑</summary>
-                                      {milestones(g, goal).map((c) => (
-                                        <p
-                                          key={c.label}
-                                          className={c.met ? "met" : "unmet"}
-                                        >
-                                          {c.met ? "✓" : "○"} {c.label}：
-                                          {c.reason}
-                                        </p>
-                                      ))}
-                                    </details>
-                                    <Tooltip
-                                      title={`立项${x.name}`}
-                                      content={actionExplanation({
-                                        type: "selectGoal",
-                                        goal,
-                                      })}
-                                    >
-                                      <button
-                                        disabled={!playing}
-                                        onClick={() =>
-                                          choose({ type: "selectGoal", goal })
-                                        }
-                                      >
-                                        {s.turn < 2 ? "预览" : "提交"}
-                                        {x.name}立项
-                                      </button>
-                                    </Tooltip>
-                                  </article>
-                                );
-                              })}
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <h3>{goals[m.goal].name}</h3>
-                            <p>{goals[m.goal].description}</p>
-                            <p>
-                              第{duration(g)}回合需执行「{goals[m.goal].finale}
-                              」，建设条件终局重新判定。
-                            </p>
-                            {m.mode === "experimental" && (
-                              <div className="document-card">
-                                <b>第10～12回合 · 终局检验</b>
-                                <p>
-                                  {m.terminalInspected
-                                    ? "✓ 全国协作演练已通过；终局仍复核当前组织资格"
-                                    : "第10～11回合须完成全国工程与协作演练；先完成下方全部建设条件。"}
-                                </p>
-                                <Tooltip
-                                  title="全国工程与协作演练"
-                                  content={actionExplanation({
-                                    type: "inspect",
-                                  })}
-                                >
-                                  <button
-                                    disabled={!playing}
-                                    onClick={() => choose({ type: "inspect" })}
-                                  >
-                                    预览全国协作演练
-                                  </button>
-                                </Tooltip>
-                              </div>
-                            )}
-                            {target.map((c) => (
-                              <Tooltip
-                                key={c.label}
-                                title={c.label}
-                                content={
-                                  <>
-                                    <p>{c.reason}</p>
-                                    <p>
-                                      当前{c.met ? "已满足" : "尚未满足"}
-                                      ，终局将重新检查人员、制度和设施。
-                                    </p>
-                                  </>
-                                }
-                              >
-                                <article
-                                  tabIndex={0}
-                                  className={`goal-condition ${c.met ? "met" : "unmet"}`}
-                                  key={c.label}
-                                >
-                                  {c.met ? <Check /> : <Target />}
-                                  <div>
-                                    <b>{c.label}</b>
-                                    <p>{c.reason}</p>
-                                  </div>
-                                </article>
-                              </Tooltip>
-                            ))}
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <h3>南岭—北境紧急状态</h3>
-                        <p>实际管理南岭事故及北境危机，并存活至第4回合。</p>
-                        <p>
-                          南岭：
-                          {m.milestones.includes("accident-managed")
-                            ? "已管理"
-                            : "未完成"}{" "}
-                          /北境：
-                          {m.milestones.includes("north-managed")
-                            ? "已管理"
-                            : "未完成"}
-                        </p>
-                        <p>
-                          流程：第1回合预警 → 第2回合事故 → 实际处置产生不同后续
-                          → 第4回合北境旧神。
-                        </p>
-                      </>
-                    )}
-                    <button onClick={() => open("matters")}>
-                      调阅国家事务
-                    </button>
-                  </>
-                )}
+                {modal === "goals" &&
+                  (m.mode === "national" || m.mode === "experimental" ? (
+                    <StrategyTree
+                      game={g}
+                      onChoose={choose}
+                      onNavigate={open}
+                    />
+                  ) : (
+                    <>
+                      <h3>南岭—北境紧急状态</h3>
+                      <p>
+                        实际管理南岭事故及北境危机，并存活至第4回合。完整国家规划在8/12回合战役开放。
+                      </p>
+                      <button onClick={() => open("matters")}>
+                        调阅国家事务
+                      </button>
+                    </>
+                  ))}
                 {modal === "matters" && (
                   <>
                     {focusedMatter && (

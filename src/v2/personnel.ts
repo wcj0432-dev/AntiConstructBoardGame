@@ -26,6 +26,7 @@ export function assignedOffices(g: V2Game, person: string): string[] {
 }
 
 export const personnelWorkNames: Record<WorkType, string> = {
+  relay: "通讯建设",
   energy: "宗门灵脉能源工程",
   warning: "异常预警站",
   farm: "地方农业合作改良",

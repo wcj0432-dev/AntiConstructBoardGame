@@ -24,6 +24,9 @@ try {
   const page = await application.firstWindow();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  await page
+    .getByRole("button", { name: "特别剧本 / 规则演示", exact: true })
+    .click();
   await page.getByRole("button", { name: "教学战役", exact: true }).click();
   await page.getByRole("button", { name: "前往人事任命" }).click();
   await page.getByRole("button", { name: "预览任命", exact: true }).click();

@@ -22,6 +22,8 @@ export function Tooltip({
     timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [anchor, setAnchor] = useState<DOMRect | null>(null),
     [pinned, setPinned] = useState(false);
+  const pinnedRef = useRef(false);
+  pinnedRef.current = pinned;
   const [bounds, setBounds] = useState({
     width: innerWidth,
     height: innerHeight,
@@ -31,7 +33,11 @@ export function Tooltip({
   };
   const close = () => {
     clear();
-    if (!pinned) timer.current = setTimeout(() => setAnchor(null), 180);
+    if (!pinnedRef.current)
+      timer.current = setTimeout(() => {
+        // A focus/leave timer scheduled before pinning must not close a pinned document.
+        if (!pinnedRef.current) setAnchor(null);
+      }, 180);
   };
   const show = (element: Element, delay: number) => {
     clear();
@@ -151,6 +157,8 @@ export function Tooltip({
               <strong>{title}</strong>
               <button
                 onClick={() => {
+                  clear();
+                  pinnedRef.current = !pinned;
                   if (pinned) {
                     setPinned(false);
                     setAnchor(null);

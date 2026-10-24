@@ -1,0 +1,445 @@
+/* 诸界联邦 · 青铜档案 / 通讯指挥台。All content stays inside the established viewport. */
+.command-app .secretary-dock {
+  position: absolute;
+  left: 20px;
+  bottom: 64px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 8px;
+  background: #152b2eeb;
+  border: 1px solid #b5a271;
+  box-shadow: 0 5px 24px #0007;
+  text-align: left;
+  font-size: 16px;
+  max-width: 270px;
+}
+.secretary-portrait {
+  display: block;
+  flex: none;
+  width: 150px;
+  height: 230px;
+  background-size: 300% auto;
+  background-repeat: no-repeat;
+  background-color: #24343c;
+  border: 1px solid #b0a17b;
+  box-shadow: inset 0 0 24px #0004;
+}
+.secretary-portrait.small {
+  width: 52px;
+  height: 56px;
+  background-size: 300% auto;
+}
+.secretary-identity {
+  display: flex;
+  gap: 24px;
+  padding: 20px;
+  background: linear-gradient(115deg, #243a3c, #16262c);
+  border: 1px solid #8b8867;
+  align-items: center;
+}
+.secretary-identity h2 {
+  font-size: 28px;
+  margin: 8px 0;
+  color: #f4dfaa;
+}
+.secretary-identity p {
+  font-size: 16px;
+  line-height: 1.7;
+}
+.secretary-aside {
+  color: #deccab;
+  font-style: italic;
+  border-left: 3px solid #ab9259;
+  padding-left: 12px;
+}
+.secretary-console {
+  min-width: 0;
+  font-size: 16px;
+}
+.secretary-console .sub-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
+}
+.advisor-issue {
+  border: 1px solid #748c80;
+  border-left: 4px solid #baa070;
+  background: #203438;
+  margin: 14px 0;
+  padding: 16px;
+}
+.advisor-issue h3 {
+  font-size: 22px;
+  margin: 0 0 10px;
+  color: #f3dba5;
+}
+.advisor-issue p {
+  font-size: 16px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.advisor-issue small {
+  display: inline-block;
+  font-size: 14px;
+  margin-left: 14px;
+  color: #c4d3cf;
+}
+.secretary-action-advice,
+.secretary-inline {
+  background: #233b3d;
+  border: 1px solid #988557;
+  margin-bottom: 20px;
+  padding: 14px;
+  font-size: 16px;
+}
+.secretary-inline p {
+  margin: 10px 0;
+  line-height: 1.7;
+}
+.secretary-final {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #ac986a;
+  background: #25383d;
+}
+.secretary-cue {
+  position: absolute;
+  bottom: 135px;
+  left: 20px;
+  z-index: 9;
+  width: min(570px, calc(100% - 40px));
+  max-height: min(340px, 48%);
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 40px 16px 16px;
+  background: #172c31f5;
+  border: 1px solid #c4aa72;
+  box-shadow: 0 10px 28px #0009;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.secretary-cue strong {
+  color: #f7dda4;
+}
+.secretary-cue .secretary-cue-close {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 22px;
+}
+.secretary-cue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.secretary-dialogue p {
+  font-size: 16px;
+  line-height: 1.7;
+}
+.command-app .advisor-highlight {
+  outline: 3px solid #f3d58c;
+  outline-offset: -3px;
+  box-shadow: inset 0 0 15px #f3d58c66;
+}
+.national-planning {
+  min-width: 0;
+  font-size: 16px;
+}
+.planning-heading {
+  background: linear-gradient(110deg, #38463c, #1c3036);
+  padding: 20px;
+  border: 1px solid #9e916b;
+  margin-bottom: 16px;
+}
+.planning-heading h2 {
+  font-size: 28px;
+  margin: 5px 0 12px;
+}
+.planning-candidates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.planning-candidates > div {
+  padding: 12px;
+  border: 1px solid #70867b;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.planning-route {
+  color: #f0d7a2;
+  font-size: 20px !important;
+}
+.strategy-board {
+  background: radial-gradient(ellipse at top, #344945, #172a31);
+  border: 1px solid #95886b;
+  padding: 22px 14px;
+  overflow: auto;
+  min-height: 400px;
+}
+.strategy-row {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.strategy-row.one {
+  grid-template-columns: minmax(0, 350px);
+  justify-content: center;
+}
+.strategy-row.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.strategy-row.checks {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.command-app .strategy-node {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #7d8d88;
+  background: #283c41;
+  padding: 16px 12px;
+  text-align: center;
+  min-height: 100px;
+  font-size: 16px;
+  white-space: normal;
+}
+.strategy-node span {
+  font-size: 14px;
+  color: #d3dfdb;
+}
+.strategy-node strong {
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.command-app .strategy-node.done {
+  border-color: #83c6a5;
+  background: #284c43;
+}
+.command-app .strategy-node.ready {
+  border-color: #d9bf7b;
+  background: #494737;
+}
+.command-app .strategy-node.blocked {
+  border-color: #c18c6b;
+  background: #483b36;
+}
+.command-app .strategy-node.invalid {
+  border-color: #a58696;
+  background: #383339;
+}
+.command-app .strategy-node.progress {
+  border-color: #8dbbc7;
+  background: #284550;
+}
+.command-app .strategy-node.locked {
+  border-style: dashed;
+}
+.command-app .strategy-node.selected {
+  outline: 2px solid #f7dfa1;
+  outline-offset: 3px;
+}
+.strategy-connector {
+  font-size: 24px;
+  text-align: center;
+  color: #d5c394;
+  line-height: 1.4;
+  overflow: hidden;
+  white-space: nowrap;
+  height: 38px;
+  pointer-events: none;
+}
+.strategy-detail {
+  border: 1px solid #ac986a;
+  background: #253a3d;
+  padding: 20px;
+  margin: 20px 0;
+  font-size: 16px;
+  line-height: 1.75;
+}
+.strategy-detail h3 {
+  font-size: 24px;
+  color: #f3d89d;
+  margin: 0 0 12px;
+}
+.strategy-detail button {
+  margin: 4px 8px 4px 0;
+}
+.legal-register {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid #698279;
+}
+.legal-register label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.legal-register select {
+  min-width: 0;
+  max-width: 100%;
+}
+.audio-settings {
+  border-top: 1px solid #82947d;
+  margin-top: 24px;
+  padding-top: 8px;
+}
+.audio-settings output {
+  min-width: 55px;
+  font-size: 16px;
+}
+@media (max-width: 1150px) {
+  .secretary-portrait {
+    width: 120px;
+    height: 185px;
+  }
+  .secretary-identity {
+    gap: 16px;
+    padding: 14px;
+  }
+  .secretary-cue {
+    max-height: 45%;
+  }
+  .command-app .secretary-dock {
+    bottom: 52px;
+    left: 12px;
+  }
+  .strategy-row.checks {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-height: 650px) {
+  .secretary-cue {
+    bottom: 122px;
+    max-height: 40%;
+    font-size: 16px;
+  }
+  .secretary-cue .secretary-portrait {
+    display: none;
+  }
+  .secretary-identity .secretary-portrait {
+    width: 100px;
+    height: 150px;
+  }
+  .command-app .secretary-dock {
+    bottom: 52px;
+  }
+  .secretary-identity {
+    align-items: flex-start;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .advisor-highlight {
+    animation: none !important;
+  }
+  .network-active {
+    animation: none !important;
+  }
+}
+.v7-core-portrait {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 64px;
+  height: 80px;
+  background-size: 400% auto;
+  background-repeat: no-repeat;
+  border: 1px solid #aa9570;
+  border-radius: 3px;
+}
+.strategy-board {
+  min-height: 0;
+  height: 430px;
+  max-height: 60dvh;
+  overscroll-behavior: contain;
+  scrollbar-color: #b8a16c #162a30;
+}
+.planning-route-picker {
+  margin: 12px 0;
+}
+.v7-event-art {
+  position: relative;
+  border: 1px solid #81907d;
+  background: #172f33;
+  overflow: hidden;
+  margin: 10px 0 16px;
+}
+.event-document-stamp {
+  display: block;
+  padding: 8px 14px;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  border-bottom: 1px solid #81907d;
+  background: #283c3e;
+  color: #dfd4b7;
+}
+.v7-event-art.crisis {
+  border-color: #c6987e;
+  box-shadow: inset 0 0 30px #b9543622;
+}
+.v7-event-art.crisis .event-document-stamp {
+  color: #ffe0cf;
+  background: #4d3633;
+}
+.v7-event-art.political .event-document-stamp {
+  color: #f2e1b9;
+  background: #454737;
+}
+.national-achievement {
+  position: absolute;
+  top: 64px;
+  right: 20px;
+  z-index: 8;
+  max-width: min(410px, calc(100% - 40px));
+  background: #233d39ee;
+  border: 1px solid #e4c47e;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 12px 30px #0008;
+  font-size: 16px;
+}
+.national-achievement strong {
+  color: #f8e2a9;
+}
+.national-achievement p {
+  font-size: 16px;
+}
+.national-achievement > button {
+  padding: 4px 9px;
+}
+@media (max-height: 650px) {
+  .planning-heading {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .planning-heading .eyebrow {
+    display: none;
+  }
+  .planning-heading p {
+    margin: 4px 0;
+  }
+  .secretary-cue .secretary-cue-close {
+    position: sticky;
+    top: 0;
+    flex-shrink: 0;
+  }
+}

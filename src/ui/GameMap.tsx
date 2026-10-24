@@ -1,3 +1,5 @@
+import { MapReliefV7 } from "./art/V7Map";
+import { communicationReady } from "../v2/nationalStrategy";
 import { facilityStateNames, facilityStatus } from "../v2/operations";
 import { Tooltip } from "./Tooltip";
 import { useEffect, useId, useRef, useState } from "react";
@@ -359,6 +361,16 @@ export function GameMap({
                         .map((w) => `${workSpecs[w.type].name} ${workState(w)}`)
                         .join("；") || "暂无设施"}
                     </p>
+                    {communicationReady(g, r.pid) && (
+                      <p>
+                        通讯预警：本省中继与指挥协议在线。
+                        {matters
+                          .filter((x) => !x.isolated && x.containment === 0)
+                          .map((x) => `${x.title}未受遏制，下一结算会升级；`)
+                          .join("") ||
+                          "当前持续危机已遏制或隔离，仍需关注期限。"}
+                      </p>
+                    )}
                     <p>
                       危机：
                       {matters
@@ -411,6 +423,11 @@ export function GameMap({
                     pointerEvents="none"
                   >
                     <MapGeographyV5 province={r.pid} />
+                    <MapReliefV7
+                      province={r.pid}
+                      features={g.machine.regionFeatures?.[r.pid] ?? []}
+                      quiet={mode !== "political"}
+                    />
                   </g>
                   <text
                     x={r.x}
@@ -465,6 +482,41 @@ export function GameMap({
               </Tooltip>
             );
           })}
+        </g>
+        <g className="map-comms-links" pointerEvents="none">
+          {g.machine.works
+            .filter((w) => w.type === "relay" && !w.cancelled)
+            .map((w) => {
+              const here = regions.find((r) => r.pid === w.province)!;
+              const hub = regions.find((r) => r.pid === "industry")!;
+              const ready = communicationReady(g, w.province);
+              return (
+                <g key={w.id}>
+                  <path
+                    d={`M${hub.x + 20} ${hub.y + 30} Q${here.x + 100} ${here.y - 80} ${here.x + 20} ${here.y + 30}`}
+                    fill="none"
+                    stroke={ready ? "#b8e2f1" : "#b5a18c"}
+                    strokeWidth="3"
+                    strokeDasharray={ready ? "3 5" : "2 10"}
+                  />
+                  <circle
+                    cx={here.x + 20}
+                    cy={here.y + 30}
+                    r="10"
+                    fill={ready ? "#b8e2f1" : "#857d75"}
+                  />
+                  <text
+                    x={here.x + 20}
+                    y={here.y + 35}
+                    textAnchor="middle"
+                    fontSize="14"
+                    fill="#162a32"
+                  >
+                    讯
+                  </text>
+                </g>
+              );
+            })}
         </g>
         <g className="map-work-markers">
           {regions.filter((_, index) => index % 2 === 1).flatMap(workMarkers)}
@@ -579,11 +631,8 @@ export function GameMap({
           .map((w) => {
             const from = regions.find((r) => r.pid === w.province)!,
               to = regions.find((r) => r.pid === w.to)!;
-            const blocked = g.machine.matters.some(
-              (x) =>
-                [w.province, w.to].includes(x.province) &&
-                (x.isolated || x.stage >= 3),
-            );
+            const railStatus = facilityStatus(g, w);
+            const blocked = railStatus.state !== "operating";
             return (
               <Tooltip
                 key={w.id}
@@ -592,7 +641,7 @@ export function GameMap({
                   <>
                     <p>
                       {blocked
-                        ? "连接被危机/隔离阻断，先处理源头"
+                        ? railStatus.reason
                         : "竣工连接：保留两端收益权与合作后可在经济面板调运"}
                       ；失控异常可能沿连接传播。
                     </p>

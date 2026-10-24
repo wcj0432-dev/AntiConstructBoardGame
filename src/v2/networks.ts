@@ -1,3 +1,4 @@
+import { lawAuthority } from "./nationalStrategy";
 import { getOffice, getPerson } from "../data";
 import { availableOfficer } from "./administration";
 import { gridOperating, workFunding } from "./fiscal";
@@ -85,8 +86,9 @@ export function networkPreview(
     conditions.push(
       c(
         "合同中的应急管理权",
-        networkAuthority(g, w),
-        "中央未取得运营者停机/维修权限。地方/宗门产权先取得应急授权；央地共管须本地主管、信任2及合作；中央独资需计划负责人可履职",
+        networkAuthority(g, w) ||
+          (a.operation === "repair" && lawAuthority(g, w)),
+        "中央未取得运营者停机/维修权限。地方/宗门产权先取得应急授权；央地共管须本地主管、信任2及合作；中央独资需计划负责人可履职。有效法域可执行已登记电网的技术维修，不能代替停机控制权",
       ),
     );
     if (plan) actors.push(plan);

@@ -1,3 +1,12 @@
+import {
+  applyStrategy,
+  isStrategyAction,
+  strategyPreview,
+  strategicMilestones,
+  strategyActionConditions,
+  strategyEpilogue,
+} from "./nationalStrategy";
+import { migrateAndValidateV7 } from "./migrationV7";
 import { explorationPool } from "./exploration";
 import {
   demoReservePreview,
@@ -287,7 +296,9 @@ export function newV2(
       archive: [],
       results: [],
       difficulty: "standard",
-      rulesVersion: "0.6.0",
+      rulesVersion: "0.7.0",
+      advisor: { seen: [], cooldowns: {} },
+      strategy: { legalRecords: [], dispatches: [] },
       trainings: [],
       regionFeatures: initialFeatures(),
       relationships: [],
@@ -537,6 +548,10 @@ export function finance(g: V2Game) {
   return nationalForecast(g);
 }
 export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
+  const base = ["codex", "comms"].includes(goal) ? [] : baseMilestones(g, goal);
+  return [...base, ...strategicMilestones(g, goal)];
+}
+function baseMilestones(g: V2Game, goal: Goal = g.machine.goal) {
   const m = g.machine;
   if (["traffic", "learning", "prosperity"].includes(goal))
     return expandedMilestones(g, goal);
@@ -671,7 +686,9 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
   const need = (label: string, met: boolean, reason: string, source?: string) =>
     v.conditions.push(condition(label, met, reason, source));
   if (s.status !== "playing") v.errors.push("本局已经结束");
-  if (action.type === "demoReserve") {
+  if (isStrategyAction(action)) {
+    Object.assign(v, strategyPreview(g, action));
+  } else if (action.type === "demoReserve") {
     Object.assign(v, demoReservePreview(g));
   } else if (action.type === "inspect") {
     v.title = "全国工程与协作演练";
@@ -1251,6 +1268,7 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
         : "结束教学提示，保留当前组织与全部实际后果",
     ];
   }
+  v.conditions.push(...strategyActionConditions(g, action));
   if (s.commands < v.costs.commands) v.errors.push("行政命令不足");
   if (s.treasury < v.costs.treasury) v.errors.push("财政不足");
   if (s.capital < v.costs.capital) v.errors.push("政治资本不足");
@@ -2008,7 +2026,8 @@ function applyAction(g: V2Game, action: Action): V2Game {
       "operation",
     );
   if (v.costs.province) province(n, v.costs.province).stock -= v.costs.stock;
-  if (action.type === "demoReserve") applyDemoReserve(n, source);
+  if (isStrategyAction(action)) applyStrategy(n, action, source);
+  else if (action.type === "demoReserve") applyDemoReserve(n, source);
   else if (action.type === "inspect") m.terminalInspected = true;
   else if (action.type === "selectGoal") {
     m.goal = action.goal;
@@ -2220,9 +2239,10 @@ function applyAction(g: V2Game, action: Action): V2Game {
 }
 export function report(g: V2Game) {
   const m = g.machine;
+  const nationalPath = strategyEpilogue(g);
   const target =
     m.mode === "national" || m.mode === "experimental"
-      ? `${m.goalPending ? "主要战略未立项" : goals[m.goal].name}：${m.finalDone ? "正式完成" : "未完成终局检验"}`
+      ? `${m.goalPending ? "主要战略未立项" : goals[m.goal].name}：${m.finalDone ? "正式完成" : "未完成终局检验"}\n${nationalPath}`
       : `紧急状态：南岭${m.milestones.includes("accident-managed") ? "已管理" : "未得到管理"}，北境${m.milestones.includes("north-managed") ? "已管理" : "未得到管理"}`;
   const changes = m.history
     .filter((h) =>
@@ -2333,10 +2353,13 @@ export function deserializeV2(raw: string): V2Game {
       "这是v0.1或未知版本存档，不能静默迁移到v0.2。旧存档未改动，请选择新游戏。",
     );
   const g = parsed as V2Game;
-  if (["0.5.0", "0.6.0"].includes(g.machine?.rulesVersion) && !g.machine.fiscal)
+  if (
+    ["0.5.0", "0.6.0", "0.7.0"].includes(g.machine?.rulesVersion) &&
+    !g.machine.fiscal
+  )
     throw new Error("v0.5存档缺少财政账本，不能按旧档重新开户。");
   if (
-    ["0.5.0", "0.6.0"].includes(g.machine?.rulesVersion) &&
+    ["0.5.0", "0.6.0", "0.7.0"].includes(g.machine?.rulesVersion) &&
     g.machine.works?.some((w) => !w.contract)
   )
     throw new Error("v0.5工程缺少融资合同，不能静默改成中央独资。");
@@ -2487,12 +2510,12 @@ export function deserializeV2(raw: string): V2Game {
   m.politics ??= "classic";
   m.agendaSeen ??= [];
   if (
-    !["0.2", "0.3.0", "0.3.1", "0.4.0", "0.5.0", "0.6.0"].includes(
+    !["0.2", "0.3.0", "0.3.1", "0.4.0", "0.5.0", "0.6.0", "0.7.0"].includes(
       m.rulesVersion,
     )
   )
     throw new Error("存档来自不同规则版本，请使用对应版本读取；原存档未改动");
-  if (!["0.5.0", "0.6.0"].includes(m.rulesVersion)) {
+  if (!["0.5.0", "0.6.0", "0.7.0"].includes(m.rulesVersion)) {
     m.migratedFrom = m.rulesVersion;
     const assigned = new Set<string>(),
       facilities = new Map<string, (typeof m.works)[number]>();
@@ -2653,6 +2676,7 @@ export function deserializeV2(raw: string): V2Game {
     throw new Error("事务ID重复或归档状态无效");
   validateFiscal(g);
   migrateAndValidateV6(g);
+  migrateAndValidateV7(g);
   const side = m.secondaryAppointments ?? {};
   if (
     Object.entries(side).some(
@@ -3096,6 +3120,11 @@ function randomOpening(g: V2Game) {
   summary.push(
     `历史设施：${province(g, facility).name}${workSpecs[inheritedType].name}，${fundingLabels[inheritedMode]}。首次结算起按合同履约，地方/宗门不足时中央不会自动代付。`,
   );
+  const inheritedStudent = inheritedType === "academy" && random(s) < 0.35;
+  if (inheritedStudent)
+    summary.push(
+      "上届教学档案：墨玄已完成对陶祈的基层灵脉教习；资质只属于陶祈，实际调用仍需专业岗位和本届政策。",
+    );
   for (const [i, pid] of pids.entries())
     summary[i + 1] =
       `${province(g, pid).name}：${getPerson(officePerson(g, `gov-${pid}`))!.name}担任${m.secondaryAppointments?.[`gov-${pid}`] ? "正式兼职" : "负责人"}；${m.rights[pid] ? "既有收益协议有效" : "尚未建立长期收益协议"}`;
@@ -3114,6 +3143,22 @@ function randomOpening(g: V2Game) {
     summary,
   );
   m.opening = { template: m.regime, risk, summary };
+  if (inheritedStudent)
+    m.trainings!.push({
+      id: `training-${s.nextId++}`,
+      mentor: "mo",
+      student: "taoqi",
+      cap: "leywork",
+      province: facility,
+      method: "field",
+      start: 0,
+      progress: 3,
+      duration: 3,
+      state: "completed",
+      completedAt: 0,
+      reason: "上届具名教学档案，本届不追溯收费；实际任用仍按岗位与政策检查",
+      source,
+    });
   m.origins.regime = source;
   m.origins.department = source;
   m.origins.policy = source;

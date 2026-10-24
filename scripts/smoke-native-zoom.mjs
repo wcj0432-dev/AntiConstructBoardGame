@@ -63,6 +63,9 @@ try {
   }
   await page.locator("#zoomLevel").selectOption("1.25");
   await page.goto(process.argv[2] || "http://localhost:5173");
+  await page
+    .getByRole("button", { name: "特别剧本 / 规则演示", exact: true })
+    .click();
   await page.getByRole("button", { name: "教学战役", exact: true }).click();
   const results = [];
   const shots = process.env.FOW_SCREENSHOT_DIR;
@@ -180,7 +183,13 @@ try {
     .locator(".panel-scroll")
     .evaluate((n) => (n.scrollTop = n.scrollHeight));
   await page.locator(".panel-close").click({ trial: true });
-  await page.locator(".strategy-card").last().getByRole("button").hover();
+  await page.locator(".planning-route-picker summary").click();
+  await page
+    .locator(".planning-candidates")
+    .last()
+    .getByRole("button")
+    .last()
+    .hover();
   const tip = page.getByRole("tooltip");
   await tip.waitFor();
   const tipBounds = await tip.boundingBox();

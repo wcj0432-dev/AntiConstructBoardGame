@@ -1,3 +1,4 @@
+import { communicationReady } from "./nationalStrategy";
 import { cooperationLink } from "./regionalActions";
 import { discoverFeature } from "./regions";
 import { hasCredential } from "./training";
@@ -34,6 +35,18 @@ export const workSpecs: Record<
     benefit: string;
   }
 > = {
+  relay: {
+    name: "诸界通讯中继站",
+    cost: 2,
+    stock: 1,
+    duration: 1,
+    income: 0,
+    output: 0,
+    maintenance: 1,
+    skill: 1,
+    benefit:
+      "接入寰宇通信协议后传达真实应急授权、提前识别失控风险；集中枢纽依赖中央，分布节点依赖地方协议，逐站维护1",
+  },
   grid: {
     name: "跨省灵能电网",
     cost: 4,
@@ -403,12 +416,7 @@ export type AdministrativeAction = Extract<
   Action,
   {
     type:
-      | "audit"
-      | "budget"
-      | "survey"
-      | "coordinate"
-      | "transfer"
-      | "workControl";
+      "audit" | "budget" | "survey" | "coordinate" | "transfer" | "workControl";
   }
 >;
 export function isAdministrative(a: Action): a is AdministrativeAction {
@@ -548,11 +556,15 @@ export function administrativePreview(
       c(
         "协调冷却",
         (m.coordination[a.province] ?? -9) +
-          (cooperationLink(g, a.province) ? 1 : 2) <=
+          (cooperationLink(g, a.province) || communicationReady(g, a.province)
+            ? 1
+            : 2) <=
           s.turn,
-        cooperationLink(g, a.province)
-          ? "同一批实际联合工程参与者仍在任，手续间隔缩短为一回合；岗位变化后恢复两回合"
-          : "同省每两回合最多协调一次，真实共同工程经历可在同一双方仍在任时简化手续",
+        communicationReady(g, a.province)
+          ? "真实通讯网接通本省，协调手续间隔一回合；节点或指挥失效后恢复两回合"
+          : cooperationLink(g, a.province)
+            ? "同一批实际联合工程参与者仍在任，手续间隔缩短为一回合；岗位变化后恢复两回合"
+            : "同省每两回合最多协调一次，真实共同工程经历可在同一双方仍在任时简化手续",
       ),
     );
     if (a.kind === "agreement")
@@ -650,8 +662,7 @@ export function applyAdministrative(
   a: AdministrativeAction,
   source: string,
 ):
-  | { kind: Matter["kind"]; province: ProvinceId; variant?: string }
-  | undefined {
+  { kind: Matter["kind"]; province: ProvinceId; variant?: string } | undefined {
   const m = g.machine,
     s = g.core;
   const occupy = (office: string) => {

@@ -157,6 +157,7 @@ try {
   assert.equal(g.core.turn, 2);
   assert.equal(g.machine.works[0].progress, 1);
   await rail("国家目标").click();
+  await page.locator(".planning-route-picker summary").click();
   await page.getByRole("button", { name: /星火计划立项/ }).click();
   await confirm();
   await close();

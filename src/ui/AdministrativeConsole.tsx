@@ -59,6 +59,7 @@ export function ActionButton({
       }
     >
       <button
+        aria-label={label}
         className={v.errors.length ? "blocked" : "available"}
         disabled={game.core.status !== "playing"}
         onClick={() => onChoose(action)}

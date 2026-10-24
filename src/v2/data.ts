@@ -23,6 +23,17 @@ export const goals: Record<
   Goal,
   { name: string; description: string; finale: string }
 > = {
+  codex: {
+    name: "万象法典",
+    description: "让文明间的产权、财政责任与紧急授权成为真正可执行的法律。",
+    finale: "全国契约与行政法域联合审议",
+  },
+  comms: {
+    name: "寰宇通讯计划",
+    description:
+      "建设能真实传递命令的中继网，在统一指挥与分布式韧性间作出选择。",
+    finale: "全国通讯与预警网络联试",
+  },
   spark: {
     name: "星火计划",
     description: "把钢铁工业和宗门灵脉接入同一个能源网络。",
@@ -487,6 +498,21 @@ export const strategyDetails: Record<
     needs: string;
   }
 > = {
+  codex: {
+    direction: "三省真实设施合同登记、财政协议、现行法域和履约审议",
+    beneficiaries: "实际产权人、地方政府与中央合同执行机关",
+    resistance: "统一法域依赖中央审批；多元法域依赖各省代表、收益权和财政协议",
+    needs:
+      "为三省各一座运营设施登记真实产权合同；保持制度与签约方可履职，终局重新验证合同与欠付",
+  },
+  comms: {
+    direction: "三省通讯中继站、实际指令传送、危机预警与网络联试",
+    beneficiaries: "中央调度、地方应急和跨地区技术人员",
+    resistance:
+      "集中网依赖工业省枢纽和中央审批；分布网依赖地方协议并逐站承担维护",
+    needs:
+      "三个实际运营的中继站、两次针对真实事务的指令传达，及当前可用的全国网络",
+  },
   spark: {
     direction: "南岭灵脉勘探与能源施工、工业兼容标准、跨省运输",
     beneficiaries: "计划委员会、修仙工程师、工业与南岭能源部门",
