@@ -416,6 +416,25 @@ try {
       .getByRole("button", { name: "补足本设施维护", exact: true })
       .hover();
     await page.locator(".unified-tooltip").waitFor({ state: "visible" });
+    assert.ok(
+      await page.locator(".unified-tooltip").evaluate((n) => {
+        const r = n.getBoundingClientRect();
+        return [
+          ...document.querySelectorAll(".panel-close,.panel-footer button"),
+        ].every((c) => {
+          const b = c.getBoundingClientRect();
+          return (
+            !b.width ||
+            !b.height ||
+            r.right <= b.left ||
+            r.left >= b.right ||
+            r.bottom <= b.top ||
+            r.top >= b.bottom
+          );
+        });
+      }),
+      "Tooltip overlaps a critical control",
+    );
     await page.locator(".unified-tooltip").hover();
     // Reproduce the reported Windows overlap without changing any game state
     // or bypassing hit testing: ordinary pointer movement must reveal Close.

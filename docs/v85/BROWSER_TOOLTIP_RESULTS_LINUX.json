@@ -1,5 +1,5 @@
 {
-  "source": "Focused central-route regression after final tooltip control-area fix: hover/pin/scroll retained; a reproduced Windows close-button overlap is dismissed by ordinary pointer movement, with no force click or game-state injection; four desktop/four native125 matrices. Full three-route record remains BROWSER_RESULTS_LINUX.json.",
+  "source": "Focused central-route regression of measured tooltip placement away from document controls; complete hover/pin/scroll, overlap normal-close, four desktop/four native125. Full three-route record remains BROWSER_RESULTS_LINUX.json.",
   "routes": [
     {
       "route": "central",

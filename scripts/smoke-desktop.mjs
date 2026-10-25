@@ -17,11 +17,19 @@ async function confirm(page) {
 try {
   const options = {
     executablePath: path.resolve(exe),
-    env: { ...process.env, FOW_SMOKE: "1", FOW_USER_DATA: userData },
+    env: { ...process.env, FOW_SMOKE: "0", FOW_USER_DATA: userData },
     timeout: 60000,
   };
   application = await _electron.launch(options);
   const page = await application.firstWindow();
+  const visibleWindow = await application.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().some((w) => w.isVisible()),
+  );
+  assert.equal(
+    visibleWindow,
+    true,
+    "Smoke must run the normal visible application",
+  );
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page
@@ -146,6 +154,7 @@ try {
     JSON.stringify(
       {
         platform: process.platform,
+        visibleWindow,
         version: "0.8.5",
         legacyTutorialSaveRestart: true,
         tableAppointment: true,
@@ -166,9 +175,7 @@ try {
     try {
       const p = await application.firstWindow();
       await mkdir("artifacts/screenshots/desktop-v85", { recursive: true });
-      await p.screenshot({
-        path: "artifacts/screenshots/desktop-v85/failure.png",
-      });
+
       const details = await p.evaluate(() => ({
         focus: document.activeElement?.outerHTML,
         close: document
@@ -189,6 +196,12 @@ try {
         JSON.stringify(details, null, 2),
       );
       console.error("Desktop UI context:", JSON.stringify(details));
+      await p
+        .screenshot({
+          path: "artifacts/screenshots/desktop-v85/failure.png",
+          timeout: 5000,
+        })
+        .catch(() => {});
     } catch {}
   }
   throw error;

@@ -37,7 +37,9 @@
 
 [第三次预检40164134236](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40164134236) 实际Windows exe已通过；离线旧test:browser检测到指针穿透影响直接悬停提示，停止发布。最终改为仅在鼠标进入当前面板关闭/确认按钮区域时清理未固定提示，其他区域保留完整悬停/固定/滚动；新增按实际Windows现象重现的遮挡布局检查，正常点击关闭，不使用force。
 
-当前此检查点：**最终Windows与离线发布预检待执行**。通过后补具体运行与附件核验记录。
+[第四次预检40164710789](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40164710789) 中，Windows隐藏窗口仍会出现指针清理时序问题。最终增加显示前实际测量避让关闭/确认控件的布局，保留局部清理作为补充；测试使用默认可见Windows窗口并断言isVisible，诊断先保存坐标再截图，避免隐藏窗口截图失败抹掉现场。本地旧browser/v3、中央路线、主动避让/重叠关闭与四尺寸/native均通过。
+
+当前此检查点：**第五次Windows与离线发布预检待执行**。通过后补具体运行与附件核验记录。
 
 ## 部分完成与未完成
 

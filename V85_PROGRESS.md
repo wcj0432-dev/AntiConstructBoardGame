@@ -41,3 +41,5 @@
 第三次预检40164134236：实际Windows exe全部通过；离线首套test:browser要求直接hover提示，广泛pointer穿透破坏了原能力，发布仍阻止。最终移除通用pointer穿透，PanelFrame仅在关闭/确认按钮区域清理未固定提示；其他区域完整hover/pin/scroll保留。新增真实重现Windows重叠布局、正常点击关闭的回归（不force、不改游戏状态）。下一步本地旧browser/v3和中央native回归，再第四次Windows。
 
 最终局部方案本地通过：test:browser完整4回合/直接hover，v3固定/键盘/滚动/12回合，中央UI遮挡重现正常关闭+4桌面+4native。生产构建通过；新证据BROWSER_TOOLTIP_RESULTS_LINUX.json包含tooltipCloseOverlap=true。准备第四次Windows预检。
+
+第四次预检40164710789实际隐藏Windows窗口仍有鼠标时序问题；本地旧浏览器正常。最终Tooltip在useLayoutEffect按实际尺寸主动避让关闭/确认控件，保留区域清理补充，不影响hover/pin/scroll。桌面测试改为默认可见窗口且断言isVisible(true)，诊断先evaluate保存坐标再尝试截图。中断后服务被停已恢复5188；连接拒绝的三次检查未进入应用，不是功能失败。恢复服务后旧browser/v3、中央实际UI、真实避让/重叠关闭、4桌面/4native均通过。下一步第五次Windows预检，成功后补证据并固定v0.8.5发布。

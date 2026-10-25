@@ -2,6 +2,7 @@ import {
   cloneElement,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactElement,
@@ -21,6 +22,11 @@ export function Tooltip({
   children: ReactElement<any>;
   content: ReactNode;
 }) {
+  const popupRef = useRef<HTMLElement>(null);
+  const [placement, setPlacement] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
   const id = useId(),
     timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [anchor, setAnchor] = useState<DOMRect | null>(null),
@@ -46,6 +52,7 @@ export function Tooltip({
     clear();
     timer.current = setTimeout(() => {
       if (!element.isConnected) return;
+      setPlacement(null);
       setAnchor(element.getBoundingClientRect());
       setBounds({ width: innerWidth, height: innerHeight });
     }, delay);
@@ -92,6 +99,51 @@ export function Tooltip({
       window.removeEventListener("wheel", wheel);
     };
   }, [anchor, pinned]);
+  useLayoutEffect(() => {
+    if (!anchor || !popupRef.current) return;
+    const r = popupRef.current.getBoundingClientRect();
+    const controls = [
+      ...document.querySelectorAll<HTMLElement>(
+        ".panel-close,.panel-footer button",
+      ),
+    ]
+      .map((n) => n.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.height > 0);
+    const overlap = (p: { left: number; top: number }, c: DOMRect) =>
+      p.left < c.right + 6 &&
+      p.left + r.width > c.left - 6 &&
+      p.top < c.bottom + 6 &&
+      p.top + r.height > c.top - 6;
+    const start = { left: r.left, top: r.top };
+    if (!controls.some((c) => overlap(start, c))) return;
+    const xs = [
+      r.left,
+      ...controls.flatMap((c) => [c.left - r.width - 12, c.right + 12]),
+    ];
+    const ys = [
+      r.top,
+      ...controls.flatMap((c) => [c.top - r.height - 12, c.bottom + 12]),
+    ];
+    const candidates = xs
+      .flatMap((left) => ys.map((top) => ({ left, top })))
+      .filter(
+        (p) =>
+          p.left >= 12 &&
+          p.top >= 12 &&
+          p.left + r.width <= bounds.width - 12 &&
+          p.top + r.height <= bounds.height - 12 &&
+          !controls.some((c) => overlap(p, c)),
+      );
+    candidates.sort(
+      (a, b) =>
+        Math.abs(a.left - r.left) +
+        Math.abs(a.top - r.top) -
+        Math.abs(b.left - r.left) -
+        Math.abs(b.top - r.top),
+    );
+    if (candidates[0]) setPlacement(candidates[0]);
+    else setAnchor(null); // Never cover the document's critical controls.
+  }, [anchor, bounds.width, bounds.height]);
   const width = Math.min(390, bounds.width - 24);
   const below = anchor && bounds.height - anchor.bottom >= anchor.top;
   const maxHeight = Math.max(
@@ -150,6 +202,7 @@ export function Tooltip({
       {anchor &&
         createPortal(
           <aside
+            ref={popupRef}
             id={id}
             role={pinned ? "dialog" : "tooltip"}
             aria-label={title}
@@ -159,13 +212,19 @@ export function Tooltip({
             style={{
               width,
               maxHeight,
-              left: Math.max(
-                12,
-                Math.min(bounds.width - width - 12, anchor.left),
-              ),
-              ...(below
-                ? { top: anchor.bottom + 6 }
-                : { bottom: Math.max(12, bounds.height - anchor.top + 6) }),
+              ...(placement
+                ? placement
+                : {
+                    left: Math.max(
+                      12,
+                      Math.min(bounds.width - width - 12, anchor.left),
+                    ),
+                    ...(below
+                      ? { top: anchor.bottom + 6 }
+                      : {
+                          bottom: Math.max(12, bounds.height - anchor.top + 6),
+                        }),
+                  }),
             }}
           >
             <header>
