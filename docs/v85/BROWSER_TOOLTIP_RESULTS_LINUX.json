@@ -1,5 +1,5 @@
 {
-  "source": "Focused central-route UI regression after tooltip lifecycle fix, including actual panel cleanup and four desktop/four native125 matrices. Earlier full three-route run is in BROWSER_RESULTS_LINUX.json.",
+  "source": "Focused central-route regression of tooltip lifecycle, pointer-transparent unpinned explanation and interactive pinned document, plus four desktop/four native125 matrices. Full three-route record remains BROWSER_RESULTS_LINUX.json.",
   "routes": [
     {
       "route": "central",

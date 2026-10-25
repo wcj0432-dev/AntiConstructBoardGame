@@ -161,6 +161,37 @@ try {
   console.log(
     "Packaged desktop smoke passed: original tutorial and new governance table; real appointment, view switch, save, restart and reload.",
   );
+} catch (error) {
+  if (application) {
+    try {
+      const p = await application.firstWindow();
+      await mkdir("artifacts/screenshots/desktop-v85", { recursive: true });
+      await p.screenshot({
+        path: "artifacts/screenshots/desktop-v85/failure.png",
+      });
+      const details = await p.evaluate(() => ({
+        focus: document.activeElement?.outerHTML,
+        close: document
+          .querySelector(".panel-close")
+          ?.getBoundingClientRect()
+          .toJSON(),
+        tooltips: [...document.querySelectorAll(".unified-tooltip")].map(
+          (n) => ({
+            title: n.getAttribute("aria-label"),
+            box: n.getBoundingClientRect().toJSON(),
+            trigger: document.querySelector(`[aria-describedby="${n.id}"]`)
+              ?.outerHTML,
+          }),
+        ),
+      }));
+      await writeFile(
+        "artifacts/screenshots/desktop-v85/failure.json",
+        JSON.stringify(details, null, 2),
+      );
+      console.error("Desktop UI context:", JSON.stringify(details));
+    } catch {}
+  }
+  throw error;
 } finally {
   if (application) await application.close();
   await rm(userData, { recursive: true, force: true });

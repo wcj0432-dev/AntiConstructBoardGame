@@ -203,7 +203,7 @@ button svg {
 }
 .resource-tip strong {
   font:
-    700 calc(24px * var(--ui-scale))/1.3 Georgia,
+    700 calc(24px * var(--ui-scale)) / 1.3 Georgia,
     serif;
   color: #f0dfb4;
 }
@@ -900,7 +900,7 @@ button svg {
 .actual-report {
   white-space: pre-wrap;
   font:
-    var(--body)/1.9 "Microsoft YaHei",
+    var(--body) / 1.9 "Microsoft YaHei",
     sans-serif;
   color: #e7e2ca;
   overflow-wrap: anywhere;
@@ -1015,7 +1015,7 @@ button svg {
 }
 .menu-content h1 {
   font:
-    700 clamp(38px, 4vw, 68px)/1.3 Georgia,
+    700 clamp(38px, 4vw, 68px) / 1.3 Georgia,
     "Microsoft YaHei",
     serif;
   letter-spacing: 8px;
@@ -2115,4 +2115,16 @@ button svg {
   overflow: hidden;
   isolation: isolate;
   border: 1px solid #8ca087;
+}
+/* Hover explanations must not intercept underlying controls. Pinning keeps the
+   full document interactive; explicit buttons/links remain usable when hovering. */
+.unified-tooltip:not(.pinned) {
+  pointer-events: none;
+}
+.unified-tooltip button,
+.unified-tooltip a {
+  pointer-events: auto;
+}
+.unified-tooltip.pinned {
+  pointer-events: auto;
 }

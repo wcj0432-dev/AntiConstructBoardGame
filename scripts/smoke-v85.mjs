@@ -416,6 +416,22 @@ try {
       .getByRole("button", { name: "补足本设施维护", exact: true })
       .hover();
     await page.locator(".unified-tooltip").waitFor({ state: "visible" });
+    assert.equal(
+      await page
+        .locator(".unified-tooltip")
+        .evaluate((n) => getComputedStyle(n).pointerEvents),
+      "none",
+    );
+    await page
+      .locator(".unified-tooltip")
+      .getByRole("button", { name: "固定说明", exact: true })
+      .click();
+    assert.equal(
+      await page
+        .locator(".unified-tooltip.pinned")
+        .evaluate((n) => getComputedStyle(n).pointerEvents),
+      "auto",
+    );
     await rail("中央政府").click();
     await page.locator(".unified-tooltip").waitFor({ state: "detached" });
     await page.locator(".panel-close").click();

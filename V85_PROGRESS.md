@@ -33,3 +33,7 @@
 发布检查点2：首次Windows预检40163155936规则/玩法/打包成功，actual exe任命后旧Tooltip残留遮挡关闭按钮而失败，未发布。已实现PanelFrame上下文切换清理Tooltip+待触发计时器和失效触发器位置，保留正常交互/固定提示，新增UI断言。真实下一期维护缺口新增共用“到期风险”标记；风险流程UI通过并更新截图/原始记录。393项继续通过。下一步本地原Tooltip/中央路线与4原生检查，然后提交修复并重跑Windows预检；不创建固定v0.8.5标签直到真实Windows/file八套通过。
 
 修复本地复核：原v3完整12回合及键盘/固定Tooltip通过；中央完整UI、面板Tooltip清理、4桌面+4原生125%均通过。记录见BROWSER_TOOLTIP_RESULTS_LINUX.json。准备第二次Windows预检。
+
+第二次Windows预检40163629745仍在相同关闭按钮复现未固定Tooltip文字拦截。1440×1000浏览器完全重放同流程通过；加未固定说明文字pointer-events:none，实际固定/按钮/链接仍interactive，新增断言与Windows失败截图/触发器/坐标诊断。下一步聚焦Tooltip原回归/中央桌面与native验证，然后第三次Windows；严禁force点击绕过。
+
+指针修复后：旧v3键盘/固定/局部滚动及12回合通过；中央实际路线、unpinned穿透/pinned交互/上下文清理与4桌面/4native均通过，生产构建通过。准备第三次Windows预检。
