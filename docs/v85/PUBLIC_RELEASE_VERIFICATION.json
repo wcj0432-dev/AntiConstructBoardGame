@@ -1,0 +1,38 @@
+{
+  "version": "0.8.5",
+  "release": "https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.5",
+  "allFourAssetsDownloaded": true,
+  "allGitHubDigestsAndManifestMatch": true,
+  "allZipCrcValid": true,
+  "offlineAndSourceVersionAndDocumentsVerified": true,
+  "windowsPEAndPackagedApplicationPresent": true,
+  "windowsPackagedVersion": "0.8.5",
+  "releaseWorkflow": "https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40195446128",
+  "assets": [
+    {
+      "name": "Federation-of-Worlds-v0.8.5-Offline.zip",
+      "size": 10591345,
+      "digest": "sha256:ae3ba670f9c25b10efa6657286a90db1f8a3342a3e655a5c73d84ad13406e648",
+      "browser_download_url": "https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/download/v0.8.5/Federation-of-Worlds-v0.8.5-Offline.zip"
+    },
+    {
+      "name": "Federation-of-Worlds-v0.8.5-Source.zip",
+      "size": 34137179,
+      "digest": "sha256:feaec2f4ec0ab281363d081b7b7d80a9922c5550510d7b10d7af893321baad0d",
+      "browser_download_url": "https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/download/v0.8.5/Federation-of-Worlds-v0.8.5-Source.zip"
+    },
+    {
+      "name": "Federation-of-Worlds-v0.8.5-Windows-x64.zip",
+      "size": 172013401,
+      "digest": "sha256:440b0e7f2abe21f94300277814a7dc96eedbb9695f7d551d4b4b735a962567f1",
+      "browser_download_url": "https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/download/v0.8.5/Federation-of-Worlds-v0.8.5-Windows-x64.zip"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 321,
+      "digest": "sha256:2324c712e6562de6de037d128d259a24f06aab9d76f2e76c83588948ebfc9df4",
+      "browser_download_url": "https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/download/v0.8.5/SHA256SUMS.txt"
+    }
+  ],
+  "tagCommit": "b6ce557290f3b2ec00e62dd4e5d3cc4fba526541"
+}

@@ -13,3 +13,5 @@
 原80样本另存重跑仍71成功/9挑战脚本失败；另补一个原失败挑战局的9起始资金替代通关，未改起始资源或成本。后半程主动选择、独立可读性/节奏评估及其他挑战/随机适应仍需跟进。
 
 Windows-x64.zip：完整解压运行FederationOfWorlds.exe；Offline.zip：解压双击诸界联邦.html；Source.zip：源码、文档、截图及测试脚本；SHA256SUMS.txt：下载校验。Windows尚无发行者签名。历史版本与已有Release保留。完成范围、有限机制和待办详见V85_DELIVERY.md、docs/v85。
+
+发布验收：正式任务 https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40195446128 全部通过（393项、默认可见Windows exe、离线file://八套）。四个公开附件已实际下载，ZIP完整性、GitHub摘要/SHA256清单、Windows包内0.8.5及离线/源码内容核验通过。完整报告与后续清单：https://github.com/wcj0432-dev/AntiConstructBoardGame/blob/main/V85_DELIVERY.md 。独立真人三秒与12回合主观节奏仍待执行。

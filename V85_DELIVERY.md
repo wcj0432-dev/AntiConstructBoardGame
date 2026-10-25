@@ -40,7 +40,11 @@
 
 本机Chromium管理员策略禁止直接打开 `file://`；未规避策略，实际离线证据以上述Windows流程为准。生产构建不代表Windows执行，API中明确记录了实际exe和八套离线步骤。
 
-`v0.8.5`标签将由同一发布工作流重新执行全部门槛后创建Release，提供Windows-x64、Offline、Source和SHA256四附件。旧版本保留。公开下载入口：[v0.8.5](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.5)。发布后的摘要和内容核验记录另见 `V85_PROGRESS.md`。
+[正式标签任务40195446128](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40195446128) 已再次通过全部规则、Windows与离线门槛并成功发布。标签 `v0.8.5` 固定提交 `b6ce557290f3b2ec00e62dd4e5d3cc4fba526541`；之后仅补验收文档，游戏源码不变。旧版本与已有Release保留。
+
+[下载v0.8.5](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.5)：Windows-x64、Offline、Source和SHA256四附件均实际下载核验。三个ZIP的CRC完整，全部文件字节摘要与GitHub及清单一致；Windows PE与app.asar存在，包内版本0.8.5；离线HTML、源码、规则与试玩材料内容检查通过。[公开附件核验记录](docs/v85/PUBLIC_RELEASE_VERIFICATION.json)。实际Windows执行证据来自上述任务，未把Linux解包或构建冒充Windows实机。
+
+Windows完整解压后运行exe，离线包解压后双击诸界联邦.html。未完成的独立人工评估及机制边界见下表。
 
 ## 部分完成与未完成
 
