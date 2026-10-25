@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { offices, getPerson, domainNames, factionNames } from "../data";
+import { offices, getPerson, getOffice, domainNames, factionNames } from "../data";
 import {
   officePerson,
   assignmentsFor,
@@ -11,24 +11,33 @@ import type { Action, V2Game } from "../v2/model";
 import { PersonBadge } from "./Visuals";
 import { people } from "../data";
 import { ActionButton } from "./AdministrativeConsole";
+import { PersonStateMarks } from "./StateMarks";
 export function OrganizationChart({
   game,
   office,
   onOffice,
   onPerson,
   onChoose,
+  selectedPerson,
 }: {
   game: V2Game;
   office: string;
   onOffice: (id: string) => void;
   onPerson: (id: string) => void;
   onChoose: (a: Action) => void;
+  selectedPerson?: string;
 }) {
   const [scope, setScope] = useState("central"),
     [layer, setLayer] = useState("formal"),
     [zoom, setZoom] = useState(1),
     [pan, setPan] = useState({ x: 0, y: 0 }),
-    [candidate, setCandidate] = useState("lin");
+    [candidate, setCandidate] = useState(selectedPerson || "lin");
+  useEffect(() => { if(selectedPerson && getPerson(selectedPerson)) setCandidate(selectedPerson); }, [selectedPerson]);
+  useEffect(() => {
+    const local=!!getOffice(office).province;
+    if(scope === "central" && local) setScope("local");
+    else if(scope === "local" && !local) setScope("central");
+  }, [office]);
   const viewport = useRef<HTMLDivElement>(null),
     drag = useRef<{
       x: number;
@@ -222,6 +231,7 @@ export function OrganizationChart({
               >
                 <strong>{n.name}</strong>
                 {id ? <PersonBadge id={id} /> : <span>职位空缺</span>}
+                <PersonStateMarks embedded game={game} person={id} />
                 <span>
                   {id ? personnelStateNames[state!.state] : "须任命负责人"}
                   {game.machine.secondaryAppointments?.[n.id] && " · 正式兼职"}

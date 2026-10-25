@@ -105,7 +105,7 @@ try {
     failed: report.runs.filter((r) => r.status !== "won").length,
   };
   await writeFile(
-    "docs/V8_CAMPAIGN_MATRIX.json",
+    process.argv[2] || "docs/V85_CAMPAIGN_MATRIX.json",
     JSON.stringify(report, null, 2) + "\n",
   );
   console.log(JSON.stringify(report.summary));

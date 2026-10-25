@@ -1,5 +1,7 @@
 import { politicalStories } from "../v2/politicalStories";
 import { ContractStory } from "./ContractStory";
+import type { BoardTarget } from "../v2/governance";
+import { PersonStateMarks } from "./StateMarks";
 import { useEffect, useState, useRef } from "react";
 import {
   advisorAction,
@@ -143,6 +145,7 @@ export function SecretaryConsole({
   onChoose,
   onRead,
   focusStories = false,
+  onLocate,
 }: {
   game: V2Game;
   animate: boolean;
@@ -155,6 +158,7 @@ export function SecretaryConsole({
   onChoose: (a: Action) => void;
   onRead: (topic: string) => void;
   focusStories?: boolean;
+  onLocate?: (target: BoardTarget) => void;
 }) {
   const [tab, setTab] = useState(focusStories ? "stories" : "brief"),
     [topic, setTopic] = useState("welcome");
@@ -219,6 +223,7 @@ export function SecretaryConsole({
                 {x.priority >= 95 ? "! " : ""}
                 {x.title}
               </h3>
+              {x.person && <PersonStateMarks game={game} person={x.person} />}
               <p>
                 <b>原因：</b>
                 {x.why}
@@ -233,7 +238,17 @@ export function SecretaryConsole({
               </p>
               <button
                 onClick={() =>
-                  onNavigate(x.panel, x.province, x.matter, x.person)
+                  onLocate && (x.agenda || x.work)
+                    ? onLocate(
+                        x.agenda
+                          ? {
+                              kind: "agenda",
+                              id: x.agenda,
+                              province: x.province,
+                            }
+                          : { kind: "work", id: x.work, province: x.province },
+                      )
+                    : onNavigate(x.panel, x.province, x.matter, x.person)
                 }
               >
                 定位并调阅

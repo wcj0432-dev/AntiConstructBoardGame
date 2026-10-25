@@ -74,6 +74,22 @@ for (const output of paths) {
   await mkdir(path.join(output, "docs"), { recursive: true });
   for (const doc of ["ART_AUDIO_V7.md", "V7_EXPANSION_DESIGN.md"])
     await cp(path.join(root, "docs", doc), path.join(output, "docs", doc));
+  await cp(
+    path.join(root, "V85_DELIVERY.md"),
+    path.join(output, "V85_DELIVERY.md"),
+  );
+  await cp(
+    path.join(root, "docs/V85_CAMPAIGN_MATRIX.json"),
+    path.join(output, "docs/V85_CAMPAIGN_MATRIX.json"),
+  );
+  await cp(path.join(root, "docs/v85"), path.join(output, "docs/v85"), {
+    recursive: true,
+  });
+  await cp(
+    path.join(root, "docs/screenshots/v85"),
+    path.join(output, "docs/screenshots/v85"),
+    { recursive: true },
+  );
   console.log(`Desktop package: ${output}`);
 }
 await rm(staging, { recursive: true, force: true });

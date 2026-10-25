@@ -1,3 +1,4 @@
+import { useMapForLegacyChecks } from "./legacy-map-view.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -28,6 +29,7 @@ const browser = await chromium.launch({
   args: ["--no-sandbox"],
 });
 const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+await useMapForLegacyChecks(page);
 page.setDefaultTimeout(15000);
 page.on("pageerror", (error) => errors.push(error.message));
 
@@ -680,6 +682,7 @@ async function native125Layout() {
       args: ["--no-sandbox", "--window-size=1280,720"],
     });
     const target = context.pages()[0];
+    await useMapForLegacyChecks(target);
     target.setDefaultTimeout(15000);
     target.on("pageerror", (error) => errors.push(error.message));
     await target.goto("chrome://settings/appearance");

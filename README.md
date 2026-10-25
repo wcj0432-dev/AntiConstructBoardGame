@@ -1,39 +1,38 @@
-# 诸界联邦 · 国家机器 v0.8.1
+# 诸界联邦 · 国家治理桌面 v0.8.5
 
-本地单人PvE国家治理策略游戏。React + TypeScript + Vite，无后端、账号或在线AI。通过实际人事、事权、融资合同、财政、工程、维护与具名师承治理三省六区。
+本地单人 PvE 政治组织构筑与国家治理游戏。架空冷战、奇幻工业与三省六区；React + TypeScript + Vite，无后端、账号或在线 AI。
 
-## 本版
+进入游戏后，默认在**国家治理桌面**观察六个关键职位、3～5项当前事务、工程与协议、近期目标和实际行政命令筹码；随时切换地图查看地区、资源网络与危机。两种视图共享一份游戏状态，切换不扣资源。关闭详情回到局面，结束回合始终独立可见。
 
-新增《一纸契约，三次签字》：在秘书的政治故事页，通过真实维护接管、具名课程与全国税制改革完成三章，不另发资金或资格。16条分支均有标准资源12回合通关见证；80次种子/难度样本中71次成功、9次挑战脚本失败，完整财务与限制见 [v0.8交付与未完成清单](V8_DELIVERY.md) 和 [样本记录](docs/V8_CAMPAIGN_MATRIX.json)。
+本版新增工程组件与局部因果链、受阻行动反查职位、真实任命前后对照、持续危机阶段轨、两类有限派系议程、一页规则速查，以及四回合《四次会议与一座电站》。原24人物、八路线/十六方向、4/8/12回合、财政合同、维护债务、具名培养、政治故事、秘书和音频系统保留。
 
-正式游戏由首席秘书沈岚提供可跳过、状态驱动的引导和真实政务分析；原教学与《南岭工程与人才接班》保留在“特别剧本 / 规则演示”。主界面仍是地图中心、固定视口、单一管理面板，正文16px。
+[下载 Windows / 离线 HTML / 源码 / SHA256](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.5) · [交付与未完成清单](V85_DELIVERY.md) · [游玩说明](PLAYER_GUIDE.md) · [规则](RULES.md) · [人工试玩材料](docs/v85/HUMAN_PLAYTEST.md)
 
-八条国家战略、十六种附加方向进入可视发展规划：第1回合认识国情，第2～3回合立项。新增《万象法典》的真实设施契约登记/法域执行，与《寰宇通讯计划》的实际中继、传令、集中故障/分布韧性。原六路线保留既有路径；选择附加分支后执行相应融资、制度和终局条件，不能重复领能力。
+Windows 包完整解压后运行 `FederationOfWorlds.exe`，不能只复制 exe；离线包解压后双击 `诸界联邦.html`。无需 Node.js 或网络。Windows 尚无发行者签名；网页、离线文件、桌面各自存档。历史版本和 Release 保留。
 
-秘书三表情与四名核心人物使用本任务原创AI插画，其余20人保留原创SVG；新增地图浮雕/通讯、文书分类及实际成果通告。五组合成音乐主题和11类音效统一管理，本地生成，支持静音/音量/动态音乐/失败退路，不依赖互联网。
+## 游戏与验证边界
 
-[上版交付](V7_DELIVERY.md) · [美术音频来源](docs/ART_AUDIO_V7.md) · [扩图准备（未开放）](docs/V7_EXPANSION_DESIGN.md)
-
-## 下载
-
-[Windows / 离线HTML / 源码 / SHA256](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.1)
-
-Windows包完整解压后运行`FederationOfWorlds.exe`，不能只复制exe；离线包解压后双击`诸界联邦.html`。无需Node.js或网络，Windows包尚无发行者签名。旧版本发布仍保留。详见[游玩说明](PLAYER_GUIDE.md)。
+- 行动筹码就是 `core.commands`，没有第二套资源或部门免费次数。所有行动沿用原预览→确认→统一命令 API。
+- 工程卡显示真实投资、管理、技术、维护、产权与收益。接管维护不自动转移产权、维修权或补发停运收益。
+- 两种派系议程由实际工程开工/维护接管产生，每种每局一次、最多两项，接受/谈判复用原预算/暂停/拨款/维护操作；拒绝、延期、逾期有明确后果，不是完整派系 AI。
+- 验证战役公开使用中央32、地方10/5/10、宗门6、政治资本8及既有学院/铁路/未完工工厂；仍每回合5命令。中央、地方合作、专业分工均有真实四回合胜利路径，属于独立场景，不是普通开局平衡证据。
+- 393项规则/音频测试，保留原362项。16种标准方向仍可完成12回合；原80脚本重跑仍71成功/9挑战失败，另提供其中一个挑战局的正常资源替代通关。脚本通关与截图不等于真人可读性、疲劳或全面平衡验收。
 
 ## 开发与测试
 
-Node.js24；使用锁定依赖。
+Node.js 24，锁定依赖：
 
 ```bash
 npm ci
 npm run dev
-npm test                 # 本版362项 / 13文件，含16分支真实正常资源12回合
-npm run build            # TypeScript与生产构建
-npm run build:offline    # 全部脚本、样式、插画内嵌的单HTML
-npm run release:pack     # Windows、Offline、Source ZIP及SHA256SUMS
+npm test
+npm run build
+npm run build:offline
+npm run test:playability     # 三条4回合路径、16条12回合用途统计、挑战替代
+npm run test:campaigns       # 重跑80样本，写新文件，不覆盖v0.8报告
 ```
 
-服务运行后执行浏览器检查：
+安装浏览器后，在服务地址上执行各套检查：
 
 ```bash
 npx playwright install chromium
@@ -44,45 +43,31 @@ npm run test:v5 -- http://localhost:5173
 npm run test:v6 -- http://localhost:5173
 npm run test:v7 -- http://localhost:5173
 npm run test:v8 -- http://localhost:5173
-npm run test:campaigns       # 80次样本，含已记录的挑战失败
+npm run test:v85 -- http://localhost:5173
+npm run release:pack
 ```
 
-系统Chromium可用时设置`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`。v7覆盖正式任期引导、乱序主题、人事/财政/秘书意见、实际规划与分支、存读、Web Audio混音和失效退路、四桌面及四窗口真实原生125%。v8逐项操作三章与支持行动并验证低分辨率表单和确认按钮。截图写入`artifacts/screenshots/v7`、`v8`，交付证据在`docs/screenshots`。
+可设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`。v85 实际 UI 完成三条战役并逐行动对照规则；另测维护缺口→组织瓶颈→任命→接管→派系要求、地图切换、四桌面尺寸和四窗口原生125%缩放、局部面板与确认按钮。旧七套浏览器主动选择地图偏好，完整保留既有教学、规则、故事和音频断言。截图和机器记录在 `artifacts/screenshots`，可分享材料在 `docs/screenshots/v85` 和 `docs/v85`。
 
-版本标签触发`.github/workflows/release.yml`：锁定安装→规则→构建→Windows实际exe存读/重启→离线`file://`七套浏览器→上传Release。Linux生成Windows包不代表Windows实机验证。手动发布时标签须与package一致。
+发布工作流在 Windows 实际运行打包 exe，检查旧教程与新桌面任命、地图切换、存档、进程重启和读取，并对单 HTML 的 `file://` 执行八套浏览器检查后才上传附件。`verify_only` 手动预检不创建 Release。Linux 构建 Windows 包不算 Windows 执行证据。
 
-## 核心规则与存档
+## 存档与代码
 
-- 中央和地方资金、宗门基金及实物分别记账。先运作/逐设施维护/施工，再收实际税与经营收入；拨款和依法上缴守恒。
-- 五种出资合同决定投资、维护、产权和经营。欠付只停本设施；回拨补缴或明确维护接管不会自动取得产权、修好技术故障或追回停运收益。
-- 人物的主职/正式兼职/顾问/专职/临时占用共用一个状态；当前职位、政策和专业决定资格，授权不会创造人才。
-- 导师指定学员，基层/学院课程有真实费用、周期和容量；学院停运或抽调会暂停，毕业资格属于该学员，导师离任不会抹掉。
-- 4/8/12回合模式；八/十二回合须完成原终局仪式，十二回合还需第10～11回合演练。存活本身不足以获得正式胜利。
+保持 schema2 和 `federation-worlds-v2`；规则版本更新为0.8.5。v0.8.0/0.8.1档只增添空派系记录，不追溯产生要求，不重置人物、兼职、合同、维护债务、课程、目标、故事、历史和 RNG。更早档沿既有迁移链升级；损坏当前档明确拒绝。布局偏好 `federation-ui.workView` 在正式状态以外。
 
-保存键仍为`federation-worlds-v2`，规则0.8.0。读取旧档不替玩家选分支，不改原资金/合同/培养/目标/RNG；当前档损坏明确拒绝。已读主题随本局保存，音量与秘书模式为本地界面偏好。网页与桌面存储相互独立。
+| 文件 | 职责 |
+| --- | --- |
+| `src/v2/engine.ts` | 正式预览、执行、统一结算与记录 |
+| `src/v2/governance.ts` | 无状态、无随机消耗的组织/事务/工程/协议/目标投影 |
+| `src/v2/crisisTrack.ts` | 危机轨道与原结算共享的阶段规则 |
+| `src/v2/factionAgendas.ts` | 两类有来源的正式政治诉求与期限 |
+| `src/v2/governanceTrial.ts` | 公开准备的四回合验证场景与真实终检 |
+| `src/v2/migrationV85.ts` | 增量兼容与当前档校验 |
+| `src/ui/GovernanceTable.tsx` | 桌面、工程局部链、组织对照、规则速查 |
+| `src/ui/StateMarks.tsx` | 桌面/原组织图/设施/秘书共用状态标记 |
+| `scripts/governance-trial.ts` | 三种组织方案的实际命令见证 |
+| `scripts/verify-governance-play.mjs` | 路径差异与逐回合操作用途证据 |
 
-规则见[RULES.md](RULES.md)，历史实现见[V6_DELIVERY.md](V6_DELIVERY.md)及更早交付报告。
+## 下一步
 
-## 已知边界与下一步
-
-三省六区仍为实际可玩地图；东海/西陲只有结构与依赖设计。本版一条真实三章选择链已可玩，另两组长期故事仍主要是状态投影。配乐为基础合成短循环；其余20人物与大型事件插画尚未完成。16分支标准资源通关与80次样本已记录，不等于全种子/难度平衡。
-
-下一步优先给9个挑战失败脚本补合法替代计划，做随机政治遗产下的人事适应和人工试玩，再扩展政治故事、美术/音乐，最后逐省启用扩图。具体完成范围与后续清单见[V8_DELIVERY.md](V8_DELIVERY.md)。
-
-## 主要结构
-
-```text
-src/v2/engine.ts          统一预览、命令执行、结算、历史与迁移
-src/v2/fiscal.ts          央地账户、融资合同与共享财政预测
-src/v2/operations.ts      设施真实运营状态
-src/v2/maintenance.ts     逐设施债务、责任与补缴
-src/v2/personnel.ts       正式岗位、兼职、项目和临时任务
-src/v2/training.ts        具体课程、暂停、毕业和个人继任资格
-src/v2/nationalStrategy.ts 分支、真实契约登记、通讯与当前验收
-src/v2/advisor.ts         由同一规则推导的秘书事实、引导和回顾
-src/v2/politicalStories.ts 有来源的合同/救援/继任章节
-src/ui/Secretary.tsx      可折叠秘书与上下文意见
-src/ui/StrategyTree.tsx   可视发展规划与实际操作入口
-src/ui/audio.ts           离线Web Audio、混音、合成、限频与退路
-scripts/v7-campaigns.ts   四个正常资源12回合新路线序列
-```
+先完成独立三秒截图测试与真人12回合试玩，针对后半程选择和信息负担迭代；再研究剩余挑战样本、随机政治下的适应性路径、更多有组织依据的派系议程。五省扩图、大量新增人物、外交战争与大规模 AI 本轮按需求暂缓。其余20人物立绘、长故事和完整人工配乐仍属历史未完成项，详见 [V85_DELIVERY.md](V85_DELIVERY.md)。

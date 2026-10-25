@@ -1,3 +1,4 @@
+import { useMapForLegacyChecks } from "./legacy-map-view.mjs";
 // Uses a fresh full Chromium profile; never changes the user's browser settings.
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
@@ -23,7 +24,8 @@ try {
     args: ["--no-sandbox", "--window-size=1280,720"],
   });
   const page = context.pages()[0];
-  page.setDefaultTimeout(15000);
+  await useMapForLegacyChecks(page);
+page.setDefaultTimeout(15000);
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("chrome://settings/appearance");

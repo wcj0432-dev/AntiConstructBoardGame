@@ -1,4 +1,4 @@
-import type { GameState, Issue, ProvinceId } from "../types";
+import type { GameState, Issue, ProvinceId, FactionId } from "../types";
 export type Regime = "vertical" | "devolved" | "joint";
 export type Mode = "tutorial" | "campaign" | "national" | "experimental";
 export type Difficulty = "relaxed" | "standard" | "challenging";
@@ -88,7 +88,12 @@ export interface LedgerEntry {
   reason: string;
   source: string;
   category:
-    "tax" | "operation" | "investment" | "transfer" | "maintenance" | "audit";
+    | "tax"
+    | "operation"
+    | "investment"
+    | "transfer"
+    | "maintenance"
+    | "audit";
 }
 export interface FiscalState {
   taxSystem: TaxSystem;
@@ -179,6 +184,8 @@ export interface Work {
   };
 }
 export interface Machine {
+  agendas?: { seen: string[]; items: FactionAgenda[] };
+  governanceTrial?: { id: "four-meetings"; source: string };
   storylines?: { work: string; decisions: StoryDecision[] }[];
   advisor?: { seen: string[]; cooldowns: Record<string, number> };
   strategy?: {
@@ -285,6 +292,11 @@ export interface V2Game {
   machine: Machine;
 }
 export type Action =
+  | {
+      type: "agendaDecision";
+      agenda: string;
+      choice: "accept" | "negotiate" | "delay" | "reject";
+    }
   | ({ type: "storyDecision"; work: string } & (
       | { chapter: "charter"; choice: "central" | "local" }
       | {
@@ -410,6 +422,30 @@ export interface StoryDecision {
   operation?: string;
   training?: string;
 }
+export interface FactionAgenda {
+  id: string;
+  kind: "construction-budget" | "maintenance-voice";
+  work: string;
+  province: ProvinceId;
+  office: string;
+  issuer: string;
+  faction: FactionId;
+  created: number;
+  deadline: number;
+  deferred: boolean;
+  delaySource?: string;
+  resumeAfter?: number;
+  source: string;
+  trigger: string;
+  state:
+    | "active"
+    | "accepted"
+    | "negotiated"
+    | "rejected"
+    | "expired"
+    | "superseded";
+  decisionSource?: string;
+}
 export interface Condition {
   label: string;
   met: boolean;
@@ -464,7 +500,11 @@ export interface Plan {
     | "archive";
 }
 export type ResultStatus =
-  "failed" | "partial" | "resolved" | "changed" | "applied";
+  | "failed"
+  | "partial"
+  | "resolved"
+  | "changed"
+  | "applied";
 export interface ActionResult {
   id: string;
   revision: number;

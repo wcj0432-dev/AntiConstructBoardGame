@@ -8,6 +8,18 @@ import {
 } from "./nationalStrategy";
 import { migrateAndValidateV7 } from "./migrationV7";
 import { migrateAndValidateV8 } from "./migrationV8";
+import { crisisStep } from "./crisisTrack";
+import {
+  agendaCommitmentConditions,
+  agendaOperation,
+  agendaConditions,
+  agendaEffects,
+  applyAgendaDecision,
+  collectAgendas,
+  expireAgendas,
+} from "./factionAgendas";
+import { migrateAndValidateV85 } from "./migrationV85";
+import { trialChecks, trialReport } from "./governanceTrial";
 import {
   appendStoryDecision,
   chapterIds,
@@ -306,7 +318,8 @@ export function newV2(
       archive: [],
       results: [],
       difficulty: "standard",
-      rulesVersion: "0.8.0",
+      rulesVersion: "0.8.5",
+      agendas: { seen: [], items: [] },
       storylines: [],
       advisor: { seen: [], cooldowns: {} },
       strategy: { legalRecords: [], dispatches: [] },
@@ -348,6 +361,22 @@ export function duration(g: V2Game) {
     : g.machine.mode === "national"
       ? 8
       : 4;
+}
+/** Shared four-turn victory facts; no parallel UI win condition. */
+export function campaignChecks(g: V2Game): Condition[] {
+  if (g.machine.governanceTrial) return trialChecks(g);
+  return [
+    condition(
+      "灵脉事故已得到管理",
+      g.machine.milestones.includes("accident-managed"),
+      "沿用原四回合事故处理记录；救援与封印仍须真实权限",
+    ),
+    condition(
+      "北境重大事务已得到管理",
+      g.machine.milestones.includes("north-managed"),
+      "沿用原四回合北境处置记录，并存活至任期结算",
+    ),
+  ];
 }
 export function participants(g: V2Game, m: Matter) {
   const a = g.machine.authorization[m.id];
@@ -559,6 +588,7 @@ export function finance(g: V2Game) {
   return nationalForecast(g);
 }
 export function milestones(g: V2Game, goal: Goal = g.machine.goal) {
+  if (g.machine.governanceTrial) return trialChecks(g);
   const base = ["codex", "comms"].includes(goal) ? [] : baseMilestones(g, goal);
   return [...base, ...strategicMilestones(g, goal)];
 }
@@ -697,6 +727,46 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
   const need = (label: string, met: boolean, reason: string, source?: string) =>
     v.conditions.push(condition(label, met, reason, source));
   if (s.status !== "playing") v.errors.push("本局已经结束");
+  if (action.type === "agendaDecision") {
+    const operation = agendaOperation(g, action),
+      agenda = m.agendas?.items.find((x) => x.id === action.agenda);
+    if (operation) Object.assign(v, previewAction(g, operation));
+    v.action = action;
+    v.title =
+      "派系议程：" +
+      {
+        accept: "接受实际要求",
+        negotiate: "协商替代安排",
+        delay: "支付资本延期",
+        reject: "拒绝公开要求",
+      }[action.choice];
+    if (action.choice === "delay") v.costs.capital = 1;
+    if (action.choice === "reject") v.costs.commands = 1;
+    v.conditions.push(...agendaConditions(g, action));
+    v.effects.push(...agendaEffects(g, action));
+    if (agenda) {
+      v.parents.push(agenda.source);
+      v.actors = [...new Set([...v.actors, agenda.issuer])];
+    }
+    if (s.commands < v.costs.commands) v.errors.push("行政命令不足");
+    if (s.capital < v.costs.capital) v.errors.push("政治资本不足");
+    v.errors = [
+      ...new Set([
+        ...v.errors,
+        ...v.conditions
+          .filter((c) => !c.met)
+          .map((c) => `${c.label}：${c.reason}`),
+      ]),
+    ];
+    v.after = {
+      commands: s.commands - v.costs.commands,
+      treasury: operation
+        ? previewAction(g, operation).after.treasury
+        : s.treasury,
+      capital: s.capital - v.costs.capital,
+    };
+    return v;
+  }
   if (action.type === "storyDecision") {
     const operation = storyOperation(g, action);
     if (operation) Object.assign(v, previewAction(g, operation));
@@ -1308,7 +1378,10 @@ export function previewAction(g: V2Game, action: Action): V2Preview {
         : "结束教学提示，保留当前组织与全部实际后果",
     ];
   }
-  v.conditions.push(...strategyActionConditions(g, action));
+  v.conditions.push(
+    ...strategyActionConditions(g, action),
+    ...agendaCommitmentConditions(g, action),
+  );
   if (s.commands < v.costs.commands) v.errors.push("行政命令不足");
   if (s.treasury < v.costs.treasury) v.errors.push("财政不足");
   if (s.capital < v.costs.capital) v.errors.push("政治资本不足");
@@ -1743,15 +1816,8 @@ function advance(g: V2Game, source: string) {
     }
   }
   for (const item of [...m.matters]) {
-    if (
-      item.kind === "gazette" ||
-      item.kind === "opportunity" ||
-      item.kind === "warning" ||
-      item.kind === "final" ||
-      item.kind === "energyFault" ||
-      item.kind === "fiscalClaim"
-    )
-      continue;
+    const step = crisisStep(g, item);
+    if (!step.staged) continue;
     item.age++;
     // Isolation is a persistent territorial restriction, not an eight-turn timer.
     if (item.isolated) continue;
@@ -1759,43 +1825,22 @@ function advance(g: V2Game, source: string) {
       item.containment--;
       continue;
     }
-    item.stage = Math.min(4, item.stage + 1);
+    item.stage = step.stage;
     item.lifecycle = "deteriorated";
-    const station = m.works.some(
-      (w) =>
-        w.type === "warning" &&
-        w.province === item.province &&
-        w.completed &&
-        !w.cancelled,
-    );
-    const severity = Math.max(
-      1,
-      (item.evacuated || station ? 1 : item.stage >= 3 ? 2 : 1) -
-        (m.departmentBudgets.anomaly === 2 ? 1 : 0) -
-        (m.drillsUntil >= s.turn ? 1 : 0) -
-        (m.discoveries[item.province].includes("anomaly") ? 1 : 0),
-    );
-    if (item.stage >= 3)
-      for (const link of m.works.filter(
-        (w) =>
-          w.type === "rail" &&
-          w.completed &&
-          !w.cancelled &&
-          w.to &&
-          [w.province, w.to].includes(item.province),
-      )) {
-        const to = link.province === item.province ? link.to! : link.province;
-        province(g, to).pressure.anomaly++;
-        record(
-          g,
-          "铁路联动预警",
-          [],
-          [],
-          ["连接省存在未隔离的阶段3以上危机"],
-          [`${province(g, to).name}异常压力+1；可先遏制源头或阻断隔离`],
-          [link.source, item.source || source],
-        );
-      }
+    const severity = step.crisis;
+    for (const edge of step.propagation) {
+      const link = m.works.find((w) => w.id === edge.work)!;
+      province(g, edge.to).pressure.anomaly++;
+      record(
+        g,
+        "铁路联动预警",
+        [],
+        [],
+        ["连接省存在未隔离的阶段3以上危机"],
+        [`${province(g, edge.to).name}异常压力+1；可先遏制源头或阻断隔离`],
+        [link.source, item.source || source],
+      );
+    }
     s.crisis += severity;
     province(g, item.province).pressure.anomaly++;
     if (item.stage >= 2)
@@ -1825,16 +1870,16 @@ function advance(g: V2Game, source: string) {
   s.paralysisStreak = s.paralysis >= 4 ? s.paralysisStreak + 1 : 0;
   m.occupied = {};
   m.authorization = {};
+  expireAgendas(g, record);
   checkEnding(g);
   if (s.status !== "playing") return;
   if (s.turn === duration(g)) {
     const victory =
       m.mode === "national" || m.mode === "experimental"
         ? m.finalDone
-        : m.milestones.includes("accident-managed") &&
-          m.milestones.includes("north-managed");
+        : campaignChecks(g).every((c) => c.met);
     s.status = victory ? "won" : "lost";
-    s.ending = report(g);
+    s.ending = m.governanceTrial ? trialReport(g) : report(g);
     return;
   }
   s.turn++;
@@ -2028,6 +2073,26 @@ function advance(g: V2Game, source: string) {
 function applyAction(g: V2Game, action: Action): V2Game {
   const v = previewAction(g, action);
   if (v.errors.length) throw new Error(v.errors.join("；"));
+  if (action.type === "agendaDecision") {
+    const operation = agendaOperation(g, action);
+    const n = operation ? applyAction(g, operation) : structuredClone(g);
+    const operationSource = operation ? n.machine.history[0]?.id : undefined;
+    if (!operation) {
+      n.core.commands -= v.costs.commands;
+      n.core.capital -= v.costs.capital;
+    }
+    const source = record(
+      n,
+      v.title,
+      v.actors,
+      v.institutions,
+      v.conditions.map((c) => c.reason),
+      v.effects,
+      [...v.parents, ...(operationSource ? [operationSource] : [])],
+    );
+    applyAgendaDecision(n, action, source);
+    return n;
+  }
   if (action.type === "storyDecision") {
     const operation = storyOperation(g, action);
     const n = operation ? applyAction(g, operation) : structuredClone(g);
@@ -2412,12 +2477,16 @@ export function deserializeV2(raw: string): V2Game {
     );
   const g = parsed as V2Game;
   if (
-    ["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(g.machine?.rulesVersion) &&
+    ["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.8.5"].includes(
+      g.machine?.rulesVersion,
+    ) &&
     !g.machine.fiscal
   )
     throw new Error("v0.5存档缺少财政账本，不能按旧档重新开户。");
   if (
-    ["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(g.machine?.rulesVersion) &&
+    ["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.8.5"].includes(
+      g.machine?.rulesVersion,
+    ) &&
     g.machine.works?.some((w) => !w.contract)
   )
     throw new Error("v0.5工程缺少融资合同，不能静默改成中央独资。");
@@ -2577,10 +2646,11 @@ export function deserializeV2(raw: string): V2Game {
       "0.6.0",
       "0.7.0",
       "0.8.0",
+      "0.8.5",
     ].includes(m.rulesVersion)
   )
     throw new Error("存档来自不同规则版本，请使用对应版本读取；原存档未改动");
-  if (!["0.5.0", "0.6.0", "0.7.0", "0.8.0"].includes(m.rulesVersion)) {
+  if (!["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.8.5"].includes(m.rulesVersion)) {
     m.migratedFrom = m.rulesVersion;
     const assigned = new Set<string>(),
       facilities = new Map<string, (typeof m.works)[number]>();
@@ -2743,6 +2813,7 @@ export function deserializeV2(raw: string): V2Game {
   migrateAndValidateV6(g);
   migrateAndValidateV7(g);
   migrateAndValidateV8(g);
+  migrateAndValidateV85(g);
   const side = m.secondaryAppointments ?? {};
   if (
     Object.entries(side).some(
@@ -2830,6 +2901,8 @@ export function executeCommand(
   let n: V2Game;
   try {
     n = applyAction(g, action);
+    collectAgendas(g, n, record);
+    sync(n);
   } catch (e) {
     return failed([`结算中止，状态已回滚：${(e as Error).message}`]);
   }

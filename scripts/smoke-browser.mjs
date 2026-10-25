@@ -1,3 +1,4 @@
+import { useMapForLegacyChecks } from "./legacy-map-view.mjs";
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
@@ -10,6 +11,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
+await useMapForLegacyChecks(page);
 page.setDefaultTimeout(10000);
 const shots = process.env.FOW_SCREENSHOT_DIR;
 if (shots) await mkdir(shots, { recursive: true });

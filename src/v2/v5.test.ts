@@ -333,7 +333,7 @@ describe("v0.5 预测、结算与旧存档", () => {
     delete raw.machine.secondaryAppointments;
     delete raw.machine.works[0].contract;
     const migrated = deserializeV2(JSON.stringify(raw));
-    expect(migrated.machine.rulesVersion).toBe("0.8.0");
+    expect(migrated.machine.rulesVersion).toBe("0.8.5");
     expect(migrated.core.treasury).toBe(g.core.treasury);
     expect(migrated.core.provinces).toEqual(g.core.provinces);
     expect(migrated.core.rng).toBe(g.core.rng);
@@ -360,7 +360,7 @@ describe("v0.5 预测、结算与旧存档", () => {
   });
   it("当前v0.5既有地方工程缺失融资合同时拒绝读取，不得改成中央产权", () => {
     const g = go(qualified(), gridAction("local"));
-    expect(g.machine.rulesVersion).toBe("0.8.0");
+    expect(g.machine.rulesVersion).toBe("0.8.5");
     expect(g.machine.works[0].contract!.owner).toBe("south");
     const raw = JSON.parse(serializeV2(g));
     delete raw.machine.works[0].contract;

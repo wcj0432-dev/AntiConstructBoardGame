@@ -402,7 +402,7 @@ export function appointmentImpact(
       `${next.name}取得该职正式参与资格；${position?.domains.map((domain) => `${domainNames[domain]}专业${next.skills[domain]}`).join(" / ") || "职位未识别"}`,
     );
     politicalEffects.push(
-      `${factionNames[next.faction]}取得该职控制权，同一人物不会重复计算派系人数`,
+      `${factionNames[next.faction]}取得该职控制权；派系影响按实际职位与既有政治支持计算`,
     );
     if (
       mode === "primary" &&

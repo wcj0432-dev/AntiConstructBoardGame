@@ -1,3 +1,4 @@
+import { useMapForLegacyChecks } from "./legacy-map-view.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -62,6 +63,7 @@ await context.addInitScript(() => {
     };
 });
 const page = await context.newPage();
+await useMapForLegacyChecks(page);
 page.setDefaultTimeout(15000);
 page.on("pageerror", (e) => errors.push(e.message));
 const rail = (name, p = page) =>
@@ -239,7 +241,7 @@ try {
   await close();
   const saved = await save();
   const savedObject = JSON.parse(saved);
-  assert.equal(savedObject.machine.rulesVersion, "0.8.0");
+  assert.equal(savedObject.machine.rulesVersion, "0.8.5");
   assert.equal(savedObject.machine.strategy.branch, "plural");
   assert.equal(savedObject.core.commands, 4);
   await page.getByRole("button", { name: "暂停菜单", exact: true }).click();
@@ -314,6 +316,7 @@ try {
     };
   });
   const fp = await fallback.newPage();
+  await useMapForLegacyChecks(fp);
   fp.on("pageerror", (e) => errors.push(e.message));
   await fp.goto(base);
   await fp.getByRole("button", { name: "开始新游戏", exact: true }).click();
@@ -361,6 +364,7 @@ async function native(saved) {
       args: ["--no-sandbox", "--window-size=1280,720"],
     });
     const p = c.pages()[0];
+    await useMapForLegacyChecks(p);
     p.setDefaultTimeout(15000);
     p.on("pageerror", (e) => errors.push(e.message));
     await p.goto("chrome://settings/appearance");
@@ -403,6 +407,7 @@ async function native(saved) {
           "federation-ui",
           JSON.stringify({
             scale: 100,
+            workView: "map",
             hints: false,
             advisorMode: "manual",
             animate: false,

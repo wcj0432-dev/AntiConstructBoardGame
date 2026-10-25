@@ -1,3 +1,4 @@
+import { useMapForLegacyChecks } from "./legacy-map-view.mjs";
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
@@ -7,6 +8,7 @@ const browser = await chromium.launch({
   args: ["--no-sandbox"],
 });
 const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+await useMapForLegacyChecks(page);
 page.setDefaultTimeout(10000);
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

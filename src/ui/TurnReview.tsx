@@ -1,3 +1,6 @@
+import { crisisStep } from "../v2/crisisTrack";
+import { courseConditions, trainingNames } from "../v2/training";
+import { getPerson } from "../data";
 import { accountLabel } from "../v2/fiscal";
 import { workSpecs } from "../v2/administration";
 import { PanelFrame } from "./PanelFrame";
@@ -82,7 +85,7 @@ export function TurnReview({
           <h3>重要危机</h3>
           {crises.map((x) => (
             <p key={x.id}>
-              {x.title} ·{" "}
+              {x.title} · {crisisStep(game, x).label} ·{" "}
               {x.isolated
                 ? "持续隔离，本地停产"
                 : x.containment > 0
@@ -109,16 +112,46 @@ export function TurnReview({
           </p>
         </section>
         <section>
+          <h3>教学与派系期限</h3>
+          {(m.trainings ?? [])
+            .filter((t) => ["active", "paused"].includes(t.state))
+            .map((t) => (
+              <p key={t.id}>
+                {getPerson(t.mentor)?.name} → {getPerson(t.student)?.name} ·{" "}
+                {trainingNames[t.cap]} {t.progress}/{t.duration} ·{" "}
+                {courseConditions(game, t)
+                  .filter((c) => !c.met)
+                  .map((c) => c.reason)
+                  .join("；") || "当前教学条件满足，结算仍须学院实际付清维护"}
+              </p>
+            ))}
+          {(m.agendas?.items ?? [])
+            .filter((a) => a.state === "active")
+            .map((a) => (
+              <p key={a.id} className={a.deadline <= s.turn ? "unmet" : ""}>
+                派系要求于第{a.deadline}
+                回合结束到期；逾期对实际发起人积怨+1，仅一次。
+              </p>
+            ))}
+          {!(m.trainings ?? []).some((t) =>
+            ["active", "paused"].includes(t.state),
+          ) && <p>没有正在推进的个人课程。</p>}
+        </section>
+        <section>
           <h3>下一阶段预警</h3>
           <p>
             {s.turn === 1
-              ? "国家规划会议开放；南岭事故风险进入处置阶段。"
+              ? m.governanceTrial
+                ? "进入工程与合同会议；原南岭事故进入处置阶段。"
+                : "国家规划会议开放；南岭事故风险进入处置阶段。"
               : s.turn === 3
                 ? "北境旧神危机进入处置阶段。"
                 : m.mode === "experimental" && s.turn === 9
                   ? "进入终局准备，第10～11回合可组织全国演练。"
                   : s.turn === duration(game) - 1
-                    ? "进入最后回合，检查并实际执行国家目标终局。"
+                    ? m.governanceTrial
+                      ? "进入组织终检；电网、工厂、专业和跨区补给须实际满足。"
+                      : "进入最后回合，检查并实际执行国家目标终局。"
                     : "工程继续结算、改革按期生效，待办按接纳名额进入事务队列。"}
           </p>
           {preview.errors.map((x) => (

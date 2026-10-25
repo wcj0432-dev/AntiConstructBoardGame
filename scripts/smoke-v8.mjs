@@ -1,3 +1,4 @@
+import { useMapForLegacyChecks } from "./legacy-map-view.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -38,6 +39,7 @@ const browser = await chromium.launch({
   args: ["--no-sandbox"],
 });
 const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+await useMapForLegacyChecks(page);
 page.setDefaultTimeout(15000);
 page.on("pageerror", (e) => errors.push(e.message));
 const rail = (name, p = page) =>
@@ -354,6 +356,7 @@ async function native(saved) {
           "federation-ui",
           JSON.stringify({
             scale: 100,
+            workView: "map",
             hints: false,
             advisorMode: "manual",
             animate: false,

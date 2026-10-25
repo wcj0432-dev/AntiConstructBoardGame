@@ -42,6 +42,15 @@ await zip(`${prefix}-Offline.zip`, (archive) => {
   archive.file(path.join(root, "docs/V8_CAMPAIGN_MATRIX.json"), {
     name: "docs/V8_CAMPAIGN_MATRIX.json",
   });
+  archive.file(path.join(root, "V85_DELIVERY.md"), { name: "V85_DELIVERY.md" });
+  archive.file(path.join(root, "docs/V85_CAMPAIGN_MATRIX.json"), {
+    name: "docs/V85_CAMPAIGN_MATRIX.json",
+  });
+  archive.directory(path.join(root, "docs/v85"), "docs/v85");
+  archive.directory(
+    path.join(root, "docs/screenshots/v85"),
+    "docs/screenshots/v85",
+  );
   for (const doc of ["ART_AUDIO_V7.md", "V7_EXPANSION_DESIGN.md"])
     archive.file(path.join(root, "docs", doc), { name: `docs/${doc}` });
 });
@@ -68,6 +77,8 @@ await zip(`${prefix}-Source.zip`, (archive) => {
     "V7_PROGRESS.md",
     "V8_DELIVERY.md",
     "V8_PROGRESS.md",
+    "V85_DELIVERY.md",
+    "V85_PROGRESS.md",
     "THIRD_PARTY_NOTICES.md",
     ".gitignore",
   ])

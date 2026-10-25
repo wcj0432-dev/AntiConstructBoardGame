@@ -3,6 +3,7 @@ import { facilityStateNames, facilityStatus } from "../v2/operations";
 import { nationalForecast, accountLabel } from "../v2/fiscal";
 import { workSpecs } from "../v2/administration";
 import { ActionButton } from "./AdministrativeConsole";
+import { PersonStateMarks } from "./StateMarks";
 export function FacilityOperations({
   game,
   onChoose,
@@ -41,6 +42,7 @@ export function FacilityOperations({
                 {facilityStateNames[state.state]}
               </strong>
               <p>{state.reason}</p>
+              {w.worker && <PersonStateMarks game={game} person={w.worker} />}
               <p>
                 上次成功履约：
                 {current?.lastPaidTurn !== undefined

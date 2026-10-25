@@ -1,6 +1,6 @@
 {
   "name": "federation-of-worlds",
-  "version": "0.8.1",
+  "version": "0.8.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,7 +20,9 @@
     "test:v6": "node scripts/smoke-v6.mjs",
     "test:v7": "node scripts/smoke-v7.mjs",
     "test:v8": "node scripts/smoke-v8.mjs",
-    "test:campaigns": "node scripts/verify-campaigns.mjs"
+    "test:campaigns": "node scripts/verify-campaigns.mjs",
+    "test:v85": "node scripts/smoke-v85.mjs",
+    "test:playability": "node scripts/verify-governance-play.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

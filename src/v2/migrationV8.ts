@@ -12,7 +12,7 @@ export function migrateAndValidateV8(g: V2Game) {
   }
   const stories = m.storylines;
   if (
-    m.rulesVersion !== "0.8.0" ||
+    !["0.8.0", "0.8.5"].includes(m.rulesVersion) ||
     !Array.isArray(stories) ||
     new Set(stories.map((s) => s.work)).size !== stories.length
   )

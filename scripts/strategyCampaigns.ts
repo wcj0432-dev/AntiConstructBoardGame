@@ -56,7 +56,7 @@ function engineering(c: Driver) {
   if (c.config.goal === "traffic")
     c.action({ type: "audit", province: "north", lead: "gov-north" });
 }
-function finish(c: Driver) {
+export function finish(c: Driver) {
   while (c.game.core.turn < 12) {
     c.mediate();
     if (c.game.core.paralysis) c.attempt({ type: "unblock" });

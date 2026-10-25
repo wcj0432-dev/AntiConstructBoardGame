@@ -515,7 +515,7 @@ describe("v0.4 改革性质与旧冲突存档", () => {
     const restored = deserializeV2(JSON.stringify(raw));
     expect(restored.machine.works).toHaveLength(2);
     expect(restored.machine.works[1].cancelled).toBe(true);
-    expect(restored.machine.migrationNotes?.length).toBe(4);
+    expect(restored.machine.migrationNotes?.length).toBe(5);
     expect(restored.machine.migrationNotes?.[2]).toContain("v0.7");
     expect(restored.machine.migrationNotes?.[1]).toContain("v0.6");
     expect(restored.core.treasury).toBe(g.core.treasury);

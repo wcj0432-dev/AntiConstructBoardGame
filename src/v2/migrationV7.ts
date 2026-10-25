@@ -13,7 +13,7 @@ export function migrateAndValidateV7(g: V2Game) {
   const a = m.advisor,
     s = m.strategy;
   if (
-    !["0.7.0", "0.8.0"].includes(m.rulesVersion) ||
+    !["0.7.0", "0.8.0", "0.8.5"].includes(m.rulesVersion) ||
     !a ||
     !s ||
     !Array.isArray(a.seen) ||

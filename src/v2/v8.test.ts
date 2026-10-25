@@ -284,7 +284,7 @@ describe("v0.8 规则事实与存档自查", () => {
     raw.machine.rulesVersion = "0.7.0";
     delete raw.machine.storylines;
     const n = deserializeV2(JSON.stringify(raw));
-    expect(n.machine.rulesVersion).toBe("0.8.0");
+    expect(n.machine.rulesVersion).toBe("0.8.5");
     expect(n.machine.storylines).toEqual([]);
     expect(n.core).toEqual(g.core);
     expect(n.machine.works).toEqual(g.machine.works);

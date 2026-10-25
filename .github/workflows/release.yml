@@ -7,8 +7,13 @@ on:
       release_tag:
         description: "要打包并发布的已有版本标签"
         required: true
-        default: "v0.8.1"
+        default: "v0.8.5"
         type: string
+      verify_only:
+        description: "仅验证当前分支，不创建标签或发布附件"
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -19,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.verify_only && github.ref || inputs.release_tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -28,10 +33,20 @@ jobs:
         run: npm ci
       - name: Verify game rules
         run: npm test
+      - name: Verify governance paths and turn records
+        run: npm run test:playability
       - name: Package Windows and offline editions
         run: npm run release:pack
       - name: Run the packaged Windows executable
-        run: npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe
+        shell: pwsh
+        run: |
+          npm run test:desktop -- artifacts/desktop/FederationOfWorlds-win32-x64/FederationOfWorlds.exe 2>&1 | Tee-Object -Variable desktopLog
+          $desktopStatus = $LASTEXITCODE
+          if ($desktopStatus -ne 0) {
+            $details = (($desktopLog | Select-Object -Last 80) -join "`n").Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Windows executable smoke failed::$details"
+            exit $desktopStatus
+          }
       - name: Verify offline HTML through real browser interactions
         shell: pwsh
         run: |
@@ -57,6 +72,7 @@ jobs:
           Invoke-BrowserSmoke 'test:v6'
           Invoke-BrowserSmoke 'test:v7'
           Invoke-BrowserSmoke 'test:v8'
+          Invoke-BrowserSmoke 'test:v85'
       - name: Store build downloads
         uses: actions/upload-artifact@v4
         with:
@@ -64,12 +80,15 @@ jobs:
           path: |
             artifacts/*.zip
             artifacts/SHA256SUMS.txt
+            artifacts/screenshots/v85/
+            artifacts/screenshots/desktop-v85/
           if-no-files-found: error
       - name: Verify release tag matches application version
         env:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: node -e "if (process.env.RELEASE_TAG !== 'v' + require('./package.json').version) process.exit(1)"
       - name: Publish GitHub Release
+        if: ${{ !inputs.verify_only }}
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}

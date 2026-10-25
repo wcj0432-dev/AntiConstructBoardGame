@@ -1,3 +1,10 @@
+import { campaignChecks } from "./v2/engine";
+import { FactionAgendaDetails } from "./ui/FactionAgenda";
+import {
+  startGovernanceTrial,
+  trialChecks,
+  trialBriefs,
+} from "./v2/governanceTrial";
 import {
   SecretaryAdvice,
   SecretaryConsole,
@@ -115,7 +122,21 @@ import {
 import { assignedOffices, assignmentsFor, officePerson } from "./v2/personnel";
 import "./ui/command.css";
 import "./ui/v5-ui.css";
+import {
+  GovernanceTable,
+  ConstructionDetails,
+  ActionBoardComparison,
+  CrisisTrack,
+  RuleReference,
+  type BoardCategory,
+} from "./ui/GovernanceTable";
+import type { BoardTarget } from "./v2/governance";
+import "./ui/governance.css";
 type Panel =
+  | "construction"
+  | "agenda"
+  | "trial"
+  | "reference"
   | "secretary"
   | "special"
   | "scenario"
@@ -139,6 +160,10 @@ const difficultyNames = {
   challenging: "紧缩",
 };
 const titles: Record<Panel, string> = {
+  construction: "工程构筑与局部因果链",
+  agenda: "派系公开议程",
+  trial: "四次会议与一座电站",
+  reference: "联邦执政 · 规则速查卡",
   secretary: "首席秘书 · 沈岚",
   special: "特别剧本 / 规则演示",
   scenario: "南岭工程与人才接班",
@@ -219,6 +244,7 @@ function readSettings() {
           ? "manual"
           : "full") as AdvisorMode,
       animate: p.animate !== false,
+      workView: (p.workView === "map" ? "map" : "table") as "map" | "table",
     };
   } catch {
     return {
@@ -226,6 +252,7 @@ function readSettings() {
       hints: true,
       advisorMode: "full" as AdvisorMode,
       animate: true,
+      workView: "table" as "map" | "table",
     };
   }
 }
@@ -262,6 +289,9 @@ export default function App() {
   const [achievement, setAchievement] = useState<string | null>(null);
   const [advisorFocus, setAdvisorFocus] = useState<AdvisorPanel | null>(null);
   const [selected, setSelected] = useState<ProvinceId>("south");
+  const [boardFocus, setBoardFocus] = useState<BoardTarget | null>(null);
+  const [selectedWork, setSelectedWork] = useState("");
+  const [selectedAgenda, setSelectedAgenda] = useState("");
   const [district, setDistrict] = useState(0);
   const [action, setAction] = useState<Action | null>(null);
   const [confirmedPreview, setConfirmedPreview] = useState(false);
@@ -300,7 +330,10 @@ export default function App() {
     playing = s.status === "playing",
     v = action ? previewAction(g, action) : null,
     local = s.provinces.find((p) => p.id === selected)!,
-    target = milestones(g);
+    target =
+      m.mode === "campaign" || m.mode === "tutorial"
+        ? campaignChecks(g)
+        : milestones(g);
   function readTopic(id: string) {
     const n = markAdvisorRead(stateRef.current, id);
     stateRef.current = n;
@@ -328,7 +361,7 @@ export default function App() {
     setAction(null);
     commandRef.current = null;
     setConfirmedPreview(false);
-    setModal(p);
+    setModal(p === "goals" && g.machine.governanceTrial ? "trial" : p);
     if (p === "matters") setFocusedMatter(null);
     if (
       p === "reform" &&
@@ -339,6 +372,51 @@ export default function App() {
       setLead(first ? `gov-${first.province}` : "gov-south");
       setEmergency(false);
     }
+  }
+  function navigateBoard(t: BoardTarget) {
+    setBoardFocus(t);
+    if (t.province) setSelected(t.province);
+    if (t.kind === "office") {
+      setOffice(t.id ?? "plan");
+      setPerson(officePerson(g, t.id ?? "plan") ?? "lin");
+      setOrganizationView(true);
+      open("staff");
+    } else if (t.kind === "person") {
+      if (t.id) {
+        setPerson(t.id);
+        const jobs = assignmentsFor(g, t.id);
+        setOffice(jobs.mainOffice ?? jobs.secondaryOffices[0] ?? "plan");
+      }
+      setOrganizationView(true);
+      open("staff");
+    } else if (t.kind === "work") {
+      setSelectedWork(t.id ?? "");
+      open("construction");
+    } else if (t.kind === "agenda") {
+      setSelectedAgenda(t.id ?? "");
+      open("agenda");
+    } else if (t.kind === "matter") {
+      open("matters");
+      setFocusedMatter(t.id ?? null);
+    } else if (t.kind === "finance") open("finance");
+    else if (t.kind === "policy") open("reform");
+    else if (t.kind === "goal") open("goals");
+    else if (t.kind === "history") open("history");
+    else open("secretary");
+  }
+  function boardCategory(c: BoardCategory) {
+    open(
+      (
+        {
+          people: "staff",
+          finance: "finance",
+          engineering: "economy",
+          institutions: "reform",
+          investigation: "economy",
+          crisis: "matters",
+        } as const
+      )[c],
+    );
   }
   function choose(a: Action) {
     audio.effect("document");
@@ -366,6 +444,11 @@ export default function App() {
     stateRef.current = outcome.game;
     setG(outcome.game);
     setResult(outcome.result);
+    if (action.type === "appoint" || action.type === "concurrent")
+      setBoardFocus({ kind: "office", id: action.office });
+    else if ("work" in action) setBoardFocus({ kind: "work", id: action.work });
+    else if ("matter" in action)
+      setBoardFocus({ kind: "matter", id: action.matter });
     const newlyFinished = outcome.game.machine.works.filter(
       (w) =>
         w.completed &&
@@ -550,6 +633,9 @@ export default function App() {
     }
   }
   function resetView(n: V2Game) {
+    setBoardFocus(null);
+    setSelectedWork("");
+    setSelectedAgenda("");
     setAdvisorTopic(null);
     setAdvisorFocus(null);
     setAchievement(null);
@@ -568,6 +654,7 @@ export default function App() {
     setConfirmedPreview(false);
   }
   function begin(t: Mode = mode) {
+    if (t === "tutorial") updateUi({ ...ui, workView: "map" });
     const initialSeed =
       t === "tutorial"
         ? "教学-v03"
@@ -614,6 +701,19 @@ export default function App() {
     setScreen("game");
     setModal("scenario");
     setReportOpen(true);
+  }
+  function beginTrial() {
+    const n = startGovernanceTrial();
+    stateRef.current = n;
+    setG(n);
+    resetView(n);
+    setResult(null);
+    setAction(null);
+    setGuideChoice(false);
+    setScreen("game");
+    setModal("trial");
+    setReportOpen(true);
+    updateUi({ ...ui, workView: "table" });
   }
   function chooseGuide(hints: boolean) {
     updateUi({ ...ui, hints, advisorMode: hints ? "full" : "manual" });
@@ -910,6 +1010,7 @@ export default function App() {
           </button>
         )}
         <div className="v2-plan-list">
+          <CrisisTrack game={g} id={item.id} />
           {item.kind === "energyFault" && (
             <NetworkConsole
               game={g}
@@ -1146,6 +1247,7 @@ export default function App() {
                   <BookOpen />
                   特别剧本 / 规则演示
                 </button>
+                <button onClick={beginTrial}>四次会议与一座电站</button>
                 <button onClick={load}>
                   <Download />
                   读取存档
@@ -1238,9 +1340,7 @@ export default function App() {
                 </div>
               </>
             )}
-            <small className="menu-version">
-              v0.8.1 · 契约、传承与税源
-            </small>
+            <small className="menu-version">v0.8.5 · 国家治理桌面</small>
           </section>
           {modal === "special" && (
             <PanelFrame title={titles.special} onClose={() => setModal(null)}>
@@ -1249,6 +1349,7 @@ export default function App() {
               </p>
               <button onClick={() => begin("tutorial")}>教学战役</button>
               <button onClick={beginDemo}>南岭工程与人才接班</button>
+              <button onClick={beginTrial}>四次会议与一座电站</button>
             </PanelFrame>
           )}
           {modal === "settings" && (
@@ -1258,7 +1359,9 @@ export default function App() {
           )}
         </main>
       ) : (
-        <main className="command-shell">
+        <main
+          className={`command-shell ${ui.workView === "table" ? "governance-shell" : ""}`}
+        >
           <header className="status-bar">
             <button className="federal-brand" onClick={() => open("central")}>
               <Globe2 />
@@ -1364,14 +1467,18 @@ export default function App() {
               </ResourceTip>
               <ResourceTip
                 label={
-                  m.mode === "national" || m.mode === "experimental"
-                    ? m.goalPending
-                      ? "国家规划"
-                      : goals[m.goal].name
-                    : "战役目标"
+                  m.governanceTrial
+                    ? "组织验收"
+                    : m.mode === "national" || m.mode === "experimental"
+                      ? m.goalPending
+                        ? "国家规划"
+                        : goals[m.goal].name
+                      : "战役目标"
                 }
                 value={
-                  m.mode === "national" || m.mode === "experimental"
+                  m.governanceTrial ||
+                  m.mode === "national" ||
+                  m.mode === "experimental"
                     ? m.goalPending
                       ? "待立项"
                       : `${target.filter((c) => c.met).length} / ${target.length}`
@@ -1380,11 +1487,13 @@ export default function App() {
                 onClick={() => open("goals")}
               >
                 <p>
-                  {m.mode === "national" || m.mode === "experimental"
-                    ? m.goalPending
-                      ? "第2回合开放发展规划会议，最迟第3回合结束前立项；可先查看八条战略与当前国情。"
-                      : `第${duration(g)}回合还须执行终局，存活本身不足以胜利。`
-                    : "实际管理南岭事故和北境危机，并生存至第4回合。"}
+                  {m.governanceTrial
+                    ? "第四回合按真实运营、履职、专业岗位和跨区补给复核六项条件；不使用八/十二回合终局仪式。"
+                    : m.mode === "national" || m.mode === "experimental"
+                      ? m.goalPending
+                        ? "第2回合开放发展规划会议，最迟第3回合结束前立项；可先查看八条战略与当前国情。"
+                        : `第${duration(g)}回合还须执行终局，存活本身不足以胜利。`
+                      : "实际管理南岭事故和北境危机，并生存至第4回合。"}
                 </p>
               </ResourceTip>
             </div>
@@ -1437,16 +1546,67 @@ export default function App() {
             </button>
           </nav>
           <section className="map-workspace">
-            <GameMap
-              g={g}
-              selected={selected}
-              district={district}
-              onSelect={(p, d) => {
-                setSelected(p);
-                setDistrict(d);
-                open("local");
-              }}
-            />
+            <nav className="work-view-switch" aria-label="主要工作视图">
+              <button
+                aria-pressed={ui.workView === "table"}
+                onClick={() => updateUi({ ...ui, workView: "table" })}
+              >
+                国家治理桌面
+              </button>
+              <button
+                aria-pressed={ui.workView === "map"}
+                onClick={() => updateUi({ ...ui, workView: "map" })}
+              >
+                地图视图
+              </button>
+              <button onClick={() => open("reference")}>规则速查卡</button>
+              <select
+                aria-label="关注地区"
+                value={selected}
+                onChange={(e) => setSelected(e.target.value as ProvinceId)}
+              >
+                {s.provinces.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {m.governanceTrial && (
+                <button onClick={() => open("trial")}>
+                  四次会议 · 第{s.turn}/4回合
+                </button>
+              )}
+            </nav>
+            {ui.workView === "table" ? (
+              <GovernanceTable
+                game={g}
+                province={selected}
+                onTarget={navigateBoard}
+                onChoose={choose}
+                onCategory={boardCategory}
+                focus={boardFocus}
+                animate={ui.animate}
+                guideTopic={
+                  ui.advisorMode === "full" || ui.advisorMode === "important"
+                    ? (advisorTopic ?? undefined)
+                    : undefined
+                }
+                onReadGuide={readTopic}
+              />
+            ) : (
+              <div className="main-map-pane">
+                <GameMap
+                  g={g}
+                  selected={selected}
+                  district={district}
+                  onSelect={(p, d) => {
+                    setSelected(p);
+                    setDistrict(d);
+                    open("local");
+                  }}
+                />
+              </div>
+            )}
             {m.mode === "tutorial" && (
               <aside className="tutorial-strip">
                 <div>
@@ -1488,7 +1648,7 @@ export default function App() {
                 </Tooltip>
               </aside>
             )}
-            {achievement && !modal && !action && (
+            {ui.workView === "map" && achievement && !modal && !action && (
               <aside className="national-achievement" role="status">
                 <SecretaryPortrait small expression="celebrate" />
                 <div>
@@ -1532,7 +1692,8 @@ export default function App() {
                 <strong>{advisorIssues(g).length}项值得关注</strong>
               </span>
             </button>
-            {advisorTopic &&
+            {ui.workView === "map" &&
+              advisorTopic &&
               ui.advisorMode !== "manual" &&
               ui.advisorMode !== "off" &&
               !modal &&
@@ -1738,6 +1899,11 @@ export default function App() {
                   conditions={v.conditions}
                   title="执行条件"
                 />
+                <ActionBoardComparison
+                  game={g}
+                  action={action}
+                  onTarget={navigateBoard}
+                />
                 {v.conditions
                   .filter((condition) => condition.source)
                   .map((condition, index) => (
@@ -1768,7 +1934,9 @@ export default function App() {
                           choose({
                             ...action,
                             exchange: e.target.value as
-                              "ownership" | "budget" | "central",
+                              | "ownership"
+                              | "budget"
+                              | "central",
                           })
                         }
                       >
@@ -1993,11 +2161,83 @@ export default function App() {
                   <SecretaryConsole
                     game={g}
                     focusStories={advisorFocus === "secretary"}
+                    onLocate={navigateBoard}
                     animate={ui.animate}
                     onNavigate={advisorNavigate}
                     onChoose={choose}
                     onRead={readTopic}
                   />
+                )}
+                {modal === "reference" && <RuleReference />}
+                {modal === "trial" && (
+                  <>
+                    <h2>四次会议与一座电站 · 第{s.turn}/4回合</h2>
+                    <p>{trialBriefs[s.turn - 1]}</p>
+                    <p>
+                      独立验证场景：中央32、地方10/5/10、宗门6、政治资本8。继承实际学院、工业—北境铁路及林铸专职的未竣工工厂；合作、标准、勘探和财政协议已公开建立。每回合仍只有5条命令，全部按正式引擎付费和结算，不是普通资源平衡证明。
+                    </p>
+                    <p>
+                      可用中央出资与铁路调度、地方产权与江湖护送，或真实培养及正式兼职组织协作。也可自行尝试其他合法组合；本场景没有隐藏的唯一操作顺序。
+                    </p>
+                    <ConditionsList
+                      conditions={trialChecks(g)}
+                      title="第四回合结算后实际复核"
+                    />
+                    <div className="quick-grid">
+                      <button
+                        onClick={() =>
+                          navigateBoard({ kind: "office", id: "plan" })
+                        }
+                      >
+                        查看计划职位与占用
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelected("south");
+                          open("economy");
+                        }}
+                      >
+                        查看南岭工程构筑
+                      </button>
+                      <button onClick={() => setModal(null)}>
+                        回到治理桌面
+                      </button>
+                    </div>
+                  </>
+                )}
+                {modal === "agenda" && (
+                  <FactionAgendaDetails
+                    game={g}
+                    id={selectedAgenda}
+                    onChoose={choose}
+                    onTarget={navigateBoard}
+                  />
+                )}
+                {modal === "construction" && (
+                  <>
+                    <ConstructionDetails
+                      game={g}
+                      id={selectedWork}
+                      onTarget={navigateBoard}
+                      onChoose={choose}
+                    />
+                    <SecretaryAdvice
+                      game={g}
+                      action={{
+                        type: "maintenanceSponsor",
+                        work: selectedWork,
+                        account: "central",
+                      }}
+                      onChoose={choose}
+                    />
+                    <NetworkConsole
+                      game={g}
+                      workId={selectedWork}
+                      onChoose={choose}
+                      onEntityClick={navigateEntity}
+                      onHistory={historySource}
+                    />
+                  </>
                 )}
                 {(modal === "central" ||
                   modal === "economy" ||
@@ -2059,6 +2299,7 @@ export default function App() {
                   <>
                     <OrganizationChart
                       game={g}
+                      selectedPerson={person}
                       office={office}
                       onOffice={setOffice}
                       onPerson={setPerson}
@@ -2416,7 +2657,7 @@ export default function App() {
                 )}
                 {modal === "help" && (
                   <>
-                    <h2>治理手册 · 国家机器 v0.8</h2>
+                    <h2>治理手册 · 国家治理桌面 v0.8.5</h2>
                     <h3>指挥席操作</h3>
                     <p>
                       点击地图调阅地方，左栏切换管理功能，右侧提醒定位事务。地图支持拖动与滚轮缩放，四种地图模式展示政治、行政、资源和危机。Esc关闭最上层面板，再按Esc进入暂停菜单；保存与读取都在暂停菜单。正文只在面板内部滚动，底部回合按钮持续可见。

@@ -1,5 +1,5 @@
 import { _electron } from "playwright";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -57,6 +57,7 @@ try {
   application = undefined;
   application = await _electron.launch(options);
   const reloaded = await application.firstWindow();
+  reloaded.on("pageerror", (e) => errors.push(e.message));
   await reloaded.getByRole("button", { name: "读取存档", exact: true }).click();
   await reloaded
     .getByRole("heading", { name: "02 · 先确定谁能参与" })
@@ -65,8 +66,99 @@ try {
     JSON.parse(localStorage.getItem("federation-worlds-v2")),
   );
   assert.deepEqual(restored, save);
+  // Keep the original teaching save/restart check, then exercise the new board in the packaged exe.
+  const oldPanel = reloaded.locator(".panel-heading .panel-close");
+  if (await oldPanel.count()) await oldPanel.click();
+  await reloaded.getByRole("button", { name: "暂停菜单", exact: true }).click();
+  await reloaded
+    .getByRole("button", { name: "返回主菜单", exact: true })
+    .click();
+  await reloaded
+    .getByRole("button", { name: "四次会议与一座电站", exact: true })
+    .click();
+  await reloaded.locator(".panel-heading .panel-close").click();
+  assert.equal(await reloaded.locator("[data-board-office]").count(), 6);
+  assert.ok(
+    (await reloaded.locator('[data-board-office="plan"]').innerText()).includes(
+      "专职派遣",
+    ),
+  );
+  await reloaded.locator('[data-board-office="plan"]').click();
+  await reloaded.getByLabel("组织候选人", { exact: true }).selectOption("wen");
+  await reloaded
+    .getByRole("button", { name: "比较后预览主职任命", exact: true })
+    .click();
+  await confirm(reloaded);
+  await reloaded.locator(".panel-heading .panel-close").click();
+  await reloaded.getByRole("button", { name: "地图视图", exact: true }).click();
+  await reloaded
+    .getByRole("button", { name: "国家治理桌面", exact: true })
+    .click();
+  await reloaded.getByRole("button", { name: "暂停菜单", exact: true }).click();
+  await reloaded.getByRole("button", { name: "保存游戏", exact: true }).click();
+  const tableSave = await reloaded.evaluate(() =>
+    JSON.parse(localStorage.getItem("federation-worlds-v2")),
+  );
+  assert.equal(tableSave.machine.rulesVersion, "0.8.5");
+  assert.equal(tableSave.core.commands, 4);
+  assert.equal(tableSave.core.appointments.plan, "wen");
+  await reloaded.locator(".panel-heading .panel-close").click();
+  await mkdir("artifacts/screenshots/desktop-v85", { recursive: true });
+  await reloaded.screenshot({
+    path: "artifacts/screenshots/desktop-v85/table-appointment.png",
+  });
+  await application.close();
+  application = undefined;
+  application = await _electron.launch(options);
+  const tableReload = await application.firstWindow();
+  tableReload.on("pageerror", (e) => errors.push(e.message));
+  await tableReload
+    .getByRole("button", { name: "继续游戏", exact: true })
+    .click();
+  assert.equal(await tableReload.locator("[data-board-office]").count(), 6);
+  assert.ok(
+    (
+      await tableReload.locator('[data-board-office="plan"]').innerText()
+    ).includes("温序"),
+  );
+  assert.deepEqual(
+    await tableReload.evaluate(() =>
+      JSON.parse(localStorage.getItem("federation-worlds-v2")),
+    ),
+    tableSave,
+  );
+  await tableReload
+    .getByRole("button", { name: "规则速查卡", exact: true })
+    .click();
+  await tableReload.locator(".panel-heading .panel-close").click();
+  const layout = await tableReload.evaluate(() => ({
+    view: [innerWidth, innerHeight],
+    doc: [
+      document.documentElement.scrollWidth,
+      document.documentElement.scrollHeight,
+    ],
+  }));
+  assert.deepEqual(layout.view, layout.doc);
+  assert.deepEqual(errors, []);
+  await writeFile(
+    "artifacts/screenshots/desktop-v85/test-results.json",
+    JSON.stringify(
+      {
+        platform: process.platform,
+        version: "0.8.5",
+        legacyTutorialSaveRestart: true,
+        tableAppointment: true,
+        viewSwitch: true,
+        tableSaveRestart: true,
+        layout,
+        errors,
+      },
+      null,
+      2,
+    ),
+  );
   console.log(
-    "Packaged desktop smoke passed: appointment, special ability, save, restart and reload.",
+    "Packaged desktop smoke passed: original tutorial and new governance table; real appointment, view switch, save, restart and reload.",
   );
 } finally {
   if (application) await application.close();

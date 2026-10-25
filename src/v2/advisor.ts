@@ -9,6 +9,7 @@ import { goals } from "./data";
 import { strategyEpilogue } from "./nationalStrategy";
 import type { Action, V2Game } from "./model";
 import { storyFacts, chapterNames } from "./contractStory";
+import { agendaTitles, agendaStanding } from "./factionAgendas";
 export type AdvisorMode = "full" | "important" | "manual" | "off";
 export type AdvisorPanel =
   | "secretary"
@@ -33,6 +34,8 @@ export interface AdvisorIssue {
   person?: string;
   matter?: string;
   source?: string;
+  work?: string;
+  agenda?: string;
 }
 export const secretary = {
   id: "shenlan",
@@ -310,9 +313,29 @@ export function advisorIssues(g: V2Game): AdvisorIssue[] {
         source: facts.decisions.at(-1)?.source,
       });
   }
+  for (const a of m.agendas?.items ?? [])
+    if (a.state === "active")
+      issues.push({
+        id: `agenda:${a.id}`,
+        title: agendaTitles[a.kind],
+        why: agendaStanding(g, a).reason,
+        consequence: `第${a.deadline}回合结束到期，未处理使${getPerson(a.issuer)?.name}积怨+1。`,
+        directions: ["预览实际接受、替代安排、一次延期或拒绝"],
+        priority: g.core.turn >= a.deadline ? 93 : 70,
+        panel: "secretary",
+        province: a.province,
+        person: a.issuer,
+        work: a.work,
+        agenda: a.id,
+        source: a.source,
+      });
   return issues
     .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
-    .slice(0, 5);
+    .slice(0, 5)
+    .map((issue) => {
+      const w = m.works.find((w) => issue.id.endsWith(`:${w.id}`));
+      return w ? { ...issue, work: w.id } : issue;
+    });
 }
 export function advisorAction(g: V2Game, action: Action) {
   const preview = previewAction(g, action),

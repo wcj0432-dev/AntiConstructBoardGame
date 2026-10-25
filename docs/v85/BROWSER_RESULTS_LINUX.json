@@ -1,0 +1,720 @@
+{
+  "source": "All three four-meeting scenarios through actual UI and original command API. Disclosed scenario budgets, not ordinary campaign balance. Native profiles restore a real UI save; no injected high-resource fixture.",
+  "routes": [
+    {
+      "route": "central",
+      "actions": [
+        {
+          "turn": 1,
+          "type": "appoint",
+          "commands": 4,
+          "cash": 32
+        },
+        {
+          "turn": 1,
+          "type": "end",
+          "commands": 5,
+          "cash": 30
+        },
+        {
+          "turn": 2,
+          "type": "project",
+          "commands": 4,
+          "cash": 26
+        },
+        {
+          "turn": 2,
+          "type": "agendaDecision",
+          "commands": 3,
+          "cash": 24
+        },
+        {
+          "turn": 2,
+          "type": "authorize",
+          "commands": 2,
+          "cash": 24
+        },
+        {
+          "turn": 2,
+          "type": "resolve",
+          "commands": 1,
+          "cash": 23
+        },
+        {
+          "turn": 2,
+          "type": "reconcile",
+          "commands": 0,
+          "cash": 22
+        },
+        {
+          "turn": 2,
+          "type": "end",
+          "commands": 5,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "authorize",
+          "commands": 4,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "resolve",
+          "commands": 3,
+          "cash": 18
+        },
+        {
+          "turn": 3,
+          "type": "end",
+          "commands": 5,
+          "cash": 17
+        },
+        {
+          "turn": 4,
+          "type": "network",
+          "commands": 4,
+          "cash": 16
+        },
+        {
+          "turn": 4,
+          "type": "appoint",
+          "commands": 3,
+          "cash": 16
+        },
+        {
+          "turn": 4,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 15
+        },
+        {
+          "turn": 4,
+          "type": "borderSupply",
+          "commands": 1,
+          "cash": 14
+        },
+        {
+          "turn": 4,
+          "type": "end",
+          "commands": 1,
+          "cash": 13
+        }
+      ],
+      "status": "won"
+    },
+    {
+      "route": "local",
+      "actions": [
+        {
+          "turn": 1,
+          "type": "appoint",
+          "commands": 4,
+          "cash": 32
+        },
+        {
+          "turn": 1,
+          "type": "end",
+          "commands": 5,
+          "cash": 30
+        },
+        {
+          "turn": 2,
+          "type": "project",
+          "commands": 4,
+          "cash": 30
+        },
+        {
+          "turn": 2,
+          "type": "agendaDecision",
+          "commands": 3,
+          "cash": 28
+        },
+        {
+          "turn": 2,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 27
+        },
+        {
+          "turn": 2,
+          "type": "fiscalTransfer",
+          "commands": 1,
+          "cash": 22
+        },
+        {
+          "turn": 2,
+          "type": "end",
+          "commands": 5,
+          "cash": 20
+        },
+        {
+          "turn": 3,
+          "type": "authorize",
+          "commands": 4,
+          "cash": 20
+        },
+        {
+          "turn": 3,
+          "type": "resolve",
+          "commands": 3,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "maintenanceSponsor",
+          "commands": 2,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "appoint",
+          "commands": 1,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "network",
+          "commands": 0,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "end",
+          "commands": 5,
+          "cash": 17
+        },
+        {
+          "turn": 4,
+          "type": "agendaDecision",
+          "commands": 4,
+          "cash": 15
+        },
+        {
+          "turn": 4,
+          "type": "network",
+          "commands": 3,
+          "cash": 14
+        },
+        {
+          "turn": 4,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 13
+        },
+        {
+          "turn": 4,
+          "type": "borderSupply",
+          "commands": 1,
+          "cash": 13
+        },
+        {
+          "turn": 4,
+          "type": "end",
+          "commands": 1,
+          "cash": 11
+        }
+      ],
+      "status": "won"
+    },
+    {
+      "route": "professional",
+      "actions": [
+        {
+          "turn": 1,
+          "type": "appoint",
+          "commands": 4,
+          "cash": 32
+        },
+        {
+          "turn": 1,
+          "type": "appoint",
+          "commands": 3,
+          "cash": 32
+        },
+        {
+          "turn": 1,
+          "type": "concurrent",
+          "commands": 2,
+          "cash": 32
+        },
+        {
+          "turn": 1,
+          "type": "train",
+          "commands": 1,
+          "cash": 31
+        },
+        {
+          "turn": 1,
+          "type": "end",
+          "commands": 5,
+          "cash": 29
+        },
+        {
+          "turn": 2,
+          "type": "project",
+          "commands": 4,
+          "cash": 27
+        },
+        {
+          "turn": 2,
+          "type": "agendaDecision",
+          "commands": 4,
+          "cash": 27
+        },
+        {
+          "turn": 2,
+          "type": "authorize",
+          "commands": 3,
+          "cash": 27
+        },
+        {
+          "turn": 2,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 26
+        },
+        {
+          "turn": 2,
+          "type": "reconcile",
+          "commands": 1,
+          "cash": 25
+        },
+        {
+          "turn": 2,
+          "type": "end",
+          "commands": 5,
+          "cash": 24
+        },
+        {
+          "turn": 3,
+          "type": "pause",
+          "commands": 5,
+          "cash": 24
+        },
+        {
+          "turn": 3,
+          "type": "budget",
+          "commands": 4,
+          "cash": 22
+        },
+        {
+          "turn": 3,
+          "type": "authorize",
+          "commands": 3,
+          "cash": 22
+        },
+        {
+          "turn": 3,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 21
+        },
+        {
+          "turn": 3,
+          "type": "fiscalTransfer",
+          "commands": 1,
+          "cash": 16
+        },
+        {
+          "turn": 3,
+          "type": "end",
+          "commands": 5,
+          "cash": 13
+        },
+        {
+          "turn": 4,
+          "type": "appoint",
+          "commands": 4,
+          "cash": 13
+        },
+        {
+          "turn": 4,
+          "type": "fiscalTransfer",
+          "commands": 3,
+          "cash": 11
+        },
+        {
+          "turn": 4,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 10
+        },
+        {
+          "turn": 4,
+          "type": "borderSupply",
+          "commands": 1,
+          "cash": 10
+        },
+        {
+          "turn": 4,
+          "type": "end",
+          "commands": 1,
+          "cash": 9
+        }
+      ],
+      "status": "won"
+    }
+  ],
+  "desktop": [
+    {
+      "label": "1920x1080",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "doc": [
+        1920,
+        1080
+      ],
+      "ratio": 1,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          102,
+          148,
+          684.5625,
+          884.40625
+        ],
+        [
+          696.5625,
+          148,
+          1324.84375,
+          884.40625
+        ],
+        [
+          1336.84375,
+          148,
+          1908,
+          884.40625
+        ]
+      ]
+    },
+    {
+      "label": "1600x900",
+      "viewport": [
+        1600,
+        900
+      ],
+      "doc": [
+        1600,
+        900
+      ],
+      "ratio": 1,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          102,
+          148,
+          579.953125,
+          704.40625
+        ],
+        [
+          591.953125,
+          148,
+          1107.40625,
+          704.40625
+        ],
+        [
+          1119.40625,
+          148,
+          1588,
+          704.40625
+        ]
+      ]
+    },
+    {
+      "label": "1366x768",
+      "viewport": [
+        1366,
+        768
+      ],
+      "doc": [
+        1366,
+        768
+      ],
+      "ratio": 1,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          98,
+          144,
+          485.46875,
+          588.40625
+        ],
+        [
+          493.46875,
+          144,
+          942.125,
+          588.40625
+        ],
+        [
+          950.125,
+          144,
+          1358,
+          588.40625
+        ]
+      ]
+    },
+    {
+      "label": "1280x720",
+      "viewport": [
+        1280,
+        720
+      ],
+      "doc": [
+        1280,
+        720
+      ],
+      "ratio": 1,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          98,
+          144,
+          458.6875,
+          540.40625
+        ],
+        [
+          466.6875,
+          144,
+          884.3125,
+          540.40625
+        ],
+        [
+          892.3125,
+          144,
+          1272,
+          540.40625
+        ]
+      ]
+    }
+  ],
+  "native125": [
+    {
+      "label": "1920x1080",
+      "viewport": [
+        1536,
+        794
+      ],
+      "doc": [
+        1536,
+        794
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          102,
+          148,
+          559.0375061035156,
+          601.6000061035156
+        ],
+        [
+          571.0375366210938,
+          148,
+          1063.9125366210938,
+          601.6000061035156
+        ],
+        [
+          1075.9124755859375,
+          148,
+          1523.9999694824219,
+          601.6000061035156
+        ]
+      ],
+      "pixels": [
+        1920,
+        993
+      ]
+    },
+    {
+      "label": "1600x900",
+      "viewport": [
+        1280,
+        650
+      ],
+      "doc": [
+        1280,
+        650
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          98,
+          144,
+          458.6875,
+          471.6000061035156
+        ],
+        [
+          466.6875,
+          144,
+          884.3250122070312,
+          471.6000061035156
+        ],
+        [
+          892.3250122070312,
+          144,
+          1272.0000305175781,
+          471.6000061035156
+        ]
+      ],
+      "pixels": [
+        1600,
+        813
+      ]
+    },
+    {
+      "label": "1366x768",
+      "viewport": [
+        1093,
+        545
+      ],
+      "doc": [
+        1093,
+        545
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          84,
+          173,
+          390.7375183105469,
+          366
+        ],
+        [
+          398.7375183105469,
+          173,
+          753.9125366210938,
+          366
+        ],
+        [
+          761.9125366210938,
+          173,
+          1084.800048828125,
+          366
+        ]
+      ],
+      "pixels": [
+        1366,
+        681
+      ]
+    },
+    {
+      "label": "1280x720",
+      "viewport": [
+        1024,
+        506
+      ],
+      "doc": [
+        1024,
+        506
+      ],
+      "ratio": 1.25,
+      "hit": true,
+      "offices": 6,
+      "font": 16,
+      "zones": [
+        [
+          84,
+          173,
+          369.3000183105469,
+          327.6000061035156
+        ],
+        [
+          377.3000183105469,
+          173,
+          707.6625366210938,
+          327.6000061035156
+        ],
+        [
+          715.6625366210938,
+          173,
+          1016.0000305175781,
+          327.6000061035156
+        ]
+      ],
+      "pixels": [
+        1280,
+        633
+      ]
+    }
+  ],
+  "burden": [
+    {
+      "view": "map",
+      "clicks": 5,
+      "panels": [
+        "经济建设",
+        "国家财政",
+        "协商接管维护责任"
+      ]
+    },
+    {
+      "view": "table",
+      "clicks": 3,
+      "panels": [
+        "工程构筑与局部因果链",
+        "协商接管维护责任"
+      ]
+    }
+  ],
+  "humanReadability": "NOT RUN: screenshots and blank evaluation sheets are provided for independent human review.",
+  "riskScenario": {
+    "source": "Actual local-route UI checkpoint, then real levy2 creates forecast grid shortfall and occupies planner. Appointment and maintenance transfer use original API. No injected resources or fake debts.",
+    "before": {
+      "turn": 3,
+      "fee": 1,
+      "due": 1,
+      "paid": 0,
+      "arrears": 1,
+      "payments": [
+        {
+          "account": "south",
+          "due": 1,
+          "paid": 0,
+          "arrears": 1
+        }
+      ],
+      "source": "decision-30"
+    },
+    "after": {
+      "turn": 3,
+      "fee": 1,
+      "due": 1,
+      "paid": 1,
+      "arrears": 0,
+      "payments": [
+        {
+          "account": "central",
+          "due": 1,
+          "paid": 1,
+          "arrears": 0
+        }
+      ],
+      "lastPaidTurn": 3,
+      "source": "decision-71"
+    },
+    "commands": 0,
+    "owner": "south",
+    "maintenance": "central",
+    "agenda": "maintenance-voice"
+  },
+  "errors": []
+}

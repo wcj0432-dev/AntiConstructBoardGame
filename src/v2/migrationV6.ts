@@ -7,7 +7,7 @@ const caps: TrainingCap[] = ["leywork", "mobilize", "seal"];
 const integer = (v: unknown) => Number.isSafeInteger(v) && (v as number) >= 0;
 export function migrateAndValidateV6(g: V2Game) {
   const m = g.machine,
-    legacy = !["0.6.0", "0.7.0", "0.8.0"].includes(m.rulesVersion);
+    legacy = !["0.6.0", "0.7.0", "0.8.0", "0.8.5"].includes(m.rulesVersion);
   if (legacy) {
     m.migratedFrom ??= m.rulesVersion;
     m.trainings ??= [];
