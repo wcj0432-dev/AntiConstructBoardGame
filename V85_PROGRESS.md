@@ -37,3 +37,7 @@
 第二次Windows预检40163629745仍在相同关闭按钮复现未固定Tooltip文字拦截。1440×1000浏览器完全重放同流程通过；加未固定说明文字pointer-events:none，实际固定/按钮/链接仍interactive，新增断言与Windows失败截图/触发器/坐标诊断。下一步聚焦Tooltip原回归/中央桌面与native验证，然后第三次Windows；严禁force点击绕过。
 
 指针修复后：旧v3键盘/固定/局部滚动及12回合通过；中央实际路线、unpinned穿透/pinned交互/上下文清理与4桌面/4native均通过，生产构建通过。准备第三次Windows预检。
+
+第三次预检40164134236：实际Windows exe全部通过；离线首套test:browser要求直接hover提示，广泛pointer穿透破坏了原能力，发布仍阻止。最终移除通用pointer穿透，PanelFrame仅在关闭/确认按钮区域清理未固定提示；其他区域完整hover/pin/scroll保留。新增真实重现Windows重叠布局、正常点击关闭的回归（不force、不改游戏状态）。下一步本地旧browser/v3和中央native回归，再第四次Windows。
+
+最终局部方案本地通过：test:browser完整4回合/直接hover，v3固定/键盘/滚动/12回合，中央UI遮挡重现正常关闭+4桌面+4native。生产构建通过；新证据BROWSER_TOOLTIP_RESULTS_LINUX.json包含tooltipCloseOverlap=true。准备第四次Windows预检。

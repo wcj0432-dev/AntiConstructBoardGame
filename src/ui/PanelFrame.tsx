@@ -17,7 +17,36 @@ export function PanelFrame({
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     dismissTooltips();
-    return dismissTooltips;
+    // Keep ordinary tooltips hoverable, while always allowing the current
+    // document's close/confirmation controls to receive the pointer.
+    const protectControls = (e: PointerEvent) => {
+      if ((e.target as Element)?.closest?.(".unified-tooltip.pinned")) return;
+      const controls = ref.current?.querySelectorAll<HTMLElement>(
+        ".panel-close,.panel-footer button",
+      );
+      if (
+        controls &&
+        [...controls].some((n) => {
+          const r = n.getBoundingClientRect();
+          return (
+            r.width > 0 &&
+            r.height > 0 &&
+            e.clientX >= r.left &&
+            e.clientX <= r.right &&
+            e.clientY >= r.top &&
+            e.clientY <= r.bottom
+          );
+        })
+      )
+        dismissTooltips();
+    };
+    window.addEventListener("pointermove", protectControls, true);
+    window.addEventListener("pointerdown", protectControls, true);
+    return () => {
+      window.removeEventListener("pointermove", protectControls, true);
+      window.removeEventListener("pointerdown", protectControls, true);
+      dismissTooltips();
+    };
   }, [title]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;

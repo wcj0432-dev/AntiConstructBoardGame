@@ -1,5 +1,5 @@
 {
-  "source": "Focused central-route regression of tooltip lifecycle, pointer-transparent unpinned explanation and interactive pinned document, plus four desktop/four native125 matrices. Full three-route record remains BROWSER_RESULTS_LINUX.json.",
+  "source": "Focused central-route regression after final tooltip control-area fix: hover/pin/scroll retained; a reproduced Windows close-button overlap is dismissed by ordinary pointer movement, with no force click or game-state injection; four desktop/four native125 matrices. Full three-route record remains BROWSER_RESULTS_LINUX.json.",
   "routes": [
     {
       "route": "central",
@@ -407,5 +407,6 @@
   "burden": [],
   "humanReadability": "NOT RUN: screenshots and blank evaluation sheets are provided for independent human review.",
   "tooltipPanelCleanup": true,
+  "tooltipCloseOverlap": true,
   "errors": []
 }

@@ -416,26 +416,36 @@ try {
       .getByRole("button", { name: "补足本设施维护", exact: true })
       .hover();
     await page.locator(".unified-tooltip").waitFor({ state: "visible" });
-    assert.equal(
-      await page
-        .locator(".unified-tooltip")
-        .evaluate((n) => getComputedStyle(n).pointerEvents),
-      "none",
-    );
+    await page.locator(".unified-tooltip").hover();
+    // Reproduce the reported Windows overlap without changing any game state
+    // or bypassing hit testing: ordinary pointer movement must reveal Close.
+    await page.locator(".unified-tooltip").evaluate((n) => {
+      const r = document.querySelector(".panel-close").getBoundingClientRect();
+      Object.assign(n.style, {
+        left: `${r.left - 50}px`,
+        top: `${r.top - 10}px`,
+        bottom: "auto",
+        width: "220px",
+        height: "150px",
+        maxHeight: "150px",
+      });
+    });
+    await page.locator(".panel-close").click();
+    assert.equal(await page.getByRole("dialog").count(), 0);
+    await work(probeGrid.id);
+    await page
+      .getByRole("button", { name: "补足本设施维护", exact: true })
+      .hover();
     await page
       .locator(".unified-tooltip")
       .getByRole("button", { name: "固定说明", exact: true })
       .click();
-    assert.equal(
-      await page
-        .locator(".unified-tooltip.pinned")
-        .evaluate((n) => getComputedStyle(n).pointerEvents),
-      "auto",
-    );
+    assert.equal(await page.locator(".unified-tooltip.pinned").count(), 1);
     await rail("中央政府").click();
     await page.locator(".unified-tooltip").waitFor({ state: "detached" });
     await page.locator(".panel-close").click();
     results.tooltipPanelCleanup = true;
+    results.tooltipCloseOverlap = true;
     for (const [w, h] of sizes) {
       await page.setViewportSize({ width: w, height: h });
       results.desktop.push(await viewport(page, `${w}x${h}`));

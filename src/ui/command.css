@@ -2116,15 +2116,3 @@ button svg {
   isolation: isolate;
   border: 1px solid #8ca087;
 }
-/* Hover explanations must not intercept underlying controls. Pinning keeps the
-   full document interactive; explicit buttons/links remain usable when hovering. */
-.unified-tooltip:not(.pinned) {
-  pointer-events: none;
-}
-.unified-tooltip button,
-.unified-tooltip a {
-  pointer-events: auto;
-}
-.unified-tooltip.pinned {
-  pointer-events: auto;
-}
