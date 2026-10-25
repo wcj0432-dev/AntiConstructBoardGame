@@ -1,0 +1,73 @@
+{
+  "version": "0.8.5",
+  "commit": "a84c3ea552dd248e80035a7773a36c3e811a1d12",
+  "run": "https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40194888138",
+  "runner_name": "GitHub Actions 1000000021",
+  "runner_group_name": "GitHub Actions",
+  "conclusion": "success",
+  "job": "https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40194888138/job/121173494912",
+  "steps": [
+    {
+      "name": "Install locked dependencies",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:50:38Z",
+      "completed_at": "2026-10-25T12:50:50Z"
+    },
+    {
+      "name": "Verify game rules",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:50:50Z",
+      "completed_at": "2026-10-25T12:50:55Z"
+    },
+    {
+      "name": "Verify governance paths and turn records",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:50:55Z",
+      "completed_at": "2026-10-25T12:51:00Z"
+    },
+    {
+      "name": "Package Windows and offline editions",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:51:00Z",
+      "completed_at": "2026-10-25T12:51:47Z"
+    },
+    {
+      "name": "Run the packaged Windows executable",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:51:47Z",
+      "completed_at": "2026-10-25T12:51:53Z"
+    },
+    {
+      "name": "Verify offline HTML through real browser interactions",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:51:53Z",
+      "completed_at": "2026-10-25T12:55:13Z"
+    },
+    {
+      "name": "Store gameplay validation evidence",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:55:13Z",
+      "completed_at": "2026-10-25T12:55:15Z"
+    },
+    {
+      "name": "Store build downloads",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:55:15Z",
+      "completed_at": "2026-10-25T12:55:22Z"
+    },
+    {
+      "name": "Verify release tag matches application version",
+      "conclusion": "success",
+      "started_at": "2026-10-25T12:55:22Z",
+      "completed_at": "2026-10-25T12:55:22Z"
+    },
+    {
+      "name": "Publish GitHub Release",
+      "conclusion": "skipped",
+      "started_at": "2026-10-25T12:55:22Z",
+      "completed_at": "2026-10-25T12:55:22Z"
+    }
+  ],
+  "validationArtifact": "https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40194888138/artifacts/12599680925",
+  "artifactDownloadInThisEnvironment": "HTTP 403; raw screenshots/JSON retained in Actions artifact; this file records the successful job API response, not fabricated browser measurements."
+}

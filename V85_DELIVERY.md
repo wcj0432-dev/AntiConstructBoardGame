@@ -29,17 +29,18 @@
 
 ## Windows、离线与附件状态
 
-发布工作流先锁定依赖、规则、玩法记录、打包，再实际运行Windows exe（原教学与新桌面任命/切换/保存/重启/读档）及离线 `file://` 八套浏览器，全部成功才发布。增加 `verify_only` 分支预检，失败不创建Release。
+[正式发布前Windows预检40194888138](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40194888138) **全部成功**，验证提交 `a84c3ea552dd248e80035a7773a36c3e811a1d12`：
 
-首次 [Windows预检40163155936](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40163155936) 中，规则、玩法及打包通过，实际exe暴露任命返回面板后旧工具提示遮挡关闭按钮，离线/发布因此被阻止。修复为面板上下文切换统一清理悬浮/固定提示和待触发计时器，提示不再使用已卸载触发器的旧位置；不绕过按钮命中断言。补充实际浏览器清理回归，保留原交互式固定提示功能。另将真实下期维护缺口标成“到期风险”，与当前“正常运行”并列，避免把预测误读为已经停运。
+- 锁定安装、393项规则、三路径/16方向用途记录、Windows和单HTML打包。
+- 实际启动默认可见Windows exe，明确断言窗口可见；完成原教程、新桌面任命、关闭按钮、地图切换、保存、进程重启与读取、规则速查和无全局溢出。
+- 对真正离线 `file://` 依次执行 `test:browser`、v3、v4、v5、v6、v7、v8、v85，八套全部通过；新桌面的三条路径、四桌面/四原生125%与旧教程/财政/课程/故事/音频断言均保留。
+- [Windows原始验证截图与JSON附件](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40194888138/artifacts/12599680925)；[成功步骤API记录](docs/v85/WINDOWS_PREFLIGHT.json)。当前环境下载Actions附件返回403，仓库保留真实API结果及可访问的附件入口，没有伪造Windows浏览器测量数据。Linux截图独立标注，未充作Windows截图。
 
-[第二次预检40163629745](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40163629745) 在Windows仍复现未固定提示拦截关闭；同1440×1000浏览器重放通过，说明只清理上下文不足。补充未固定说明文字的指针穿透，保留固定文书/按钮/链接交互，并给桌面失败增加真实截图、触发器和坐标诊断，不使用强制点击。
+预检发现并修复了Windows工具提示遮挡：显示前测量真实大小并避开关闭/确认控件，面板切换清理旧提示及待触发计时器，保留原完整悬停、固定、滚动与键盘功能。新增正常点击的重叠复现与控件不相交断言，没有force点击或删除旧断言。早期失败运行及修复过程完整保留在开发记录与Actions，不覆盖旧标签。
 
-[第三次预检40164134236](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40164134236) 实际Windows exe已通过；离线旧test:browser检测到指针穿透影响直接悬停提示，停止发布。最终改为仅在鼠标进入当前面板关闭/确认按钮区域时清理未固定提示，其他区域保留完整悬停/固定/滚动；新增按实际Windows现象重现的遮挡布局检查，正常点击关闭，不使用force。
+本机Chromium管理员策略禁止直接打开 `file://`；未规避策略，实际离线证据以上述Windows流程为准。生产构建不代表Windows执行，API中明确记录了实际exe和八套离线步骤。
 
-[第四次预检40164710789](https://github.com/wcj0432-dev/AntiConstructBoardGame/actions/runs/40164710789) 中，Windows隐藏窗口仍会出现指针清理时序问题。最终增加显示前实际测量避让关闭/确认控件的布局，保留局部清理作为补充；测试使用默认可见Windows窗口并断言isVisible，诊断先保存坐标再截图，避免隐藏窗口截图失败抹掉现场。本地旧browser/v3、中央路线、主动避让/重叠关闭与四尺寸/native均通过。
-
-当前此检查点：**第五次Windows与离线发布预检待执行**。通过后补具体运行与附件核验记录。
+`v0.8.5`标签将由同一发布工作流重新执行全部门槛后创建Release，提供Windows-x64、Offline、Source和SHA256四附件。旧版本保留。公开下载入口：[v0.8.5](https://github.com/wcj0432-dev/AntiConstructBoardGame/releases/tag/v0.8.5)。发布后的摘要和内容核验记录另见 `V85_PROGRESS.md`。
 
 ## 部分完成与未完成
 
