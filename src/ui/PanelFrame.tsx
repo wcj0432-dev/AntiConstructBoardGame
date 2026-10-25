@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { dismissTooltips } from "./Tooltip";
 import { X } from "lucide-react";
 export function PanelFrame({
   title,
@@ -14,6 +15,10 @@ export function PanelFrame({
   modal?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    dismissTooltips();
+    return dismissTooltips;
+  }, [title]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
     ref.current?.querySelector<HTMLButtonElement>(".panel-close")?.focus();

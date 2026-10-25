@@ -89,6 +89,7 @@ try {
     .getByRole("button", { name: "比较后预览主职任命", exact: true })
     .click();
   await confirm(reloaded);
+  await reloaded.locator(".unified-tooltip").waitFor({ state: "detached" });
   await reloaded.locator(".panel-heading .panel-close").click();
   await reloaded.getByRole("button", { name: "地图视图", exact: true }).click();
   await reloaded

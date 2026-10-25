@@ -239,6 +239,7 @@ describe("v0.8.5 C/G：合同、维护与真实局部因果", () => {
     expect(next.owner).toBe("south");
     expect(next.maintenance).toEqual(["central"]);
     expect(next.nextArrears).toBe(0);
+    expect(next.marks.some((m) => m.id === "due-risk")).toBe(false);
     expect(next.forecast).toEqual(
       nationalForecast(n).facilities.find((x) => x.work === w.id),
     );
@@ -262,6 +263,9 @@ describe("v0.8.5 C/G：合同、维护与真实局部因果", () => {
     const g = maintenanceRisk(),
       w = g.machine.works.find((w) => w.type === "grid")!;
     expect(engineeringCard(g, w).nextArrears).toBeGreaterThan(0);
+    expect(
+      engineeringCard(g, w).marks.find((m) => m.id === "due-risk")?.label,
+    ).toBe("到期风险");
     const n = run(g, { type: "end" }),
       nw = n.machine.works.find((x) => x.id === w.id)!;
     expect((nw.maintenance?.arrears ?? 0) > 0).toBe(true);

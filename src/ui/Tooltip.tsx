@@ -8,6 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+export function dismissTooltips() {
+  window.dispatchEvent(new Event("federation-dismiss-tooltips"));
+}
 /** Shared tooltip for HTML and SVG triggers. Interactive content stays within the viewport. */
 export function Tooltip({
   title,
@@ -41,13 +44,25 @@ export function Tooltip({
   };
   const show = (element: Element, delay: number) => {
     clear();
-    const r = element.getBoundingClientRect();
     timer.current = setTimeout(() => {
-      setAnchor(r);
+      if (!element.isConnected) return;
+      setAnchor(element.getBoundingClientRect());
       setBounds({ width: innerWidth, height: innerHeight });
     }, delay);
   };
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    const dismiss = () => {
+      clearTimeout(timer.current);
+      pinnedRef.current = false;
+      setAnchor(null);
+      setPinned(false);
+    };
+    window.addEventListener("federation-dismiss-tooltips", dismiss);
+    return () => {
+      clearTimeout(timer.current);
+      window.removeEventListener("federation-dismiss-tooltips", dismiss);
+    };
+  }, []);
   useEffect(() => {
     if (!anchor) return;
     const hide = () => {

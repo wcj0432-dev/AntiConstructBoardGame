@@ -273,6 +273,16 @@ export function engineeringCard(
     forecast,
     authority: w.type === "grid" ? networkAuthority(g, w) : undefined,
     marks: [
+      ...(forecast?.maintenance.arrears
+        ? [
+            {
+              id: "due-risk",
+              label: "到期风险",
+              tone: "warn" as const,
+              reason: `当前财政预测：本次结算维护将欠付${forecast.maintenance.arrears}；当前运行状态另行显示，拨款或维护调整后重新计算。`,
+            },
+          ]
+        : []),
       {
         id: state.state,
         label: {

@@ -1,0 +1,182 @@
+{
+  "source": "Focused local-route UI verification of next-maintenance risk marks, organization adjustment and lookup burden. No desktop/native matrix in this focused run; full matrix is in BROWSER_RESULTS_LINUX.json.",
+  "routes": [
+    {
+      "route": "local",
+      "actions": [
+        {
+          "turn": 1,
+          "type": "appoint",
+          "commands": 4,
+          "cash": 32
+        },
+        {
+          "turn": 1,
+          "type": "end",
+          "commands": 5,
+          "cash": 30
+        },
+        {
+          "turn": 2,
+          "type": "project",
+          "commands": 4,
+          "cash": 30
+        },
+        {
+          "turn": 2,
+          "type": "agendaDecision",
+          "commands": 3,
+          "cash": 28
+        },
+        {
+          "turn": 2,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 27
+        },
+        {
+          "turn": 2,
+          "type": "fiscalTransfer",
+          "commands": 1,
+          "cash": 22
+        },
+        {
+          "turn": 2,
+          "type": "end",
+          "commands": 5,
+          "cash": 20
+        },
+        {
+          "turn": 3,
+          "type": "authorize",
+          "commands": 4,
+          "cash": 20
+        },
+        {
+          "turn": 3,
+          "type": "resolve",
+          "commands": 3,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "maintenanceSponsor",
+          "commands": 2,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "appoint",
+          "commands": 1,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "network",
+          "commands": 0,
+          "cash": 19
+        },
+        {
+          "turn": 3,
+          "type": "end",
+          "commands": 5,
+          "cash": 17
+        },
+        {
+          "turn": 4,
+          "type": "agendaDecision",
+          "commands": 4,
+          "cash": 15
+        },
+        {
+          "turn": 4,
+          "type": "network",
+          "commands": 3,
+          "cash": 14
+        },
+        {
+          "turn": 4,
+          "type": "resolve",
+          "commands": 2,
+          "cash": 13
+        },
+        {
+          "turn": 4,
+          "type": "borderSupply",
+          "commands": 1,
+          "cash": 13
+        },
+        {
+          "turn": 4,
+          "type": "end",
+          "commands": 1,
+          "cash": 11
+        }
+      ],
+      "status": "won"
+    }
+  ],
+  "desktop": [],
+  "native125": [],
+  "burden": [
+    {
+      "view": "map",
+      "clicks": 5,
+      "panels": [
+        "经济建设",
+        "国家财政",
+        "协商接管维护责任"
+      ]
+    },
+    {
+      "view": "table",
+      "clicks": 3,
+      "panels": [
+        "工程构筑与局部因果链",
+        "协商接管维护责任"
+      ]
+    }
+  ],
+  "humanReadability": "NOT RUN: screenshots and blank evaluation sheets are provided for independent human review.",
+  "riskScenario": {
+    "source": "Actual local-route UI checkpoint, then real levy2 creates forecast grid shortfall and occupies planner. Appointment and maintenance transfer use original API. No injected resources or fake debts.",
+    "before": {
+      "turn": 3,
+      "fee": 1,
+      "due": 1,
+      "paid": 0,
+      "arrears": 1,
+      "payments": [
+        {
+          "account": "south",
+          "due": 1,
+          "paid": 0,
+          "arrears": 1
+        }
+      ],
+      "source": "decision-30"
+    },
+    "after": {
+      "turn": 3,
+      "fee": 1,
+      "due": 1,
+      "paid": 1,
+      "arrears": 0,
+      "payments": [
+        {
+          "account": "central",
+          "due": 1,
+          "paid": 1,
+          "arrears": 0
+        }
+      ],
+      "lastPaidTurn": 3,
+      "source": "decision-71"
+    },
+    "commands": 0,
+    "owner": "south",
+    "maintenance": "central",
+    "agenda": "maintenance-voice"
+  },
+  "errors": []
+}

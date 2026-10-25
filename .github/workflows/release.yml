@@ -73,6 +73,15 @@ jobs:
           Invoke-BrowserSmoke 'test:v7'
           Invoke-BrowserSmoke 'test:v8'
           Invoke-BrowserSmoke 'test:v85'
+      - name: Store gameplay validation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Federation-of-Worlds-validation
+          path: |
+            artifacts/screenshots/v85/
+            artifacts/screenshots/desktop-v85/
+          if-no-files-found: ignore
       - name: Store build downloads
         uses: actions/upload-artifact@v4
         with:

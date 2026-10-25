@@ -29,7 +29,7 @@ const sizes = [
   errors = [],
   results = {
     source:
-      "All three four-meeting scenarios through actual UI and original command API. Disclosed scenario budgets, not ordinary campaign balance. Native profiles restore a real UI save; no injected high-resource fixture.",
+      "Four-meeting scenario routes through actual UI (executed routes are listed below) and original command API. Disclosed scenario budgets, not ordinary campaign balance. Native profiles restore a real UI save; no injected high-resource fixture.",
     routes: [],
     desktop: [],
     native125: [],
@@ -409,6 +409,17 @@ try {
     await page.getByRole("button", { name: "规则速查卡", exact: true }).click();
     await bounds(page);
     await close();
+    // A tooltip from a former panel must never cover the new panel's close control.
+    const probeGrid = checkpoint.machine.works.find((w) => w.type === "grid");
+    await work(probeGrid.id);
+    await page
+      .getByRole("button", { name: "补足本设施维护", exact: true })
+      .hover();
+    await page.locator(".unified-tooltip").waitFor({ state: "visible" });
+    await rail("中央政府").click();
+    await page.locator(".unified-tooltip").waitFor({ state: "detached" });
+    await page.locator(".panel-close").click();
+    results.tooltipPanelCleanup = true;
     for (const [w, h] of sizes) {
       await page.setViewportSize({ width: w, height: h });
       results.desktop.push(await viewport(page, `${w}x${h}`));
@@ -432,7 +443,7 @@ try {
     JSON.stringify(results, null, 2),
   );
   console.log(
-    `v0.8.5 governance table, ${results.routes.length} actual UI routes, synchronized state, four desktop and native125 checks passed`,
+    `v0.8.5 governance table, ${results.routes.length} actual UI routes, synchronized state, ${results.desktop.length} desktop and ${results.native125.length} native125 checks passed`,
   );
 } catch (e) {
   await page
